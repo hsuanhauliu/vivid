@@ -6,7 +6,7 @@
 
 **A fast, private, local-first media manager for macOS — with on-device AI.**
 
-Organize photos, videos, and music in one place. Search your library by _meaning_ in 50+ languages, find text inside images, and keep everything on your machine. No cloud, no account, no telemetry.
+Organize photos, videos, and music in one place. Search your library by _meaning_ in 100+ languages, find text inside images, and keep everything on your machine. No cloud, no account, no telemetry.
 
 ![Platform](https://img.shields.io/badge/platform-macOS-black)
 ![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB)
@@ -38,7 +38,7 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 ### On-device AI (optional, private)
 
 - **Auto-tagging** of scenes and objects.
-- **Semantic search** — type what you remember ("sunset over the bridge", "dog on a beach") and rank by meaning, powered by multilingual CLIP. Works in **50+ languages**.
+- **Semantic search** — type what you remember ("sunset over the bridge", "dog on a beach") and rank by meaning, powered by multilingual SigLIP. Works in **100+ languages**.
 - **Vision OCR** — text inside screenshots, documents, and signs becomes searchable.
 - **Mood / vibe filters** and **"find visually similar"**.
 
@@ -215,7 +215,7 @@ The model runs **fully on-device** — nothing is ever uploaded.
 - **Shell:** [Tauri 2](https://tauri.app) — a native macOS app with a Rust core and a web UI (no bundled Chromium).
 - **Frontend:** React 18 + Vite, `react-i18next`, Leaflet (maps), Lucide icons.
 - **Backend (Rust):** SQLite via `rusqlite`, image processing via the `image` crate, audio metadata via `lofty`, EXIF via `kamadak-exif`.
-- **AI inference:** [Candle](https://github.com/huggingface/candle) running multilingual CLIP locally; Apple **Vision** OCR via a small bundled Swift helper compiled at build time.
+- **AI inference:** [Candle](https://github.com/huggingface/candle) running multilingual SigLIP locally; Apple **Vision** OCR via a small bundled Swift helper compiled at build time.
 - **External tools (optional):** `yt-dlp` for downloads; `ffmpeg` for legacy video format cropping; `sips`/`screencapture` ship with macOS.
 
 ```
