@@ -240,6 +240,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
+## Release
+
+To cut a new release, use the following commands:
+
+```bash
+git tag v0.1.0 # change tag version
+git push origin v0.1.0
+```
+
+---
+
 ## License
 
 [MIT](LICENSE) © Hsuan-Hau Liu
