@@ -32,7 +32,6 @@ npm run tauri dev
 | `src/`             | React frontend — `components/`, `hooks/`, `locales/`  |
 | `src-tauri/src/`   | Rust backend — `commands/`, `db.rs`, AI/model modules |
 | `src-tauri/swift/` | Swift helper (Vision OCR), compiled by `build.rs`     |
-| `scripts/`         | AI model download helpers                             |
 
 ## Development workflow
 
