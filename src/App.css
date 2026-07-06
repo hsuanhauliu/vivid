@@ -1,0 +1,1609 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #181818;
+  --surface: #212121;
+  --surface-raised: #272727;
+  --surface-hover: #2c2c2c;
+  --surface-active: #333333;
+  --border: #383838;
+  --border-subtle: #2c2c2c;
+  --text: #f0f0f0;
+  --text-muted: #9a9a9a;
+  --text-dim: #6a6a6a;
+  --accent: #1d7af0;
+  --accent-hover: #4194f5;
+  --accent-dim: rgba(29, 122, 240, 0.12);
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --waveform-unplayed: rgba(255, 255, 255, 0.28);
+  --sidebar-w: 156px;
+  --detail-w: 288px;
+  --toolbar-h: 44px;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --spin-invert: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body,
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ─── Scrollbars ──────────────────────────────────────────
+   Thin, theme-matched scrollbar as the app-wide default. Individual
+   components can still override with their own ::-webkit-scrollbar rules
+   (e.g. hide-until-hover on the media grid) — this just replaces the native
+   OS chrome everywhere that doesn't. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─── Layout ──────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  /* App chrome (sidebar, panels, toolbar, cards) is a UI surface, not a
+     document — click-dragging shouldn't highlight labels and icons. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Re-enable selection where text is genuine content the user may copy:
+   form fields and the system-log viewer. */
+input,
+textarea,
+[contenteditable='true'],
+.system-log-pre,
+.sysmsgs-item-msg,
+.notif-msg {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Dim app when window is not focused (matches macOS window behavior) */
+body.window-unfocused .app {
+  opacity: 0.85;
+}
+
+.app-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Wraps the scrollable view content between toolbar and audio player.
+   The detail panel is absolutely positioned inside here so it never
+   overlaps the toolbar above or the audio player below. */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ─── Toolbar ─────────────────────────────────────────── */
+
+.toolbar {
+  height: var(--toolbar-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.search-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 28px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0 32px 0 32px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.search-clear {
+  position: absolute;
+  right: 28px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 2px;
+}
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ─── Buttons ─────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.08s;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+
+.icon-btn:hover {
+  background: var(--surface-active);
+  color: var(--text);
+}
+
+/* Icon shrink on press — shared by all icon-style buttons */
+.icon-btn svg,
+.viewer-btn svg,
+.viewer-nav svg,
+.vp-btn svg,
+.view-mode-btn svg,
+.timeline-toggle-btn svg,
+.image-editor-tool-btn svg {
+  transition: transform 0.12s;
+}
+
+.icon-btn:active svg,
+.viewer-btn:active svg,
+.viewer-nav:active svg,
+.vp-btn:active svg,
+.view-mode-btn:active svg,
+.timeline-toggle-btn:active svg,
+.image-editor-tool-btn:active:not(:disabled) svg {
+  transform: scale(0.98);
+  transition: transform 0.05s;
+}
+
+.icon-btn:active {
+  background: var(--border);
+}
+
+/* ─── Empty State ─────────────────────────────────────── */
+
+.grid-container.is-empty {
+  display: flex;
+  align-items: stretch;
+}
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px;
+  position: relative;
+  z-index: 1;
+  /* semi-transparent so bg wallpaper shows through */
+  background: transparent;
+}
+/* When there's a wallpaper, dim the empty-state text container slightly */
+.grid-container.has-bg .empty-state {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  max-width: 320px;
+  margin: auto;
+  padding: 32px 40px;
+}
+
+.empty-icon {
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.empty-state h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ─── Drop Overlay ────────────────────────────────────── */
+
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(29, 122, 240, 0.1);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ─── Sort ────────────────────────────────────────────── */
+
+.sort-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sort-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.sort-select {
+  height: 30px;
+  padding: 0 10px 0 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sort-select:focus {
+  border-color: var(--accent);
+}
+
+/* ─── Danger solid button ─────────────────────────────── */
+
+.btn-danger-solid {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+}
+
+.btn-danger-solid:hover {
+  background: var(--danger-hover);
+}
+
+/* ─── Light theme ─────────────────────────────────────── */
+
+[data-theme='light'] {
+  --bg: #f0f0f0;
+  --surface: #ffffff;
+  --surface-raised: #f8f8f8;
+  --surface-hover: #f5f5f5;
+  --surface-active: #eaeaea;
+  --border: #d8d8d8;
+  --border-subtle: #e8e8e8;
+  --text: #141414;
+  --text-muted: #656565;
+  --text-dim: #aaa;
+  --accent: #1d7af0;
+  --accent-hover: #1568d0;
+  --accent-dim: rgba(29, 122, 240, 0.1);
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --waveform-unplayed: rgba(0, 0, 0, 0.2);
+  --spin-invert: 0;
+}
+
+/* ─── Accent color themes ─────────────────────────────────── */
+
+[data-color='indigo'] {
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-dim: rgba(99, 102, 241, 0.12);
+}
+[data-color='purple'] {
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-dim: rgba(168, 85, 247, 0.12);
+}
+[data-color='rose'] {
+  --accent: #f43f5e;
+  --accent-hover: #fb7185;
+  --accent-dim: rgba(244, 63, 94, 0.12);
+}
+[data-color='green'] {
+  --accent: #22c55e;
+  --accent-hover: #4ade80;
+  --accent-dim: rgba(34, 197, 94, 0.12);
+}
+[data-color='orange'] {
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --accent-dim: rgba(249, 115, 22, 0.12);
+}
+[data-color='teal'] {
+  --accent: #14b8a6;
+  --accent-hover: #2dd4bf;
+  --accent-dim: rgba(20, 184, 166, 0.12);
+}
+[data-color='gold'] {
+  --accent: #eab308;
+  --accent-hover: #facc15;
+  --accent-dim: rgba(234, 179, 8, 0.12);
+}
+[data-color='cyan'] {
+  --accent: #06b6d4;
+  --accent-hover: #22d3ee;
+  --accent-dim: rgba(6, 182, 212, 0.12);
+}
+[data-color='lime'] {
+  --accent: #84cc16;
+  --accent-hover: #a3e635;
+  --accent-dim: rgba(132, 204, 22, 0.12);
+}
+[data-color='pink'] {
+  --accent: #ec4899;
+  --accent-hover: #f472b6;
+  --accent-dim: rgba(236, 72, 153, 0.12);
+}
+[data-color='red'] {
+  --accent: #ef4444;
+  --accent-hover: #f87171;
+  --accent-dim: rgba(239, 68, 68, 0.12);
+}
+[data-color='slate'] {
+  --accent: #64748b;
+  --accent-hover: #94a3b8;
+  --accent-dim: rgba(100, 116, 139, 0.12);
+}
+[data-color='amber'] {
+  --accent: #d97706;
+  --accent-hover: #f59e0b;
+  --accent-dim: rgba(217, 119, 6, 0.12);
+}
+
+[data-theme='light'] .sort-select {
+  background: var(--surface);
+  color: var(--text);
+}
+
+[data-theme='light'] select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+[data-theme='light'] .card-type-badge {
+  backdrop-filter: blur(6px);
+}
+
+[data-theme='light'] .badge-image {
+  background: rgba(29, 122, 240, 0.85);
+  color: #fff;
+}
+[data-theme='light'] .badge-video {
+  background: rgba(20, 184, 166, 0.85);
+  color: #fff;
+}
+[data-theme='light'] .badge-audio {
+  background: rgba(245, 158, 11, 0.85);
+  color: #fff;
+}
+
+[data-theme='light'] .card-star-btn {
+  background: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='light'] .modal {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* ─── Drag files onto a collection ────────────────────── */
+/* Floating gathered pile pinned to the cursor. */
+.cdrag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 4000;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  will-change: left, top;
+}
+.cdrag-stack {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+.cdrag-thumb {
+  position: absolute;
+  inset: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--surface);
+  background: var(--surface-active);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  /* Gather: each thumb flies in from a staggered offset and concentrates at
+     the cursor. The per-thumb `--i` offsets the start position + delay. */
+  animation: cdrag-gather 0.32s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  animation-delay: calc(var(--i) * 0.04s);
+  /* Resting fan: a slight rotation/offset so the pile reads as a stack. */
+  transform: translate(calc(var(--i) * 2px), calc(var(--i) * -3px)) rotate(calc(var(--i) * 3deg));
+}
+.cdrag-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cdrag-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+@keyframes cdrag-gather {
+  from {
+    opacity: 0;
+    transform: translate(calc(var(--i) * 22px - 30px), calc(var(--i) * 14px - 10px)) scale(1.5)
+      rotate(0deg);
+  }
+}
+.cdrag-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+/* While dragging, suppress text selection and show a copy cursor everywhere. */
+body.collection-dragging {
+  cursor: copy !important;
+  user-select: none !important;
+}
+
+/* Drop-target highlight (sidebar pins + secondary panel rows). */
+.sidebar-drag-over,
+.sp-drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--accent-dim) !important;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Group emoji + extended color palette ────────────── */
+
+.group-emoji-indicator {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.group-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-form-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.emoji-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.emoji-trigger {
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+
+.emoji-trigger:hover {
+  border-color: var(--accent);
+}
+
+.emoji-clear {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  padding: 2px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.emoji-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.emoji-cell:hover {
+  background: var(--surface-hover);
+}
+
+.emoji-cell.selected {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.color-dot-custom {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.color-dot-custom::after {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.color-dot-custom.selected::after {
+  content: '✓';
+}
+
+/* ─── Hidden video used only for thumbnail extraction ─── */
+
+/* ─── Combined group emoji + color indicator ──────────── */
+
+/* Both the emoji chip and the plain colour dot use this class now,
+   so they always occupy the same 20 × 20 footprint. */
+.group-combo-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  /* emoji-only variant */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ─── Whole-app drag ring ─────────────────────────────── */
+
+.app.dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+/* Glow the sort icon when a fixed sort is active */
+.icon-btn.sort-active {
+  color: var(--accent-hover);
+}
+
+/* ─── Import Progress Bar ─────────────────────────────── */
+
+.import-progress-bar {
+  position: relative;
+  height: 28px;
+  background: var(--surface-active);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.import-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  opacity: 0.35;
+  transition: width 0.2s ease;
+}
+.import-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  gap: 4px;
+}
+.import-progress-filename {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Drag-to-group: drop-target highlight ────────────── */
+
+.sidebar-group-item.drop-target {
+  background: var(--accent-dim);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  color: var(--accent);
+}
+.sidebar-group-item.drop-target .group-name {
+  color: var(--accent);
+}
+
+/* ── Background wallpaper ────────────────────────────────────────────────── */
+.grid-container.has-bg {
+  isolation: isolate;
+}
+/* True-colour background layer — clip-path: inset(0) hides blur edge feathering */
+.grid-container.has-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-src);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur, 0px));
+  opacity: var(--bg-opacity, 1);
+  clip-path: inset(0); /* clips blur edges to element bounds */
+  z-index: -2;
+  pointer-events: none;
+}
+/* Dim overlay */
+.grid-container.has-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, var(--bg-dim, 0.25));
+  z-index: -1;
+  pointer-events: none;
+}
+.grid-container.has-bg .grid-sort-bar,
+.grid-container.has-bg .media-grid,
+.grid-container.has-bg .timeline-section,
+.grid-container.has-bg .empty-state {
+  position: relative;
+  z-index: 1;
+}
+
+/* Groups page wallpaper — mirrors grid-container.has-bg */
+.groups-page.has-bg {
+  position: relative;
+  isolation: isolate;
+}
+.groups-page.has-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-src);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur, 0px));
+  opacity: var(--bg-opacity, 1);
+  clip-path: inset(0);
+  z-index: -2;
+  pointer-events: none;
+}
+.groups-page.has-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, var(--bg-dim, 0.25));
+  z-index: -1;
+  pointer-events: none;
+}
+.groups-page.has-bg .groups-page-header,
+.groups-page.has-bg .groups-page-grid,
+.groups-page.has-bg .groups-create-form,
+.groups-page.has-bg .groups-page-empty {
+  position: relative;
+  z-index: 1;
+}
+
+/* music-view reuses the same has-bg pattern as groups-page */
+.music-view.has-bg {
+  position: relative;
+  isolation: isolate;
+}
+.music-view.has-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-src);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur, 0px));
+  opacity: var(--bg-opacity, 1);
+  clip-path: inset(0);
+  z-index: -2;
+  pointer-events: none;
+}
+.music-view.has-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, var(--bg-dim, 0.25));
+  z-index: -1;
+  pointer-events: none;
+}
+.music-view.has-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Library controls bar ─────────────────────────────────────────────────── */
+.library-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 38px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.view-mode-toggle {
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-hover);
+}
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.view-mode-btn:not(:last-child) {
+  border-right: 1px solid var(--border-subtle);
+}
+.view-mode-btn:hover {
+  color: var(--text);
+  background: var(--surface-active);
+}
+.view-mode-btn:active:not(.active) {
+  background: var(--border);
+}
+
+.view-mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.timeline-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+.timeline-toggle-btn:hover {
+  color: var(--text);
+  background: var(--surface-active);
+}
+.timeline-toggle-btn:active:not(.active) {
+  background: var(--border);
+}
+
+.timeline-toggle-btn.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Similar-to banner ────────────────────────────────────────────────────── */
+.similar-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border-subtle));
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.similar-banner strong {
+  color: var(--text);
+}
+
+/* ── Search history dropdown ─────────────────────────────────────────────── */
+.search-history-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  overflow: hidden;
+}
+.search-history-item {
+  display: flex;
+  align-items: center;
+}
+.search-history-term {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.search-history-term:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.search-history-remove {
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.search-history-item:hover .search-history-remove {
+  opacity: 1;
+}
+.search-history-remove:hover {
+  color: var(--danger);
+}
+
+/* ─── Spin animation (used in duplicates loader) ──────────── */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ─── Contained page panel (trash, messages, system log) ──── */
+
+/* Scroll wrapper that centers a single contained panel below a page header */
+.page-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 24px;
+  min-height: 0;
+}
+.page-panel {
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ─── Groups Page create + sort ─────────────────────────── */
+
+.groups-create-form {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.groups-sort-row {
+  display: flex;
+  gap: 4px;
+}
+
+.groups-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.groups-sort-btn:hover {
+  color: var(--text);
+}
+.groups-sort-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ─── AI / Semantic Search ───────────────────────────────── */
+
+.search-input.semantic-mode {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.toolbar-ai-btn {
+  color: var(--text-muted);
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.toolbar-ai-btn:hover {
+  color: var(--text);
+}
+.toolbar-ai-btn.active {
+  color: var(--accent);
+}
+
+/* Semantic search in-progress bar */
+.search-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 0 0 6px 6px;
+  background: var(--accent);
+  overflow: hidden;
+  z-index: 1;
+}
+.search-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  animation: search-scan 1.3s ease-in-out infinite;
+}
+@keyframes search-scan {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 140%;
+  }
+}
+
+/* AI index progress banner */
+.ai-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.ai-progress-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.ai-progress-track {
+  flex-shrink: 0;
+  width: 120px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ai-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+.ai-progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.ai-progress-label {
+  font-size: 11.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-progress-filename {
+  font-weight: 500;
+}
+.ai-progress-count {
+  color: var(--text-dim);
+}
+.ai-progress-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-progress-pct {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.ai-progress-dismiss {
+  margin-left: auto;
+}
+@keyframes dl-indeterminate {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  60% {
+    left: 100%;
+    width: 40%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+.ai-progress-track {
+  position: relative;
+  overflow: hidden;
+}
+.ai-progress-indeterminate {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: dl-indeterminate 1.4s infinite ease-in-out;
+}
+
+/* AI tags in detail panel */
+.ai-tag {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ai-tag:hover {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-1));
+}
+
+/* ─── Search bar submit button ──────────────────────────── */
+
+/* When there's text, widen the right padding to fit clear + submit */
+.search-input.has-text {
+  padding-right: 54px;
+}
+
+/* Search action buttons — constrained so hover bg stays inside the pill border */
+.search-clear,
+.search-submit {
+  position: absolute;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 5px !important;
+}
+.search-clear {
+  right: 28px;
+}
+.search-submit {
+  right: 4px;
+  color: var(--text-dim);
+  transition: color 0.15s;
+}
+.search-submit:not(:disabled) {
+  color: var(--accent);
+}
+.search-submit:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* ─── Library controls (with sort + count) ─────────────────── */
+
+.lc-page-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  flex-shrink: 0;
+}
+
+/* Secondary topbar for non-library views (Music, Tags, Stats…) */
+.secondary-topbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.secondary-topbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.lc-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 5px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: none;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+.lc-breadcrumb:hover {
+  background: rgba(29, 122, 240, 0.2);
+}
+.lc-folder-path {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.lc-folder-path-sep {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 400;
+  margin: 0 3px;
+}
+.lc-folder-path-seg {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  transition: color 0.1s;
+}
+.lc-folder-path-seg:hover {
+  color: var(--text);
+}
+.lc-folder-path-seg-active {
+  color: var(--text);
+  cursor: default;
+}
+.lc-folder-path-ellipsis {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 400;
+  padding: 0 1px;
+}
+
+.lc-breadcrumb-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.lc-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lc-sort {
+  flex-shrink: 0;
+}
+
+.lc-spacer {
+  flex: 1;
+}
+
+/* ── Duplicates button ──────────────────────────────────── */
+
+/* ── Page title bar ─────────────────────────────────────────────────────────── */
+.page-title-bar {
+  padding: 10px 16px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+}
+.page-title-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* ── Shimmer skeleton ────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.card-thumb-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--surface-active) 25%,
+    rgba(255, 255, 255, 0.04) 50%,
+    var(--surface-active) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Lazy-loaded image: start transparent, fade in on load */
+.card-thumb-img {
+  transition: opacity 0.22s ease;
+}
+.card-thumb-img.loaded {
+  animation: none;
+}
+
+/* ── Panel slide-in animations ──────────────────────────────────────────────── */
+@keyframes slideInRight {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-panel {
+  animation: slideInRight 0.18s ease-out;
+}
+.secondary-panel {
+  animation: slideInLeft 0.18s ease-out;
+}
+
+/* Views that mount fresh — subtle fade in */
+.music-view,
+.trash-view,
+.settings-page,
+.stats-page,
+.world-map-view,
+.tags-view-page,
+.groups-page {
+  animation: fadeInUp 0.15s ease-out;
+}
+
+/* ── Empty state "clear" button ──────────────────────────────────────────── */
+.empty-clear-btn {
+  margin-top: 4px;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.empty-clear-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}

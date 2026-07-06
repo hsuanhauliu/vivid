@@ -1,0 +1,64 @@
+/* ── System Log Page ─────────────────────────────────────────────────────── */
+.system-log-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.system-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.system-log-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.system-log-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 20px 20px;
+}
+.system-log-pre {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  padding: 14px 16px;
+}
+.system-log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.system-log-empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+.system-log-error {
+  color: var(--color-error, #e74c3c);
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  padding: 12px 0;
+  word-break: break-all;
+}

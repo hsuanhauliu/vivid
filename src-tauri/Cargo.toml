@@ -1,0 +1,79 @@
+[package]
+name = "vivid"
+version = "0.1.0"
+description = "A local media file manager"
+authors = ["you"]
+edition = "2021"
+
+[[bin]]
+name = "Vivid"
+path = "src/main.rs"
+
+[lib]
+name = "vivid_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = ["protocol-asset"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = { version = "2.7" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff"] }
+kamadak-exif = "0.5"
+zip = { version = "2", features = ["deflate"] }
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+anyhow = "1"
+candle-core = { version = "0.8" }
+candle-nn = "0.8"
+candle-transformers = "0.8"
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+lofty = "0.22"
+notify-debouncer-full = "0.3"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "io-util", "net", "time", "sync"] }
+axum = { version = "0.7", features = ["multipart"] }
+qrcode = "0.14"
+local-ip-address = "0.6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+# CLIP inference (candle tensor math) is 10-50x slower at the default dev
+# opt-level — these crates do almost nothing but numeric work, so optimizing
+# just them (not our own crate, which still gets fast incremental rebuilds)
+# gets inference close to release speed without a full release build.
+[profile.dev.package.candle-core]
+opt-level = 3
+
+[profile.dev.package.candle-nn]
+opt-level = 3
+
+[profile.dev.package.candle-transformers]
+opt-level = 3
+
+[profile.dev.package.tokenizers]
+opt-level = 3

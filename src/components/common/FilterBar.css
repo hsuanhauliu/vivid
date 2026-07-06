@@ -1,0 +1,620 @@
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter-section-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.filter-color-swatches {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.filter-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--swatch-color);
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 0.1s,
+    border-color 0.1s;
+}
+.filter-color-swatch:hover {
+  transform: scale(1.2);
+}
+.filter-color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.15);
+}
+.filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.filter-chip:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.filter-chip.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-chip-exactday {
+  display: flex;
+  align-items: center;
+}
+.filter-clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: auto;
+}
+.filter-clear-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ── Mood filter bar ──────────────────────────────────────────────────────── */
+.mood-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+}
+.mood-pill {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.mood-pill:hover {
+  background: var(--surface-active);
+  color: var(--text);
+  border-color: var(--border);
+}
+.mood-pill.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.mood-clear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-left: auto;
+}
+.mood-clear:hover {
+  color: var(--text);
+}
+.mood-collapse-btn {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 2px 6px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.mood-collapse-btn:hover {
+  color: var(--text-muted);
+  background: var(--surface-hover);
+}
+.mood-bar-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-start;
+  margin: 2px 16px 0;
+  padding: 1px 8px 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+.mood-bar-expand-btn:hover {
+  color: var(--text-muted);
+  background: var(--surface-hover);
+}
+
+/* ── Enhanced FilterBar v2 ────────────────────────────────────────────────────── */
+.filter-bar-v2 {
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 7px 14px;
+}
+.filter-row + .filter-row {
+  border-top: 1px solid var(--border-subtle);
+}
+.filter-row-pickers {
+  padding-bottom: 8px;
+}
+
+.filter-chip-icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-section-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-direction: row;
+}
+.filter-section-picker .filter-section-label {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.filter-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.filter-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.filter-picker-btn:hover {
+  border-color: var(--accent);
+}
+.filter-picker-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.filter-chip-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+.filter-chip-clear:hover {
+  color: var(--text);
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  overflow: hidden;
+}
+.filter-dropdown-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.filter-dropdown-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.filter-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.filter-dropdown-item:hover {
+  background: var(--surface-hover);
+}
+.filter-dropdown-item.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.filter-dropdown-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.filter-section-toggles {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ── FilterBar v3 (fb-) ──────────────────────────────────────────────────────── */
+.filter-bar.fb-v3 {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+}
+.fb-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 14px 2px;
+  min-height: 32px;
+}
+.fb-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 14px 5px;
+}
+
+.fb-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.fb-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-right: 2px;
+  white-space: nowrap;
+}
+
+/* Dropdown trigger */
+.fb-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.fb-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+.fb-dropdown-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.fb-dropdown-wrap.has-value .fb-dropdown-btn {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.fb-dropdown-label {
+  pointer-events: none;
+}
+.fb-chevron {
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  transform: rotate(0deg);
+}
+.fb-chevron.open {
+  transform: rotate(180deg);
+}
+.fb-clear-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+}
+.fb-clear-x:hover {
+  opacity: 1;
+}
+
+/* Dropdown menu */
+.fb-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  z-index: 3000;
+  overflow: hidden;
+}
+.fb-menu-section {
+  padding: 4px 0;
+}
+.fb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.fb-menu-item:hover {
+  background: var(--surface-hover);
+}
+.fb-menu-item.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.fb-menu-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Custom date range inside the date dropdown */
+.fb-date-custom {
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 12px 10px;
+}
+.fb-menu-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 7px;
+}
+.fb-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fb-date-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  color-scheme: dark light;
+}
+.fb-date-sep {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.fb-menu-search-wrap {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.fb-menu-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.fb-menu-scroll {
+  max-height: 200px;
+}
+.fb-menu-scroll-inner {
+  padding: 4px 0;
+}
+.fb-menu-colors {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.fb-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dot);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    transform 0.12s;
+}
+.fb-color-dot:hover {
+  transform: scale(1.15);
+}
+.fb-color-dot.active {
+  border-color: var(--text);
+}
+
+/* Toggle chips */
+.fb-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.fb-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.fb-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* Active tag pills */
+.fb-active-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fb-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+}
+.fb-tag-pill button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+.fb-exactday {
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Clear all */
+.fb-clear-all {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.fb-clear-all:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}

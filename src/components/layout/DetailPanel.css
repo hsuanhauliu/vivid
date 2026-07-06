@@ -1,0 +1,408 @@
+/* ─── Detail Panel ────────────────────────────────────── */
+
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--detail-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  /* Creates a stacking context so Leaflet's internal z-indexes (up to ~700)
+     are confined within the panel and cannot bleed over the viewer overlay */
+  isolation: isolate;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.detail-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.detail-preview {
+  flex-shrink: 0;
+  background: #000;
+  border-bottom: 1px solid var(--border-subtle);
+  max-height: 200px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+
+.detail-body {
+  flex: 1;
+}
+.detail-body-inner {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-label-count {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
+.generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.generate-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.generate-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.gen-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+  font-size: 12px;
+  color: #ef4444;
+  line-height: 1.4;
+}
+.gen-error-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+.gen-error-dismiss:hover {
+  opacity: 1;
+}
+
+.input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 70px;
+  line-height: 1.5;
+}
+
+.tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tag-remove {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 0;
+  opacity: 0.7;
+}
+
+.tag-remove:hover {
+  opacity: 1;
+}
+
+.tag-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-input {
+  flex: 1;
+}
+
+/* ─── Star button in detail panel ────────────────────── */
+
+.star-toggle-btn {
+  color: var(--text-muted);
+}
+
+.star-toggle-btn.starred {
+  color: #fbbf24;
+}
+
+.star-toggle-btn.starred svg {
+  fill: #fbbf24;
+}
+
+.star-icon {
+  color: var(--text-muted);
+}
+
+/* ─── Group select in detail panel ───────────────────── */
+
+select.input {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+/* ─── EXIF metadata in detail panel ──────────────────── */
+
+.meta-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.meta-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.retag-btn {
+  width: 20px;
+  height: 20px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.retag-btn:hover:not(:disabled) {
+  color: var(--accent);
+}
+.retag-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.retag-btn .spin {
+  animation: retag-spin 0.9s linear infinite;
+}
+@keyframes retag-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.meta-empty-hint {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.retag-status {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.retag-error {
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+.ocr-text-block {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: var(--surface-active);
+  border-radius: var(--radius-sm);
+  user-select: text;
+}
+
+.dp-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.dp-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.dp-field-input {
+  font-size: 12px;
+  padding: 4px 7px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.meta-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.meta-gps-row {
+  align-items: flex-start;
+}
+
+.meta-gps-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.meta-gps-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Collection badge in detail panel ────────────────────────────────────── */
+.collection-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.detail-folder-path {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.detail-folder-sep {
+  color: var(--text-muted);
+}
+.detail-folder-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition:
+    text-decoration-color 0.12s,
+    color 0.12s;
+}
+.detail-folder-link:hover {
+  text-decoration-color: var(--accent);
+}
+.detail-folder-link:active {
+  opacity: 0.75;
+}
+.collection-badge-emoji {
+  font-size: 15px;
+}
+/* ── Duplicate button in detail panel footer ─────────────────────────────── */
+.detail-footer {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ─── Detail panel discard confirm ─────────────────────── */
+
+.detail-discard-msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}

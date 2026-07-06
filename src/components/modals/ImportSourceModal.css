@@ -1,0 +1,42 @@
+/* ─── Import source modals (Google Takeout / iCloud) ──────── */
+.import-source-modal {
+  width: 460px;
+  max-width: calc(100vw - 48px);
+  padding: 20px;
+  gap: 0;
+  overflow: hidden; /* never let content leak past the surface */
+}
+.import-source-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 4px 0 16px;
+}
+.import-source-body p {
+  margin: 0 0 10px;
+}
+.import-source-steps {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.import-source-steps strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.import-source-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 !important;
+}
+.import-source-actions {
+  display: flex;
+  gap: 10px;
+}
+.import-source-actions .btn {
+  flex: 1;
+  min-width: 0;
+}

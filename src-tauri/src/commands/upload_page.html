@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Upload to Vivid</title>
+    <style>
+      :root {
+        --bg: #181818;
+        --surface: #212121;
+        --surface-hover: #2c2c2c;
+        --border: #383838;
+        --text: #f0f0f0;
+        --text-muted: #9a9a9a;
+        --accent: #1d7af0;
+        --ok: #22c55e;
+        --err: #ef4444;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
+        min-height: 100%;
+      }
+      .logo {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
+      }
+      .logo span {
+        color: var(--accent);
+      }
+      .sub {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 24px;
+        text-align: center;
+      }
+      .card {
+        width: 100%;
+        max-width: 460px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+      }
+      .drop {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 36px 16px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 15px;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .drop.over {
+        border-color: var(--accent);
+        background: rgba(29, 122, 240, 0.08);
+      }
+      .drop strong {
+        color: var(--text);
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        margin-top: 16px;
+        padding: 14px;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .btn.ghost {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .actions .btn {
+        margin-top: 0;
+        flex: 1;
+      }
+      input[type='file'] {
+        display: none;
+      }
+      .list {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 9px 11px;
+      }
+      .row .name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .row .state {
+        font-size: 12px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .row .state.ok {
+        color: var(--ok);
+      }
+      .row .state.err {
+        color: var(--err);
+      }
+      .bar {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        overflow: hidden;
+        margin-top: 14px;
+      }
+      .bar > div {
+        height: 100%;
+        width: 0;
+        background: var(--accent);
+        transition: width 0.2s;
+      }
+      .hint {
+        color: var(--text-muted);
+        font-size: 12px;
+        text-align: center;
+        margin-top: 18px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo">Vivid<span>.</span></div>
+    <div class="sub">Send photos, videos &amp; audio to your library</div>
+
+    <div class="card">
+      <label class="drop" id="drop" for="file">
+        <strong>Tap to choose photos &amp; videos</strong>
+        <span>or drag them here on desktop</span>
+      </label>
+      <input type="file" id="file" multiple accept="image/*,video/*,audio/*" />
+      <input type="file" id="file-any" multiple />
+      <button class="btn ghost" id="browse" style="margin-top: 10px">
+        Browse Files (audio &amp; more)
+      </button>
+
+      <div class="bar" id="bar" hidden><div id="barfill"></div></div>
+
+      <div class="actions">
+        <button class="btn" id="send" disabled>Upload</button>
+        <button class="btn ghost" id="clear" hidden>Clear</button>
+      </div>
+
+      <div class="list" id="list"></div>
+    </div>
+
+    <div class="hint">
+      Keep the Vivid window open on your computer.<br />This link expires automatically.
+    </div>
+
+    <script>
+      const fileInput = document.getElementById('file');
+      const fileInputAny = document.getElementById('file-any');
+      const browseBtn = document.getElementById('browse');
+      const drop = document.getElementById('drop');
+      const list = document.getElementById('list');
+      const sendBtn = document.getElementById('send');
+      const clearBtn = document.getElementById('clear');
+      const bar = document.getElementById('bar');
+      const barfill = document.getElementById('barfill');
+      let files = [];
+
+      browseBtn.addEventListener('click', () => fileInputAny.click());
+      fileInputAny.addEventListener('change', () => {
+        files = Array.from(fileInputAny.files);
+        render();
+      });
+
+      function render() {
+        list.innerHTML = '';
+        files.forEach((f) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const name = document.createElement('div');
+          name.className = 'name';
+          name.textContent = f.name;
+          const size = document.createElement('div');
+          size.className = 'state';
+          size.textContent = (f.size / 1048576).toFixed(1) + ' MB';
+          row.append(name, size);
+          list.appendChild(row);
+        });
+        sendBtn.hidden = false;
+        sendBtn.disabled = files.length === 0;
+        sendBtn.textContent = files.length
+          ? 'Upload ' + files.length + ' file' + (files.length > 1 ? 's' : '')
+          : 'Upload';
+        clearBtn.hidden = files.length === 0;
+      }
+
+      fileInput.addEventListener('change', () => {
+        files = Array.from(fileInput.files);
+        render();
+      });
+
+      ['dragenter', 'dragover'].forEach((ev) =>
+        drop.addEventListener(ev, (e) => {
+          e.preventDefault();
+          drop.classList.add('over');
+        }),
+      );
+      ['dragleave', 'drop'].forEach((ev) =>
+        drop.addEventListener(ev, (e) => {
+          e.preventDefault();
+          drop.classList.remove('over');
+        }),
+      );
+      drop.addEventListener('drop', (e) => {
+        files = Array.from(e.dataTransfer.files);
+        render();
+      });
+
+      sendBtn.addEventListener('click', () => {
+        if (!files.length) return;
+        const form = new FormData();
+        files.forEach((f) => form.append('file', f, f.name));
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', location.pathname);
+        bar.hidden = false;
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Uploading…';
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) barfill.style.width = (e.loaded / e.total) * 100 + '%';
+        });
+        xhr.addEventListener('load', () => {
+          const ok = xhr.status >= 200 && xhr.status < 300;
+          list.innerHTML = '';
+          const row = document.createElement('div');
+          row.className = 'row';
+          row.innerHTML =
+            '<div class="name">' +
+            (ok
+              ? files.length + ' file' + (files.length > 1 ? 's' : '') + ' sent'
+              : 'Upload failed') +
+            '</div><div class="state ' +
+            (ok ? 'ok' : 'err') +
+            '">' +
+            (ok ? '✓ Added' : '✗') +
+            '</div>';
+          list.appendChild(row);
+          files = [];
+          fileInput.value = '';
+          fileInputAny.value = '';
+          bar.hidden = true;
+          barfill.style.width = '0';
+          sendBtn.disabled = true;
+          sendBtn.textContent = 'Upload';
+          clearBtn.hidden = true;
+        });
+        xhr.addEventListener('error', () => {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Retry upload';
+          bar.hidden = true;
+        });
+        xhr.send(form);
+      });
+
+      clearBtn.addEventListener('click', () => {
+        files = [];
+        fileInput.value = '';
+        fileInputAny.value = '';
+        render();
+      });
+    </script>
+  </body>
+</html>

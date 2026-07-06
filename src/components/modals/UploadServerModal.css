@@ -1,0 +1,103 @@
+/* ─── Receive-from-phone (LAN upload) modal ───────────────── */
+.upload-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.upload-security {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-security li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.upload-security li svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.upload-start-btn {
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.upload-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-qr {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-qr svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.upload-scan-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.upload-url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 8px 7px 11px;
+}
+
+.upload-url {
+  flex: 1;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.upload-countdown {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-stop-btn {
+  padding: 6px 16px;
+}

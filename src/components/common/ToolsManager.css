@@ -1,0 +1,85 @@
+/* ─── Media tools (ffmpeg / yt-dlp) manager ────────────────── */
+
+.tools-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tools-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-hover);
+}
+
+.tools-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.tools-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.tools-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tools-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.tools-error {
+  font-size: 11.5px;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+.tools-dl-btn {
+  flex-shrink: 0;
+}
+
+.tools-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.tools-status-system,
+.tools-status-managed {
+  color: #22c55e;
+}
+.tools-status-missing {
+  color: var(--text-dim);
+}
+
+.tools-progress-track {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+.tools-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s;
+}

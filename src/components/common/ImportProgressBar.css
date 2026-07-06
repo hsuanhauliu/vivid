@@ -1,0 +1,37 @@
+/* ─── Import Progress Bar ─────────────────────────────── */
+
+.import-progress-bar {
+  position: relative;
+  height: 28px;
+  background: var(--surface-active);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.import-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  opacity: 0.35;
+  transition: width 0.2s ease;
+}
+.import-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  gap: 4px;
+}
+.import-progress-filename {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

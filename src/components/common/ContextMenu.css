@@ -1,0 +1,237 @@
+/* ─── Context menus (collections, secondary panel) ─────── */
+/* .sp-ctx-* styles now live in SimpleMenu.css, shared via the SimpleMenu component. */
+
+/* Inline rename inputs */
+.album-rename-input {
+  flex: 1;
+  background: var(--surface-active);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  min-width: 0;
+}
+
+.sp-rename-form {
+  flex: 1;
+  min-width: 0;
+}
+.sp-rename-input {
+  width: 100%;
+  background: var(--surface-active);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+/* ─── Context menu ────────────────────────────────────── */
+
+.context-mode-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.context-mode-back {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+.context-mode-back:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.context-more-btn {
+  color: var(--accent);
+  font-style: normal;
+}
+.context-current-group {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.context-color-picker-full {
+  padding: 8px 10px;
+}
+.context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 158px;
+  max-height: 480px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 300;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.context-item:hover {
+  background: var(--surface-hover);
+}
+
+.context-item-danger {
+  color: var(--danger);
+}
+
+.context-item-danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.context-item .starred {
+  fill: #fbbf24;
+  color: #fbbf24;
+}
+
+.context-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 2px 6px;
+}
+
+/* ── Context menu color picker ───────────────────────────────────────────── */
+.context-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 6px;
+}
+.context-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 0.1s,
+    border-color 0.1s;
+}
+.context-color-swatch:hover {
+  transform: scale(1.2);
+}
+.context-color-swatch.active {
+  border-color: #fff;
+}
+.context-color-none {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.context-color-none:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+.context-color-none.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.context-color-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+
+/* ── Context menu submenu ─────────────────────────────────────────────────── */
+.context-submenu {
+  padding: 4px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.context-submenu-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 3px 12px 2px;
+}
+.context-subitem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 12px;
+  font-size: 12px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.context-subitem:hover {
+  background: var(--surface-hover);
+}
+.context-subitem.active {
+  color: var(--accent);
+}
+.context-subitem-none {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.context-folder-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.context-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.detail-folder-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Contextmenu fade-in ─────────────────────────────────────────────────── */
+.context-menu {
+  animation: fadeInUp 0.1s ease-out;
+}

@@ -1,0 +1,51 @@
+/* ─── Custom scrollbar (see useCustomScrollbar for why) ─────── */
+
+.scroll-area {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fills the wrap and owns the actual scrolling; consumers only need to add
+   padding/other per-case rules via innerClassName, not re-declare sizing.
+   Native scrollbar hidden — this part works regardless of the OS "Show
+   scroll bars" setting; only *styling* the native thumb is setting-gated. */
+.scroll-area-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll-area-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.scroll-area-thumb {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+  cursor: pointer;
+}
+/* Shown on hover (mouse users) and driven by JS via .active/.dragging —
+   briefly on scroll or while dragging the thumb, then auto-hides again, like
+   a native overlay scrollbar. JS-driven so it doesn't depend on :hover
+   firing reliably on every device/pointer type. */
+.scroll-area:hover .scroll-area-thumb,
+.scroll-area-thumb.active,
+.scroll-area-thumb.dragging {
+  opacity: 1;
+}
+.scroll-area-thumb:hover,
+.scroll-area-thumb.dragging {
+  background: var(--text-dim);
+}

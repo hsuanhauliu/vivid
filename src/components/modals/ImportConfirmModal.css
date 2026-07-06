@@ -1,0 +1,136 @@
+/* ── Import confirmation summary ── */
+.import-confirm-list {
+  list-style: none;
+  margin: 8px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.import-confirm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.import-confirm-row svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.import-confirm-ok {
+  color: var(--accent, #34c759);
+}
+.import-confirm-warn {
+  color: var(--warning, #e0a106);
+}
+.import-confirm-folder {
+  color: var(--text-muted);
+}
+
+.import-confirm-folders {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 6px 8px;
+  max-height: 140px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.import-confirm-folders li {
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-confirm-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.modal-confirm-icon-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.modal-confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-confirm-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.modal-confirm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.modal-error {
+  font-size: 12px;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.modal-success {
+  font-size: 12px;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.modal-submitted-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  animation: fade-in 0.15s ease;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 4px;
+}

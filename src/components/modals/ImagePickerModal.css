@@ -1,0 +1,96 @@
+/* ─── Cover Picker Modal ──────────────────────────────── */
+
+.cover-picker-modal {
+  width: 480px;
+  max-height: 80vh;
+  /* Base .modal centers children; stretch so the grid gets a definite width
+     (otherwise repeat(4, 1fr) collapses and the cells overlap). */
+  align-items: stretch;
+}
+.cover-picker-grid {
+  display: grid;
+  /* auto-fill + a px minimum keeps columns valid even if the container width is
+     momentarily indefinite — repeat(N, 1fr) collapses to 0-width (and the cells
+     stack/overlap) when the grid has no definite inline size. */
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  /* Explicit row height — the row track can't collapse or overlap. We do NOT
+     rely on the cell's aspect-ratio for height (WebKit doesn't size auto rows
+     from it here, which collapsed the rows and made them overlap). */
+  grid-auto-rows: 100px;
+  gap: 8px;
+  padding: 16px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  max-height: 400px;
+}
+.cover-picker-cell {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+.cover-picker-cell:hover {
+  border-color: var(--accent);
+}
+.cover-picker-cell.selected {
+  border-color: var(--accent);
+}
+.cover-picker-img {
+  /* Absolutely positioned so the image's height:100% doesn't feed back into the
+     cell's aspect-ratio height — that circular dependency makes WebKit size the
+     grid row track to 0, collapsing the rows so they overlap (each row paints
+     over the one above). Out of flow, aspect-ratio alone sizes the square cell. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cover-picker-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.cover-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px 0;
+  color: var(--text-muted);
+}
+.cover-picker-search .input {
+  flex: 1;
+}
+.cover-picker-empty {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.cover-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.album-cover-btn {
+  color: var(--text-muted);
+}
+.album-cover-btn:hover {
+  color: var(--text-primary);
+}

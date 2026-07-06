@@ -1,0 +1,60 @@
+/* ─── Batch Rename Modal ──────────────────────────────── */
+
+.rename-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rename-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.rename-hint code {
+  background: var(--surface-active);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: ui-monospace, monospace;
+}
+.rename-preview {
+  background: var(--surface-active);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.rename-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.rename-old {
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rename-arrow {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.rename-new {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.rename-more {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-top: 4px;
+}

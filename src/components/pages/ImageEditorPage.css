@@ -1,0 +1,331 @@
+/* ─── Image Editor Page ───────────────────────────────── */
+
+.image-editor-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.image-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.image-editor-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 340px;
+  overflow: hidden;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.image-editor-back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.image-editor-back:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.image-editor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  height: 28px;
+  gap: 5px;
+}
+
+.image-editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.image-editor-tools {
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.image-editor-tool-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.image-editor-tool-sep {
+  width: 32px;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.image-editor-tool-spacer {
+  flex: 1;
+}
+
+.image-editor-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.image-editor-tool-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.image-editor-tool-btn:active:not(:disabled) {
+  background: var(--border);
+}
+
+.image-editor-tool-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.image-editor-zoom-group {
+  gap: 4px;
+}
+
+.image-editor-zoom-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+  padding: 2px 0;
+  min-width: 36px;
+}
+.image-editor-zoom-label:hover {
+  color: var(--text);
+}
+
+.image-editor-canvas {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  overflow: hidden;
+  position: relative;
+}
+
+.image-editor-canvas.ie-crop-mode {
+  cursor: crosshair;
+}
+
+.image-editor-canvas.ie-pannable {
+  cursor: grab;
+}
+.image-editor-canvas.ie-pannable:active {
+  cursor: grabbing;
+}
+
+/* Crop selection */
+.ie-crop-selection {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52);
+  z-index: 5;
+  cursor: move;
+}
+
+/* Crop handles — shared */
+.ie-crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: 2px;
+  z-index: 6;
+}
+
+/* Corner handles */
+.ie-crop-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nw-resize;
+}
+.ie-crop-ne {
+  top: -5px;
+  right: -5px;
+  cursor: ne-resize;
+}
+.ie-crop-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: sw-resize;
+}
+.ie-crop-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+/* Edge handles — centered on each side */
+.ie-crop-n {
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 10px;
+  cursor: n-resize;
+}
+.ie-crop-s {
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 10px;
+  cursor: s-resize;
+}
+.ie-crop-w {
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 20px;
+  cursor: w-resize;
+}
+.ie-crop-e {
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 20px;
+  cursor: e-resize;
+}
+
+/* Status bar — sits below the canvas, above the audio player */
+.ie-statusbar {
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface);
+}
+
+.ie-statusbar-spacer {
+  flex: 1;
+}
+
+.ie-coord {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  min-width: 72px;
+}
+
+.ie-statusbar-item {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* Active tool highlight */
+.image-editor-tool-btn.ie-tool-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.image-editor-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Resize modal layout */
+.resize-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.resize-fields .field {
+  flex: 1;
+}
+.resize-lock-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 32px;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+.resize-lock-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.resize-lock-btn.locked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Spin arrows in dark mode for resize inputs */
+.resize-fields input[type='number']::-webkit-inner-spin-button,
+.resize-fields input[type='number']::-webkit-outer-spin-button {
+  filter: invert(var(--spin-invert, 0));
+}

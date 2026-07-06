@@ -1,0 +1,237 @@
+/* ─── Trash view ─────────────────────────────────────────── */
+
+.trash-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.trash-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.trash-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.trash-page-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.trash-page-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+.trash-page-subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 2px 0 0;
+}
+
+.trash-retention-banner {
+  padding: 10px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.trash-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+}
+.trash-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.trash-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 40px;
+}
+.trash-empty-icon {
+  opacity: 0.35;
+  margin-bottom: 8px;
+}
+.trash-empty-state h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+}
+.trash-empty-state p {
+  font-size: 13px;
+  max-width: 320px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+}
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  transition: background 0.12s;
+}
+.trash-row + .trash-row {
+  border-top: 1px solid var(--border-subtle);
+}
+.trash-row:hover {
+  background: var(--surface-hover);
+}
+.trash-row:hover .trash-actions {
+  opacity: 1;
+}
+
+.trash-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.trash-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.trash-thumb-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.trash-info {
+  flex: 1;
+  min-width: 0;
+}
+.trash-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 0 4px;
+}
+.trash-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0;
+}
+.trash-type-chip {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.trash-type-chip.trash-type-image {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent);
+}
+.trash-type-chip.trash-type-video {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+.trash-type-chip.trash-type-audio {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.trash-meta-dot {
+  opacity: 0.4;
+}
+.trash-meta-size,
+.trash-meta-date {
+  color: var(--text-dim);
+}
+
+.trash-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.btn.trash-restore-btn,
+.btn.trash-delete-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-danger-outline {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+.btn-danger-outline:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.btn-sm {
+  font-size: 11px;
+  padding: 5px 10px;
+}
+.btn-danger {
+  background: var(--danger, #ef4444);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+/* ── TrashView: restore all button ──────────────────────────────────────── */
+.trash-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

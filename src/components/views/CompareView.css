@@ -1,0 +1,248 @@
+/* ─── Side-by-side compare view (full page, not an overlay) ── */
+.cmp-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.cmp-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 0 12px;
+  height: 44px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.cmp-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cmp-back:hover {
+  background: var(--surface-hover);
+}
+
+.cmp-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cmp-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.cmp-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.cmp-sync-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.cmp-sync-btn.active {
+  background: var(--accent-dim);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.cmp-panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.cmp-pane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* clip the zoomed image to its half — never reveal the other */
+  background: #000;
+}
+
+.cmp-img {
+  max-width: 100%;
+  max-height: 100%;
+  user-select: none;
+  will-change: transform;
+}
+
+.cmp-skeleton {
+  width: 60%;
+  height: 60%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface), var(--surface-hover), var(--surface));
+  background-size: 200% 100%;
+  animation: cmp-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes cmp-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.cmp-divider {
+  width: 2px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.cmp-caption {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* Per-pane controls (zoom + change image) — revealed on pane hover. */
+.cmp-pane-tools {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.cmp-pane:hover .cmp-pane-tools {
+  opacity: 1;
+}
+
+.cmp-zoom-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.cmp-zoom-ctrl span {
+  min-width: 40px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-zoom-ctrl button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cmp-zoom-ctrl button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.cmp-zoom-ctrl button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cmp-change-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cmp-change-btn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.cmp-pane-empty {
+  background: var(--bg);
+}
+
+.cmp-pick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 36px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.cmp-pick-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}

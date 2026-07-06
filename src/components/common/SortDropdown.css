@@ -1,0 +1,166 @@
+/* ─── Custom sort dropdown ────────────────────────────── */
+
+.sort-dropdown {
+  position: relative;
+}
+
+.sort-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+.sort-dropdown-btn:hover {
+  background: var(--surface-active);
+  border-color: var(--border-subtle);
+  color: var(--text);
+}
+
+.sort-dropdown-chevron {
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+.sort-dropdown-chevron.open {
+  transform: rotate(180deg);
+}
+
+.sort-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  min-width: 180px;
+  z-index: 500;
+  padding: 4px;
+  animation: dropdown-fade 0.1s ease;
+}
+
+@keyframes dropdown-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sort-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+.sort-dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.sort-dropdown-item.active {
+  color: var(--accent);
+}
+
+/* ── Sort dropdown ──────────────────────────────────────── */
+.sort-dd {
+  position: relative;
+  flex-shrink: 0;
+}
+.sort-dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+  white-space: nowrap;
+}
+.sort-dd-btn:hover {
+  background: var(--surface-active);
+  color: var(--text);
+  border-color: var(--border);
+}
+.sort-dd-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 190px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 200;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sort-dd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  text-align: left;
+}
+.sort-dd-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.sort-dd-item.active {
+  color: var(--text);
+  font-weight: 500;
+}
+.sort-dd-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 2px;
+}
+/* Action row (e.g. "Save current order as manual") — icon + label, left-aligned */
+.sort-dd-item.sort-dd-action {
+  justify-content: flex-start;
+  gap: 8px;
+}

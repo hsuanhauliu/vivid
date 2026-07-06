@@ -1,0 +1,3 @@
+# Generated build artifacts — not source. Excluded from the dev file-watcher so
+# regenerating them doesn't trigger an endless rebuild loop.
+resources/vivid-helper

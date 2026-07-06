@@ -1,0 +1,327 @@
+/* ─── File Viewer (full page, not an overlay) ─────────── */
+
+/* Row that holds the viewer and, side-by-side, the detail panel. */
+.viewer-split {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.viewer-split > .viewer-page {
+  flex: 1;
+  min-width: 0;
+}
+/* Inside the split the detail panel is a normal in-flow column, not the
+   absolutely-positioned overlay it is over the library grid. */
+.viewer-split > .detail-panel {
+  position: relative;
+  inset: auto;
+  height: 100%;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+.viewer-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.viewer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 12px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.viewer-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.viewer-back:hover {
+  background: var(--surface-hover);
+}
+
+.viewer-title-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.viewer-type-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.viewer-type-dot.dot-image {
+  background: #60a5fa;
+}
+.viewer-type-dot.dot-video {
+  background: #a78bfa;
+}
+.viewer-type-dot.dot-audio {
+  background: #34d399;
+}
+
+.viewer-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.viewer-counter {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.viewer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.viewer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.viewer-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.viewer-btn:active {
+  background: var(--border);
+}
+
+/* Inline zoom readout in the header (images) */
+.viewer-zoom-pct {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 30px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+.viewer-zoom-pct:hover {
+  color: var(--text);
+}
+
+.viewer-btn-active {
+  color: var(--accent);
+}
+.viewer-btn-active:hover {
+  color: var(--accent);
+}
+
+.viewer-btn-starred {
+  color: #fbbf24;
+}
+.viewer-btn-starred svg {
+  fill: #fbbf24;
+  stroke: #fbbf24;
+}
+.viewer-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.viewer-btn-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 5px;
+}
+
+.viewer-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #111;
+  padding: 24px 72px;
+}
+.viewer-body-video {
+  padding: 8px 24px 16px; /* video has its own controls bar; use minimal padding */
+}
+
+.viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  border-radius: 2px;
+}
+
+/* Prev/next arrows and key hint float over the dark media body */
+.viewer-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 1;
+}
+.viewer-nav:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.viewer-nav:active {
+  background: rgba(255, 255, 255, 0.26);
+  transform: translateY(-50%) scale(0.93);
+}
+.viewer-nav-prev {
+  left: 16px;
+}
+.viewer-nav-next {
+  right: 16px;
+}
+
+.viewer-key-hint {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  animation:
+    fadeInUp 0.3s ease-out 0.5s both,
+    fadeOut 0.5s ease-in 3s forwards;
+  white-space: nowrap;
+  z-index: 10;
+}
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Filmstrip (album view) ───────────────────────────────────────────────────
+   Paged, not free-scrolling: only the thumbs that fit are ever rendered, so
+   there's no scrollbar to hide and no need to preload the whole album — the
+   two arrows page the window instead. */
+.viewer-filmstrip-bar {
+  flex-shrink: 0;
+  height: 88px;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.viewer-film-arrow {
+  flex-shrink: 0;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.viewer-film-arrow:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.viewer-film-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.viewer-filmstrip {
+  flex: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  overflow: hidden;
+}
+.viewer-thumb {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: var(--bg);
+  opacity: 0.6;
+  transition:
+    opacity 0.12s,
+    border-color 0.12s;
+}
+.viewer-thumb:hover {
+  opacity: 0.85;
+}
+.viewer-thumb.active {
+  border-color: var(--accent);
+  opacity: 1;
+}
+.viewer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}

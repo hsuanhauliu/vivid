@@ -1,0 +1,453 @@
+/* ─── Sidebar ─────────────────────────────────────────── */
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+  transition: width 0.2s ease;
+}
+
+.sidebar-collapsed {
+  width: 52px;
+}
+
+.sidebar-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 8px;
+  min-height: 44px;
+  -webkit-app-region: drag;
+}
+
+/* Custom traffic light buttons (native ones hidden via AppKit) */
+.traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+.tl-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: filter 0.1s;
+}
+.tl-btn:hover {
+  filter: brightness(0.85);
+}
+.tl-close {
+  background: #ff5f57;
+}
+.tl-minimize {
+  background: #febc2e;
+}
+.tl-zoom {
+  background: #28c840;
+}
+
+.sidebar-collapsed .sidebar-logo-row {
+  justify-content: center;
+  padding: 13px 8px 8px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-collapsed .traffic-lights {
+  gap: 4px;
+  padding-top: 4px;
+  padding-bottom: 12px;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  border-radius: 5px;
+  flex-shrink: 0;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+.sidebar-collapse-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-muted);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0;
+}
+
+.app-logo {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sidebar-section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 12px 3px;
+}
+
+.sidebar-nav,
+.sidebar-tags {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0;
+  font-size: 12px;
+  text-align: left;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  position: relative;
+  width: 100%;
+}
+
+.sidebar-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-pinned-nav.sidebar-pinned-scrollable {
+  max-height: calc(5 * 31px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.sidebar-pinned-nav.sidebar-pinned-scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pinned playlist: cover art reveals a play button on hover. */
+.sidebar-pin-cover {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.sidebar-pin-cover > img,
+.sidebar-pin-cover > .collection-avatar {
+  transition: opacity 0.16s ease;
+}
+
+.sidebar-pin-playable:hover > img,
+.sidebar-pin-playable:hover > .collection-avatar {
+  opacity: 0;
+}
+
+.sidebar-pin-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  color: #fff;
+  background: var(--accent);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  cursor: pointer;
+}
+
+.sidebar-pin-playable:hover .sidebar-pin-play {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.sidebar-pin-play:hover {
+  background: var(--accent-hover);
+}
+
+/* Collection cover thumbnail — shared by the sidebar, panels, menus, and
+   pickers. Size/radius are set inline per call site (see CollectionAvatar). */
+.collection-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+}
+.collection-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.collection-avatar-emoji {
+  line-height: 1;
+}
+
+.pin-ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+}
+
+.sidebar-collapsed .sidebar-item {
+  justify-content: center;
+  padding: 7px 0;
+}
+
+.sidebar-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sidebar-item.active {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.sidebar-collapsed .sidebar-item.active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Panel-open indicator: right-side accent line, no background fill */
+.sidebar-item.panel-active {
+  color: var(--text);
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.sidebar-item.panel-active:hover {
+  background: var(--surface-hover);
+}
+
+.sidebar-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.clear-tag {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Sidebar groups ──────────────────────────────────── */
+
+.sidebar-groups {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
+}
+
+.sidebar-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 3px 12px;
+}
+
+.sidebar-add-btn {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar-group-item {
+  padding-right: 6px;
+}
+
+.sidebar-delete-btn {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  transition: opacity 0.1s;
+  flex-shrink: 0;
+}
+
+.sidebar-group-item:hover .sidebar-delete-btn {
+  opacity: 1;
+}
+
+.group-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-group-form {
+  margin: 4px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.color-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.color-dot.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.new-group-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ─── Sidebar collapsible sections ───────────────────── */
+
+.sidebar-collapsible {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+
+.sidebar-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 8px 3px 12px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-dim);
+  transition: color 0.1s;
+}
+
+.sidebar-section-row:hover {
+  color: var(--text-muted);
+}
+
+.sidebar-section-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-empty-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 16px 8px;
+  font-style: italic;
+}
+
+/* ─── Sidebar footer ──────────────────────────────────── */
+
+.sidebar-spacer {
+  flex: 1;
+  min-height: 12px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 6px;
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition:
+    background 0.1s,
+    color 0.1s;
+  text-align: left;
+}
+
+.sidebar-footer-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sidebar-footer-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+}
+
+/* ─── All Groups button in sidebar ───────────────────── */
+
+.sidebar-all-groups-btn {
+  font-style: normal;
+  opacity: 0.85;
+}
+.sidebar-all-groups-btn:hover {
+  opacity: 1;
+}

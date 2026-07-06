@@ -1,0 +1,50 @@
+name: Security audit
+
+on:
+  push:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  pull_request:
+  schedule:
+    # Re-scan weekly so newly-disclosed advisories are caught even without a change.
+    - cron: '0 7 * * 1'
+
+jobs:
+  npm-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # `npm ci` respects the lockfile exactly; --ignore-scripts blocks
+      # install-time payloads (how most npm supply-chain malware executes).
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm audit --audit-level=high
+
+  cargo-audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Tell the action exactly where to find the Rust project
+          working-directory: src-tauri/
+          # RUSTSEC-2026-0194/0195: quick-xml DoS bugs, pulled in transitively
+          # via tauri -> plist 1.9.0 (pins quick-xml "^0.39.2"; no fixed plist
+          # release exists yet, see ebarnard/rust-plist#191). Only reachable
+          # by parsing untrusted XML, and quick-xml is only ever used here to
+          # read/write our own build's Info.plist, so it's not exploitable in
+          # this app. The action runs from the repo root, not `working-directory`,
+          # so it doesn't pick up src-tauri/.cargo/audit.toml -- ignore explicitly.
+          ignore: RUSTSEC-2026-0194,RUSTSEC-2026-0195

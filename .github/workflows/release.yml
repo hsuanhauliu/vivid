@@ -1,0 +1,60 @@
+name: Release
+
+# Build and publish a downloadable .dmg whenever you push a version tag:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+permissions:
+  contents: write # needed to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: macos-14 # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Cache cargo build artifacts to speed up subsequent releases.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci --legacy-peer-deps
+
+      # Builds the app (runs `npm run build` via beforeBuildCommand + compiles the
+      # Swift helper + Rust), then creates a draft Release with the .dmg attached.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Code signing & notarization (optional) ──────────────────────────
+          # Without these, the .dmg is unsigned and users must right-click → Open
+          # once (or run `xattr -dr com.apple.quarantine /Applications/Vivid.app`).
+          # To ship a signed, notarized build, add these as repository secrets:
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Vivid ${{ github.ref_name }}'
+          releaseDraft: true # review the release before publishing
+          releaseBody: |
+            ### Install
+            1. Download the `.dmg` below and drag **Vivid** to Applications.
+            2. First launch: right-click **Vivid** → **Open** (it's an unsigned build), or run
+               `xattr -dr com.apple.quarantine /Applications/Vivid.app`.
+
+            Requires macOS 12+ (Apple Silicon). AI features download their model on first use.
+          # Apple Silicon build. To also cover Intel Macs, install both Rust targets
+          # in a prior step and use:  args: --target universal-apple-darwin

@@ -1,0 +1,109 @@
+/* ─── Custom Select (replaces native <select>) ─────────────── */
+.vivid-select {
+  position: relative;
+  min-width: 160px;
+}
+.vivid-select.full {
+  width: 100%;
+  min-width: 0;
+}
+.vivid-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+.vivid-select-trigger:hover {
+  background: var(--surface-hover);
+}
+.vivid-select.open .vivid-select-trigger {
+  border-color: var(--accent);
+}
+.vivid-select-value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.vivid-select-caret {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+}
+.vivid-select.open .vivid-select-caret {
+  transform: rotate(180deg);
+}
+
+.vivid-select-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  min-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 60;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.vivid-select-menu.align-left {
+  left: 0;
+}
+.vivid-select-menu.align-right {
+  right: 0;
+}
+.vivid-select-menu.drop-up {
+  top: auto;
+  bottom: calc(100% + 5px);
+}
+
+.vivid-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.vivid-select-option:hover {
+  background: var(--surface-hover);
+}
+.vivid-select-option.selected {
+  color: var(--accent);
+}
+.vivid-select-check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.settings-select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}

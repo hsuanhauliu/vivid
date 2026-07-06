@@ -1,0 +1,461 @@
+//! Unit tests for the persistence layer (see [`super`]).
+
+use super::*;
+use crate::models::MediaItem;
+
+fn open() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    init(&conn).unwrap();
+    conn
+}
+
+fn item(id: &str, file_path: &str) -> MediaItem {
+    MediaItem {
+        id:           id.to_string(),
+        file_path:    file_path.to_string(),
+        source_path:  Some(format!("orig:{file_path}")),
+        file_name:    "test.jpg".to_string(),
+        display_name: "Test".to_string(),
+        media_type:   "image".to_string(),
+        created_at:   "2024-01-01T00:00:00+00:00".to_string(),
+        updated_at:   "2024-01-01T00:00:00+00:00".to_string(),
+        ..MediaItem::default()
+    }
+}
+
+// ── OCR ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn set_ocr_round_trips_and_flips_scanned() {
+    let conn = open();
+    insert(&conn, &item("a", "/x/a.jpg")).unwrap();
+
+    // Unscanned image is a candidate; scanning removes it and stores text.
+    assert_eq!(get_images_without_ocr(&conn).unwrap().len(), 1);
+    set_ocr(&conn, "a", "invoice total 42").unwrap();
+
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(fetched.ocr_text.as_deref(), Some("invoice total 42"));
+    assert!(get_images_without_ocr(&conn).unwrap().is_empty());
+
+    // Empty text still counts as scanned (no re-processing).
+    insert(&conn, &item("b", "/x/b.jpg")).unwrap();
+    set_ocr(&conn, "b", "").unwrap();
+    assert!(get_images_without_ocr(&conn).unwrap().is_empty());
+
+    let (scanned, total) = get_ocr_counts(&conn).unwrap();
+    assert_eq!((scanned, total), (2, 2));
+}
+
+// ── MediaItem CRUD ──────────────────────────────────────────────────────
+
+#[test]
+fn insert_and_fetch_one() {
+    let conn = open();
+    let it = item("id-1", "/tmp/a.jpg");
+    insert(&conn, &it).unwrap();
+
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.id,           "id-1");
+    assert_eq!(fetched.file_path,    "/tmp/a.jpg");
+    assert_eq!(fetched.display_name, "Test");
+    assert_eq!(fetched.media_type,   "image");
+    assert!(!fetched.starred);
+    assert!(!fetched.favorited);
+}
+
+#[test]
+fn insert_is_idempotent_on_same_path() {
+    let conn = open();
+    let it = item("id-1", "/tmp/a.jpg");
+    insert(&conn, &it).unwrap();
+    // INSERT OR IGNORE: second insert with same file_path is silently ignored
+    let mut it2 = it.clone();
+    it2.id = "id-2".to_string();
+    insert(&conn, &it2).unwrap();
+
+    let all = get_all(&conn).unwrap();
+    assert_eq!(all.len(), 1);
+}
+
+#[test]
+fn get_all_excludes_deleted() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    insert(&conn, &item("id-2", "/tmp/b.jpg")).unwrap();
+    trash_item(&conn, "id-1").unwrap();
+
+    let all = get_all(&conn).unwrap();
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].id, "id-2");
+}
+
+#[test]
+fn update_fields() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    let updated = update(
+        &conn, "id-1",
+        "New Name",
+        "A description",
+        &["tag1".to_string(), "tag2".to_string()],
+    ).unwrap();
+
+    assert_eq!(updated.display_name, "New Name");
+    assert_eq!(updated.description,  "A description");
+    assert_eq!(updated.tags,         vec!["tag1", "tag2"]);
+}
+
+#[test]
+fn toggle_star_flips_state() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    let after_first  = toggle_star(&conn, "id-1").unwrap();
+    assert!(after_first.starred);
+
+    let after_second = toggle_star(&conn, "id-1").unwrap();
+    assert!(!after_second.starred);
+}
+
+#[test]
+fn source_path_dedup() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    assert!(source_path_exists(&conn, "orig:/tmp/a.jpg").unwrap());
+    assert!(!source_path_exists(&conn, "orig:/tmp/nonexistent.jpg").unwrap());
+}
+
+#[test]
+fn set_color_label_persists() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    let updated = set_color_label(&conn, "id-1", Some("red")).unwrap();
+    assert_eq!(updated.color_label.as_deref(), Some("red"));
+
+    let cleared = set_color_label(&conn, "id-1", None).unwrap();
+    assert_eq!(cleared.color_label, None);
+}
+
+#[test]
+fn update_sort_order_persists() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    update_sort_order(&conn, "id-1", 42).unwrap();
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.sort_order, 42);
+}
+
+#[test]
+fn remove_hard_deletes() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    let path = remove(&conn, "id-1").unwrap();
+    assert_eq!(path.as_deref(), Some("/tmp/a.jpg"));
+    assert!(get_all(&conn).unwrap().is_empty());
+}
+
+// ── Trash ───────────────────────────────────────────────────────────────
+
+#[test]
+fn trash_and_restore() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    trash_item(&conn, "id-1").unwrap();
+    assert!(get_all(&conn).unwrap().is_empty());
+    assert_eq!(get_trash(&conn).unwrap().len(), 1);
+
+    restore_item(&conn, "id-1").unwrap();
+    assert_eq!(get_all(&conn).unwrap().len(), 1);
+    assert!(get_trash(&conn).unwrap().is_empty());
+}
+
+#[test]
+fn empty_trash_returns_file_paths() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    insert(&conn, &item("id-2", "/tmp/b.jpg")).unwrap();
+    trash_item(&conn, "id-1").unwrap();
+    trash_item(&conn, "id-2").unwrap();
+
+    let paths = empty_trash(&conn).unwrap();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.contains(&"/tmp/a.jpg".to_string()));
+    assert!(paths.contains(&"/tmp/b.jpg".to_string()));
+    assert!(get_trash(&conn).unwrap().is_empty());
+}
+
+// ── Groups ──────────────────────────────────────────────────────────────
+
+#[test]
+fn collections_create_get_delete() {
+    let conn = open();
+    let g = create_collection(&conn, "Vacation", "#ff0000", Some("🌴"), "folder").unwrap();
+
+    assert!(!g.id.is_empty());
+    assert_eq!(g.name,  "Vacation");
+    assert_eq!(g.color, "#ff0000");
+    assert_eq!(g.emoji.as_deref(), Some("🌴"));
+    assert_eq!(g.kind,  "folder");
+    assert!(g.pinned);
+
+    let all = get_collections(&conn).unwrap();
+    assert_eq!(all.len(), 1);
+
+    delete_collection(&conn, &g.id).unwrap();
+    assert!(get_collections(&conn).unwrap().is_empty());
+}
+
+#[test]
+fn rename_collection_persists() {
+    let conn = open();
+    let g = create_collection(&conn, "Old Name", "#fff", None, "album").unwrap();
+
+    let renamed = rename_collection(&conn, &g.id, "New Name").unwrap();
+    assert_eq!(renamed.name, "New Name");
+    // Other fields unchanged
+    assert_eq!(renamed.color, "#fff");
+    assert_eq!(renamed.kind,  "album");
+}
+
+#[test]
+fn collection_name_taken_is_case_insensitive_and_kind_scoped() {
+    let conn = open();
+    create_collection(&conn, "Trips", "#fff", None, "folder").unwrap();
+
+    // Same kind, any case → taken
+    assert!(collection_name_taken(&conn, "Trips", "folder", None).unwrap());
+    assert!(collection_name_taken(&conn, "trips", "folder", None).unwrap());
+    // Different kind → free (folders and albums are separate namespaces)
+    assert!(!collection_name_taken(&conn, "Trips", "album", None).unwrap());
+    // Unused name → free
+    assert!(!collection_name_taken(&conn, "Other", "folder", None).unwrap());
+}
+
+#[test]
+fn collection_name_taken_excludes_self_for_rename() {
+    let conn = open();
+    let g = create_collection(&conn, "Keep", "#fff", None, "folder").unwrap();
+    // Renaming a group to its own (cased) name must not count as a clash.
+    assert!(!collection_name_taken(&conn, "keep", "folder", Some(&g.id)).unwrap());
+}
+
+#[test]
+fn pin_collection_toggle() {
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
+    assert!(g.pinned); // default is pinned=1
+
+    let unpinned = pin_collection(&conn, &g.id, false).unwrap();
+    assert!(!unpinned.pinned);
+
+    let repinned = pin_collection(&conn, &g.id, true).unwrap();
+    assert!(repinned.pinned);
+}
+
+#[test]
+fn set_sidebar_pin_toggle() {
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
+    assert!(!g.sidebar_pin);
+
+    let pinned = set_sidebar_pin(&conn, &g.id, true).unwrap();
+    assert!(pinned.sidebar_pin);
+}
+
+#[test]
+fn set_collection_cover_persists() {
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
+    insert(&conn, &item("item-1", "/tmp/a.jpg")).unwrap();
+
+    let updated = set_collection_cover(&conn, &g.id, Some("item-1")).unwrap();
+    assert_eq!(updated.cover_item_id.as_deref(), Some("item-1"));
+
+    let cleared = set_collection_cover(&conn, &g.id, None).unwrap();
+    assert!(cleared.cover_item_id.is_none());
+}
+
+#[test]
+fn set_collection_clears_on_delete() {
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    set_collection(&conn, "id-1", Some(g.id.as_str())).unwrap();
+
+    delete_collection(&conn, &g.id).unwrap();
+
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert!(fetched.collection_id.is_none());
+}
+
+// ── Embeddings / AI ─────────────────────────────────────────────────────
+
+#[test]
+fn embedding_set_and_get() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    let bytes = vec![0x3f, 0x80, 0x00, 0x00u8]; // 1.0f32 LE
+    let tags  = vec!["mountain".to_string(), "sunset".to_string()];
+    set_embedding(&conn, "id-1", &bytes, &tags).unwrap();
+
+    let retrieved = get_embedding(&conn, "id-1").unwrap().unwrap();
+    assert_eq!(retrieved, bytes);
+}
+
+#[test]
+fn get_items_without_embeddings() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    insert(&conn, &item("id-2", "/tmp/b.jpg")).unwrap();
+
+    // Index only id-1
+    set_embedding(&conn, "id-1", &[0u8; 4], &[]).unwrap();
+
+    let unindexed = super::get_items_without_embeddings(&conn).unwrap();
+    assert_eq!(unindexed.len(), 1);
+    assert_eq!(unindexed[0].0, "id-2");
+}
+
+#[test]
+fn fetch_items_by_ids_batch() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    insert(&conn, &item("id-2", "/tmp/b.jpg")).unwrap();
+    insert(&conn, &item("id-3", "/tmp/c.jpg")).unwrap();
+
+    let ids = vec!["id-1".to_string(), "id-3".to_string()];
+    let fetched = fetch_items_by_ids(&conn, &ids).unwrap();
+
+    assert_eq!(fetched.len(), 2);
+    let ids_found: Vec<_> = fetched.iter().map(|i| i.id.as_str()).collect();
+    assert!(ids_found.contains(&"id-1"));
+    assert!(ids_found.contains(&"id-3"));
+    assert!(!ids_found.contains(&"id-2"));
+}
+
+#[test]
+fn fetch_items_by_ids_empty_slice() {
+    let conn = open();
+    let result = fetch_items_by_ids(&conn, &[]).unwrap();
+    assert!(result.is_empty());
+}
+
+#[test]
+fn fetch_items_by_ids_excludes_trashed() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    trash_item(&conn, "id-1").unwrap();
+
+    let fetched = fetch_items_by_ids(&conn, &["id-1".to_string()]).unwrap();
+    assert!(fetched.is_empty(), "trashed items should not be returned");
+}
+
+#[test]
+fn audio_meta_roundtrip() {
+    let conn = open();
+    let mut it = item("id-1", "/tmp/song.mp3");
+    it.media_type = "audio".to_string();
+    insert(&conn, &it).unwrap();
+
+    let updated = update_audio_meta(
+        &conn, "id-1",
+        Some("Artist Name"), Some("Album Name"), Some("Song Title"),
+        Some(2023), Some(3),
+    ).unwrap();
+
+    assert_eq!(updated.audio_artist.as_deref(), Some("Artist Name"));
+    assert_eq!(updated.audio_album.as_deref(),  Some("Album Name"));
+    assert_eq!(updated.audio_title.as_deref(),  Some("Song Title"));
+    assert_eq!(updated.audio_year,              Some(2023));
+    assert_eq!(updated.audio_track,             Some(3));
+}
+
+#[test]
+fn set_audio_cover_persists() {
+    let conn = open();
+    let mut it = item("id-1", "/tmp/song.mp3");
+    it.media_type = "audio".to_string();
+    insert(&conn, &it).unwrap();
+
+    let updated = set_audio_cover(&conn, "id-1", Some("/tmp/cover.jpg")).unwrap();
+    assert_eq!(updated.audio_cover.as_deref(), Some("/tmp/cover.jpg"));
+
+    let cleared = set_audio_cover(&conn, "id-1", None).unwrap();
+    assert!(cleared.audio_cover.is_none());
+}
+
+#[test]
+fn get_audio_tracks_only_returns_audio() {
+    let conn = open();
+    let mut audio = item("id-1", "/tmp/song.mp3");
+    audio.media_type = "audio".to_string();
+    insert(&conn, &audio).unwrap();
+    insert(&conn, &item("id-2", "/tmp/photo.jpg")).unwrap(); // image
+
+    let tracks = get_audio_tracks(&conn).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].id, "id-1");
+}
+
+#[test]
+fn get_audio_tracks_excludes_trashed() {
+    let conn = open();
+    let mut audio = item("id-1", "/tmp/song.mp3");
+    audio.media_type = "audio".to_string();
+    insert(&conn, &audio).unwrap();
+    trash_item(&conn, "id-1").unwrap();
+
+    assert!(get_audio_tracks(&conn).unwrap().is_empty());
+}
+
+#[test]
+fn get_library_stats_counts_correctly() {
+    let conn = open();
+    let mut img = item("id-1", "/tmp/a.jpg");
+    img.media_type = "image".to_string();
+    insert(&conn, &img).unwrap();
+
+    let mut vid = item("id-2", "/tmp/b.mp4");
+    vid.media_type = "video".to_string();
+    insert(&conn, &vid).unwrap();
+
+    let mut aud = item("id-3", "/tmp/c.mp3");
+    aud.media_type = "audio".to_string();
+    insert(&conn, &aud).unwrap();
+
+    // Index the image only
+    set_embedding(&conn, "id-1", &[0u8; 4], &["mountain".to_string()]).unwrap();
+
+    let (images, videos, audio, indexed, unindexed, _tags, _size) =
+        get_library_stats(&conn).unwrap();
+
+    assert_eq!(images,    1);
+    assert_eq!(videos,    1);
+    assert_eq!(audio,     1);
+    assert_eq!(indexed,   1); // only the image
+    assert_eq!(unindexed, 1); // the video
+}
+
+#[test]
+fn delete_collection_is_atomic() {
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    set_collection(&conn, "id-1", Some(g.id.as_str())).unwrap();
+
+    delete_collection(&conn, &g.id).unwrap();
+
+    // Collection is gone
+    assert!(get_collections(&conn).unwrap().is_empty());
+    // Member item still exists but is ungrouped
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert!(fetched.collection_id.is_none());
+}

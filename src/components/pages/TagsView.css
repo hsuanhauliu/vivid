@@ -1,0 +1,64 @@
+/* ─── Tags view ──────────────────────────────────────────── */
+.tags-view {
+  padding: 28px 32px;
+}
+.tags-view-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.tags-view-search {
+  position: relative;
+  margin-bottom: 18px;
+  max-width: 320px;
+}
+.tags-view-search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.tags-view-search-input {
+  padding-left: 28px;
+}
+.tags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tag-card {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.tag-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+.tag-card-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.tag-card-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+.tag-card-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-mid);
+  padding: 1px 6px;
+  border-radius: 10px;
+}

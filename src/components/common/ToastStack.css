@@ -1,0 +1,94 @@
+/* ─── Import result bar ───────────────────────────────── */
+/* ─── Transient top toasts — the single channel for ephemeral messages ── */
+.app-toast-stack {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 5000;
+  pointer-events: none; /* let clicks through the gaps; toasts re-enable it */
+  transition: bottom 0.2s ease;
+}
+/* Lift above the 64px audio player bar when it's active. */
+.app-toast-stack-raised {
+  bottom: 80px;
+}
+.app-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 400px;
+  min-width: 200px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12.5px;
+  color: var(--text);
+  pointer-events: auto;
+  animation: app-toast-in 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes app-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.app-toast-icon {
+  flex-shrink: 0;
+}
+.app-toast-error .app-toast-icon {
+  color: var(--danger);
+}
+.app-toast-warning .app-toast-icon {
+  color: #f59e0b;
+}
+.app-toast-success .app-toast-icon {
+  color: #22c55e;
+}
+.app-toast-info .app-toast-icon {
+  color: var(--accent);
+}
+.app-toast-msg {
+  flex: 1;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.app-toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-left: 2px;
+}
+.app-toast-close:hover {
+  background: var(--surface-active);
+  color: var(--text-muted);
+}
+
+/* Shared pop-in keyframe (used by the collection popover). */
+@keyframes import-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

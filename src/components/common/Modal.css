@@ -1,0 +1,93 @@
+/* ─── Modal ───────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-wide {
+  width: 420px;
+  align-items: stretch;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  min-height: 36px;
+  /* Native window drag: works reliably under the backdrop's backdrop-filter,
+     unlike data-tauri-drag-region's JS hit-testing. Interactive children opt
+     out below so buttons/inputs in the header still respond to clicks. */
+  -webkit-app-region: drag;
+}
+.modal-header button,
+.modal-header input,
+.modal-header a,
+.modal-header [role='button'] {
+  -webkit-app-region: no-drag;
+}
+
+.modal-header .modal-title {
+  flex: 1;
+  text-align: left;
+}
+
+.modal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-wide .modal-icon {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
+.modal-message {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modal-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 0;
+  text-align: center;
+}

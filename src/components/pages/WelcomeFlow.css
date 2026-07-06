@@ -1,0 +1,259 @@
+/* ─── First-run welcome flow ───────────────────────────────── */
+
+.welcome-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+
+/* Titlebar-height drag strip across the top of the backdrop. Placed before the
+   modal in the DOM so the modal paints above it where they overlap — the
+   draggable area is just the exposed top edge. */
+.welcome-drag-region {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+}
+
+.welcome-modal {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  width: 440px;
+  max-width: calc(100vw - 48px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  animation: welcome-pop 0.22s ease-out;
+}
+
+@keyframes welcome-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.welcome-skip {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.welcome-skip:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 280px;
+}
+
+.welcome-step-intro {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.welcome-hero-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.35));
+}
+
+.welcome-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+}
+
+.welcome-subtitle {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 340px;
+}
+
+.welcome-step-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+}
+
+.welcome-step-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: -6px 0 4px;
+  line-height: 1.5;
+}
+
+.welcome-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.welcome-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.welcome-theme-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.welcome-accent-row {
+  display: flex;
+  gap: 10px;
+}
+
+.welcome-accent-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+.welcome-accent-dot:hover {
+  transform: scale(1.08);
+}
+.welcome-accent-dot.active {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--swatch);
+}
+
+.welcome-ai-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-hover);
+}
+
+.welcome-ai-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.welcome-ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.welcome-ai-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.welcome-ai-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.welcome-ai-dl {
+  flex-shrink: 0;
+}
+
+.welcome-ai-installed {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.welcome-ai-note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.welcome-dots {
+  display: flex;
+  gap: 6px;
+}
+.welcome-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--surface-active);
+  transition:
+    background 0.15s,
+    width 0.15s;
+}
+.welcome-dot.active {
+  background: var(--accent);
+  width: 18px;
+  border-radius: 4px;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 8px;
+}

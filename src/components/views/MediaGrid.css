@@ -1,0 +1,500 @@
+/* ─── Grid ────────────────────────────────────────────── */
+
+.grid-container-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.grid-container {
+  overflow-x: hidden;
+  padding: 14px;
+  position: relative;
+  overscroll-behavior: none;
+}
+
+/* Trip-wire for incremental rendering; observed to grow the rendered window. */
+.grid-load-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.grid-container.masonry-mode {
+  padding: 0;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+/* ─── Grid sort bar ───────────────────────────────────── */
+
+.grid-sort-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  position: sticky;
+  top: 6px;
+  z-index: 5;
+  background: rgba(17, 17, 17, 0.78);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+[data-theme='light'] .grid-sort-bar {
+  background: rgba(250, 250, 250, 0.75);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.grid-count {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ─── Grid Zoom Slider ────────────────────────────────── */
+
+.grid-zoom-slider {
+  width: 72px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface-active);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.grid-zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  cursor: pointer;
+}
+.grid-zoom-slider:hover::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+/* Zoom control — collapsed to an icon by default, expands on hover */
+.zoom-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+/* The icon-only collapsed state */
+.zoom-control::before {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%239a9a9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3Cline x1='11' y1='8' x2='11' y2='14'/%3E%3Cline x1='8' y1='11' x2='14' y2='11'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 13px 13px;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.zoom-control-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 3px 6px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.zoom-control:hover .zoom-control-inner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.zoom-control:hover::before {
+  opacity: 0;
+}
+
+.zoom-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.zoom-control-btn:hover {
+  color: var(--text);
+}
+
+/* Icon-only add button */
+.btn.icon-btn-add {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 8px;
+}
+
+/* ─── View mode toggle ────────────────────────────────── */
+
+.toolbar-view-btn.active {
+  color: var(--accent);
+}
+
+/* ─── Masonry / Grid view ─────────────────────────────── */
+
+.masonry-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 0;
+  align-content: flex-start;
+  background: var(--bg);
+  will-change: transform;
+}
+.masonry-item {
+  height: calc(var(--masonry-basis, 160px) * 1.25);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  background: var(--bg);
+  flex-shrink: 1;
+}
+.masonry-item:hover {
+  opacity: 0.92;
+}
+/* Currently-viewing tile — accent border plus a soft halo, distinct from the
+   solid multi-select ring. */
+.masonry-item.highlighted {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 4px var(--accent-dim);
+}
+/* Multi-select ring wins when both apply. */
+.masonry-item.checked,
+.masonry-item.checked.highlighted {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+/* Reveal the masonry check button on hover, like cards */
+.masonry-item:hover .masonry-check-btn,
+.masonry-check-btn.always-show {
+  opacity: 1;
+}
+.masonry-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  animation: media-fade-in 0.2s ease-out;
+}
+.masonry-audio-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1c1917 0%, #44403c 100%);
+}
+.masonry-filler {
+  height: 0;
+  overflow: hidden;
+}
+
+@keyframes media-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Timeline view ───────────────────────────────────── */
+
+.grid-container.timeline-mode {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.timeline-with-scrubber {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.timeline-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: none;
+}
+.grid-container.timeline-mode:not(.masonry-mode) .timeline-scroll-area {
+  padding: 0 14px 14px;
+}
+/* Bleed the sticky month header back to full width when scroll-area has padding */
+.grid-container.timeline-mode:not(.masonry-mode) .timeline-section-header {
+  margin-left: -14px;
+  margin-right: -14px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+.timeline-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+.timeline-scrubber {
+  width: 40px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--border-subtle);
+  scrollbar-width: none;
+  cursor: default;
+  user-select: none;
+}
+.timeline-scrubber::-webkit-scrollbar {
+  display: none;
+}
+.timeline-scrubber.tl-scrubber-dragging {
+  cursor: grabbing;
+}
+.timeline-scrubber.tl-scrubber-dragging .tl-scrub-btn {
+  pointer-events: none;
+}
+.tl-scrub-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.tl-scrub-btn {
+  background: none;
+  border: none;
+  cursor: inherit;
+  color: var(--text-dim);
+  padding: 2px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  border-radius: 0;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  flex-shrink: 0;
+  width: 100%;
+}
+.tl-scrub-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.tl-scrub-btn.tl-scrub-dot {
+  padding: 4px 3px;
+}
+.tl-scrub-tick {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--border);
+  display: block;
+  transition: background 0.12s;
+}
+.tl-scrub-btn.tl-scrub-dot:hover .tl-scrub-tick {
+  background: var(--text-muted);
+}
+.tl-scrub-year {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.5;
+  letter-spacing: 0.02em;
+}
+.tl-scrub-month {
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.timeline-section {
+  margin-bottom: 28px;
+  padding: 0;
+}
+.timeline-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Sticky frosted header that runs the full width of the content area. */
+.timeline-section-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 9px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.timeline-month {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+.timeline-month-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Grid drag-reorder ───────────────────────────────────── */
+
+.reorder-wrap {
+  position: relative;
+}
+.reorder-handle {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 2px 3px;
+  color: #fff;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+.reorder-wrap:hover .reorder-handle {
+  opacity: 1;
+}
+.reorder-handle {
+  touch-action: none;
+}
+.reorder-source {
+  opacity: 0.35;
+}
+.reorder-over > .media-card,
+.reorder-over > * > .media-card {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* Floating label that follows the cursor while reordering */
+.reorder-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+body.reorder-dragging {
+  cursor: grabbing;
+}
+body.reorder-dragging * {
+  cursor: grabbing !important;
+}
+
+/* ── Timeline scrubber: active month indicator ────────────────────────────── */
+.tl-scrub-btn.tl-active {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+}
+.tl-scrub-btn.tl-active .tl-scrub-year {
+  color: var(--accent-hover);
+  opacity: 1;
+}
+
+/* ─── Quick Look popup ────────────────────────────────────────────────────── */
+
+.quick-look-popup {
+  position: fixed;
+  z-index: 250;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  pointer-events: none;
+  animation: ql-in 0.12s ease;
+}
+@keyframes ql-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.ql-media {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+.ql-img,
+.ql-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ql-audio-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1c1917, #44403c);
+}
+.ql-info {
+  padding: 8px 10px;
+}
+.ql-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ql-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}

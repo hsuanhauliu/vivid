@@ -1,0 +1,200 @@
+/* ─── Selection bar ───────────────────────────────────── */
+
+.selection-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  white-space: nowrap;
+  max-width: calc(100% - 32px);
+}
+
+.selection-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selection-close {
+  flex-shrink: 0;
+}
+
+.selection-count {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.selection-link {
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.selection-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 12px;
+}
+
+.selection-action {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.selection-group-select {
+  height: 30px;
+  padding: 0 24px 0 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+}
+
+/* ─── Move-to-Collection menu (selection bar) ─────────── */
+.sel-collection-menu {
+  position: relative;
+}
+
+.sel-collection-pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  z-index: 1200;
+  animation: import-result-in 0.14s ease;
+}
+
+.sel-collection-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-active);
+  color: var(--text-muted);
+}
+.sel-collection-search-input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.sel-collection-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sel-collection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.sel-collection-item:hover {
+  background: var(--surface-hover);
+}
+.sel-collection-none {
+  color: var(--text-muted);
+}
+.sel-collection-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sel-collection-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.sel-collection-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+}
+.sel-folder-avatar {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.sel-collection-empty {
+  padding: 10px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.sel-collection-more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+.sel-collection-more:hover {
+  background: var(--surface-hover);
+}

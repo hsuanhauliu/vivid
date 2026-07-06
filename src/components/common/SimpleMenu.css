@@ -1,0 +1,41 @@
+.sp-ctx-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 3px;
+  min-width: 140px;
+  animation: fadeInUp 0.1s ease-out;
+}
+
+.sp-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+.sp-ctx-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.sp-ctx-item-danger:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+}
+.sp-ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 4px;
+}
