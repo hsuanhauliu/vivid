@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "tauri": "tauri",
     "lint": "eslint src",
+    "version": "node scripts/sync-version.mjs && git add src-tauri/Cargo.toml",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,css}\""
   },

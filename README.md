@@ -245,8 +245,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 To cut a new release, use the following commands:
 
 ```bash
-git tag v0.1.0 # change tag version
-git push origin v0.1.0
+# runs the sync script and create commit
+npm version patch   # or minor / major
+git push --follow-tags  # Pushes the commit + tag together, triggering release.yml in CI/CD
+
+# publish release once it's reviewed
+TAG_VERSION=$(node -p "require('./package.json').version")
+gh release edit "v$TAG_VERSION" --draft=false
 ```
 
 ---
