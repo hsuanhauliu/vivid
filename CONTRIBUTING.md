@@ -11,11 +11,11 @@ Vivid is a personal media manager project developed primarily for myself and clo
 - **Fork the project** and modify it however you like for personal use
 - **Report bugs** — if you find something broken, please open an issue with steps to reproduce
 - **Submit bug fixes** — small, focused PRs to fix bugs are welcome (no major refactors)
-- **Clone and build** — follow the [Setup section of the README](README.md#setup) to get it running locally
+- **Clone and build** — follow the [Build from source section of the README](README.md#build-from-source) to get it running locally
 
 ## Getting set up
 
-See the [Setup section of the README](README.md#setup) for prerequisites
+See the [Build from source section of the README](README.md#build-from-source) for prerequisites
 (macOS, Node 18+, Rust, Xcode Command Line Tools). Then:
 
 ```bash
@@ -30,7 +30,7 @@ npm run tauri dev
 | Path               | What's there                                          |
 | ------------------ | ----------------------------------------------------- |
 | `src/`             | React frontend — `components/`, `hooks/`, `locales/`  |
-| `src-tauri/src/`   | Rust backend — `commands/`, `db.rs`, AI/model modules |
+| `src-tauri/src/`   | Rust backend — `commands/`, `db/`, AI/model modules   |
 | `src-tauri/swift/` | Swift helper (Vision OCR), compiled by `build.rs`     |
 
 ## Development workflow

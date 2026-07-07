@@ -32,7 +32,7 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 - Photo albums, music playlists, and folders to keep your files organized.
 - **World map view** for GPS-tagged photos.
 - Import files, folders, drag-and-drop, direct download, upload from phone, or **watched folders** that auto-import.
-- Auto file-sync feature to a destinated folder backup your important files.
+- Auto file-sync feature to back up your important files to a designated folder.
 - Tags, color labels, favorites, batch edit, and duplicate detection.
 
 ### On-device AI (optional, private)
@@ -193,8 +193,8 @@ The first `tauri dev`/`build` compiles the Rust backend and the Swift helper, so
 
 The core library works with **no downloads**. AI search, auto-tagging, and mood filters need a model:
 
-- **In-app:** open **Settings → AI** and click **Download** next to _Visual AI_. (~4 GB, one time.)
-- **Storage:** models are downloaded to `~/Library/Application Support/Vivid/models/clip-multilingual/` (macOS), `%APPDATA%\Vivid\models\clip-multilingual\` (Windows), or `~/.config/vivid/models/clip-multilingual/` (Linux).
+- **In-app:** open **Settings → AI** and click **Download** next to _Visual AI_. (~1.4 GB, one time.)
+- **Storage:** models are downloaded to `~/Library/Application Support/com.vivid.app/models/clip-multilingual/`.
 
 The model runs **fully on-device** — nothing is ever uploaded.
 
@@ -204,7 +204,7 @@ The model runs **fully on-device** — nothing is ever uploaded.
 
 - **macOS only.** Vivid leans on Apple frameworks and tools (Vision, sips, screencapture) and a Swift helper; it won't run on Windows/Linux today.
 - **No mobile app and no built-in sync.** It's a single-machine desktop app. Pair it with your own backup/cloud-drive if you need off-device copies.
-- **AI models are a large one-time download** (~4 GB for visual search), and indexing a big library takes CPU time the first time.
+- **AI models are a large one-time download** (~1.4 GB for visual search), and indexing a big library takes CPU time the first time.
 - **Building requires Xcode Command Line Tools** for the Swift helper.
 - **Early days.** Vivid is at `v0.1` — expect rough edges, and please file issues.
 
