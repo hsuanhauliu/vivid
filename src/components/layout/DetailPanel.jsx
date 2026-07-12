@@ -573,6 +573,12 @@ export default function DetailPanel({
         <div className="meta-section">
           <p className="meta-section-title">{t('detail.file')}</p>
           <MetaRow label={t('detail.format')} value={ext} />
+          {item.media_type === 'video' && (
+            <MetaRow
+              label={t('exif.dimensions')}
+              value={item.width && item.height ? `${item.width} × ${item.height}` : null}
+            />
+          )}
           <MetaRow label={t('detail.size')} value={formatBytes(item.file_size)} />
           <MetaRow label={t('detail.added')} value={formatDateTime(item.created_at)} />
           <div className="meta-row path-row">

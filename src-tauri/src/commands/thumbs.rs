@@ -254,9 +254,6 @@ pub fn get_thumb_status(state: State<DbState>) -> Result<ThumbStatus, String> {
 /// the cheap preview without a refetch. Runs off-thread so the slow video frame
 /// extraction never blocks the import.
 pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, media_type: String) {
-    // GIFs keep playing in the grid (rendered as the original), so a static
-    // thumbnail would be wasted work — skip them.
-    if path.to_lowercase().ends_with(".gif") { return; }
     let app = app.clone();
     std::thread::spawn(move || {
         let dir = match thumbs_dir(&app) { Ok(d) => d, Err(_) => return };

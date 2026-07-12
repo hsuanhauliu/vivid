@@ -78,6 +78,7 @@ export default function ContextMenu({
   const isImage = item.media_type === 'image';
   const isVideo = item.media_type === 'video';
   const isAudio = item.media_type === 'audio';
+  const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
 
   const albums = collections?.filter((g) => g.kind === 'album') ?? [];
   const playlists = collections?.filter((g) => g.kind === 'playlist') ?? [];
@@ -412,7 +413,7 @@ export default function ContextMenu({
           <FolderOpen size={14} /> {t('contextMenu.open')}
         </button>
       )}
-      {onEdit && isImage && (
+      {onEdit && isImage && !isGif && (
         <button
           className="context-item"
           onClick={() => {

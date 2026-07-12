@@ -34,6 +34,18 @@ import './VideoPlayer.css';
 
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
+// Shortest trim range the drag handles allow and the save actions accept —
+// mirrors the backend's MIN_TRIM_DURATION_SECS in export.rs. 1 full second,
+// not just "long enough to be nonzero": formatClock truncates to whole
+// seconds, so anything under 1s can display as e.g. "0:00 – 0:00" for both
+// handles even though it's technically a valid few-frame range — visually
+// indistinguishable from an empty selection despite producing a real (if
+// nearly useless) output. A 1s floor guarantees the two displayed times can
+// never read the same value (adding >=1.0 to any number always crosses at
+// least one integer boundary), so a non-empty-looking range is always a
+// non-empty range.
+const MIN_TRIM_DURATION = 1;
+
 // <video> doesn't expose the real frame rate, so frame-stepping uses this as
 // an estimate — close enough to land on-frame after a couple of taps even
 // when the source is a different rate.
@@ -109,6 +121,8 @@ export default function VideoPlayer({
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [trimBusy, setTrimBusy] = useState(false);
+  const [gifMaxHeight, setGifMaxHeight] = useState(720);
+  const trimTooShort = trimEnd - trimStart < MIN_TRIM_DURATION;
   // While trimming, every seek path (arrows, frame-step, scrubbing) is
   // confined to the selected range — otherwise "preview the trim" and
   // "the trim is what gets exported" would silently disagree.
@@ -373,10 +387,10 @@ export default function VideoPlayer({
         const t = ratioAt(ev.clientX) * dur;
         let scrubTo;
         if (edge === 'start') {
-          scrubTo = Math.min(t, trimEnd - 0.1);
+          scrubTo = Math.min(t, trimEnd - MIN_TRIM_DURATION);
           setTrimStart(scrubTo);
         } else if (edge === 'end') {
-          scrubTo = Math.max(t, trimStart + 0.1);
+          scrubTo = Math.max(t, trimStart + MIN_TRIM_DURATION);
           setTrimEnd(scrubTo);
         } else {
           // Dragging the range body: shift both edges by the same delta.
@@ -410,6 +424,7 @@ export default function VideoPlayer({
             filePath: item.file_path,
             start: trimStart,
             end: trimEnd,
+            maxHeight: gifMaxHeight,
           });
           onNewItem?.(saved);
           onToast?.('success', t('viewer.gifSaved'));
@@ -437,7 +452,18 @@ export default function VideoPlayer({
         setTrimBusy(false);
       }
     },
-    [item, trimStart, trimEnd, onNewItem, onItemUpdated, onToast, onError, t, releaseChrome],
+    [
+      item,
+      trimStart,
+      trimEnd,
+      gifMaxHeight,
+      onNewItem,
+      onItemUpdated,
+      onToast,
+      onError,
+      t,
+      releaseChrome,
+    ],
   );
 
   const handleTrimReplace = useCallback(() => {
@@ -965,13 +991,39 @@ export default function VideoPlayer({
             </span>
             <span className="vp-trim-hint">{t('viewer.trimDragHint')}</span>
             <div className="vp-trim-spacer" />
-            <button className="vp-trim-btn" onClick={() => doTrim('copy')} disabled={trimBusy}>
+            <button
+              className="vp-trim-btn"
+              onClick={() => doTrim('copy')}
+              disabled={trimBusy || trimTooShort}
+            >
               {t('viewer.trimSaveNew')}
             </button>
-            <button className="vp-trim-btn" onClick={handleTrimReplace} disabled={trimBusy}>
+            <button
+              className="vp-trim-btn"
+              onClick={handleTrimReplace}
+              disabled={trimBusy || trimTooShort}
+            >
               {t('viewer.trimReplace')}
             </button>
-            <button className="vp-trim-btn" onClick={() => doTrim('gif')} disabled={trimBusy}>
+            <select
+              className="vp-trim-gif-size"
+              value={gifMaxHeight}
+              onChange={(e) => setGifMaxHeight(Number(e.target.value))}
+              disabled={trimBusy}
+              title={t('viewer.gifSizeTitle')}
+            >
+              <option value={240}>240p</option>
+              <option value={360}>360p</option>
+              <option value={480}>480p</option>
+              <option value={720}>720p</option>
+              <option value={1080}>1080p</option>
+              <option value={4096}>{t('viewer.gifSizeOriginal')}</option>
+            </select>
+            <button
+              className="vp-trim-btn"
+              onClick={() => doTrim('gif')}
+              disabled={trimBusy || trimTooShort}
+            >
               {t('viewer.trimSaveGif')}
             </button>
             <button

@@ -928,6 +928,8 @@
     "trimSaveNew": "Save as new",
     "trimReplace": "Replace",
     "trimSaveGif": "Save as GIF",
+    "gifSizeTitle": "GIF width",
+    "gifSizeOriginal": "Original",
     "trimSavedNew": "Trimmed video saved to library",
     "trimSaved": "Video trimmed",
     "gifSaved": "GIF saved to library",

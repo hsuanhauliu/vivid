@@ -917,6 +917,8 @@
     "trimSaveNew": "新規保存",
     "trimReplace": "置き換え",
     "trimSaveGif": "GIFとして保存",
+    "gifSizeTitle": "GIFの幅",
+    "gifSizeOriginal": "オリジナル",
     "trimSavedNew": "トリミングした動画をライブラリに保存しました",
     "trimSaved": "動画をトリミングしました",
     "gifSaved": "GIFをライブラリに保存しました",

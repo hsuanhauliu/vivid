@@ -9,7 +9,6 @@
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 8px;
   transition: width 0.2s ease;
 }
 
@@ -147,6 +146,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Bottom breathing room lives on the trash button's own padding, not the
+   sidebar container's — so when it's active/hovered, the highlight fills
+   that space too instead of leaving a gap of bare surface below it. */
+.sidebar-footer-nav .sidebar-item:last-child {
+  padding-bottom: 14px;
 }
 
 .sidebar-pinned-nav.sidebar-pinned-scrollable {

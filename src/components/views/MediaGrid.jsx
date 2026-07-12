@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, mem
 import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'lucide-react';
-import MediaCard, { VideoThumb } from './MediaCard';
+import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
 import { formatDuration } from '../../utils/format';
 import ScrollArea from '../common/ScrollArea';
 import './MediaGrid.css';
@@ -21,19 +21,17 @@ const MasonryItem = memo(function MasonryItem({
 }) {
   // Stable src — convertFileSrc output is deterministic for a given path.
   const src = useMemo(() => convertFileSrc(item.file_path ?? ''), [item.file_path]);
-  // Images render the cheap cached thumbnail when available (huge decode win on
-  // fast scroll); falls back to the original until the thumbnail is generated.
-  // GIFs always use the original so they keep animating (a thumbnail is a single
-  // static frame).
-  const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
+  // Images (GIFs included) render the cheap cached static thumbnail when
+  // available — huge decode win on fast scroll, and for GIFs specifically
+  // avoids every tile independently decoding/looping its full animated
+  // original at once. Falls back to the original until a thumbnail exists.
   const imgSrc = useMemo(
     () =>
       freshThumbSrc ||
-      (item.media_type === 'image' && item.thumb_path && !isGif
-        ? convertFileSrc(item.thumb_path)
-        : src),
-    [freshThumbSrc, item.media_type, item.thumb_path, src, isGif],
+      (item.media_type === 'image' && item.thumb_path ? convertFileSrc(item.thumb_path) : src),
+    [freshThumbSrc, item.media_type, item.thumb_path, src],
   );
+  const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
   // Seed the tile's aspect ratio from stored dimensions when present; otherwise
   // measure it once the media loads.
   const seeded = item.width && item.height ? item.width / item.height : null;
@@ -111,6 +109,14 @@ const MasonryItem = memo(function MasonryItem({
         <VideoThumb
           src={src}
           poster={item.thumb_path ? convertFileSrc(item.thumb_path) : null}
+          alt=""
+          imgClassName="masonry-img"
+          onRatio={handleRatio}
+        />
+      ) : item.media_type === 'image' && isGif && item.thumb_path ? (
+        <GifThumb
+          thumbSrc={imgSrc}
+          gifSrc={src}
           alt=""
           imgClassName="masonry-img"
           onRatio={handleRatio}

@@ -310,15 +310,16 @@ export default function FileViewer({
           <button className="viewer-btn" onClick={handleCopy} title={t('viewer.copyFile')}>
             <Copy size={14} />
           </button>
-          {item.media_type === 'image' && (
-            <button
-              className="viewer-btn"
-              onClick={() => onEditImage(item)}
-              title={t('viewer.editImage')}
-            >
-              <Pencil size={14} />
-            </button>
-          )}
+          {item.media_type === 'image' &&
+            !(item.file_path || '').toLowerCase().endsWith('.gif') && (
+              <button
+                className="viewer-btn"
+                onClick={() => onEditImage(item)}
+                title={t('viewer.editImage')}
+              >
+                <Pencil size={14} />
+              </button>
+            )}
           <button
             className={`viewer-btn${detailsOpen ? ' viewer-btn-active' : ''}`}
             onClick={onToggleDetails}

@@ -6,7 +6,7 @@
 //   frame <videoPath> <outPath>               → {"ok": true}       (poster frame → JPEG)
 //   audiocover <audioPath> <outPath>          → {"ok": true}       (embedded picture track → JPEG)
 //   trim <srcPath> <destPath> <start> <end>   → {"ok": true}       (time-range export → MP4)
-//   gif <srcPath> <destPath> <start> <end>    → {"ok": true, "frames": N} (time-range → animated GIF)
+//   gif <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true, "frames": N} (time-range → animated GIF)
 //
 // All video/audio work here goes through AVFoundation/ImageIO — no ffmpeg or
 // any other external process. AVFoundation only demuxes Apple's own container
@@ -87,13 +87,15 @@ func writeJPEG(_ image: CGImage, to path: String, quality: CGFloat = 0.88) -> Bo
     return CGImageDestinationFinalize(dest)
 }
 
-// Downscale (never upscale) to at most `maxWidth`, preserving aspect ratio.
-func scaleDown(_ image: CGImage, maxWidth: CGFloat) -> CGImage {
-    let w = CGFloat(image.width)
-    guard w > maxWidth else { return image }
-    let scale = maxWidth / w
-    let newW = max(1, Int(w * scale))
-    let newH = max(1, Int(CGFloat(image.height) * scale))
+// Downscale (never upscale) to at most `maxHeight` tall, preserving aspect
+// ratio — matches the conventional "Xp" video resolution naming (e.g. 1080p
+// = 1080 lines tall, however wide that makes it), not a width cap.
+func scaleDown(_ image: CGImage, maxHeight: CGFloat) -> CGImage {
+    let h = CGFloat(image.height)
+    guard h > maxHeight else { return image }
+    let scale = maxHeight / h
+    let newW = max(1, Int(CGFloat(image.width) * scale))
+    let newH = max(1, Int(h * scale))
     guard let ctx = CGContext(
         data: nil, width: newW, height: newH,
         bitsPerComponent: 8, bytesPerRow: 0,
@@ -180,9 +182,9 @@ func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
 }
 
 // Export `[start, end]` of srcPath as an animated GIF at destPath. Frames are
-// sampled at 12fps and downscaled to at most 720px wide (never upscaled),
-// assembled via ImageIO's GIF writer — no external tool.
-func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double) -> Never {
+// sampled at 12fps and downscaled to at most `maxHeight` pixels tall (never
+// upscaled), assembled via ImageIO's GIF writer — no external tool.
+func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double, _ maxHeight: CGFloat) -> Never {
     guard end > start else { fail("end must be after start") }
     let asset = AVURLAsset(url: URL(fileURLWithPath: srcPath))
     let generator = AVAssetImageGenerator(asset: asset)
@@ -215,7 +217,7 @@ func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
     var count = 0
     for time in times {
         guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { continue }
-        CGImageDestinationAddImage(dest, scaleDown(cg, maxWidth: 720), frameProps)
+        CGImageDestinationAddImage(dest, scaleDown(cg, maxHeight: maxHeight), frameProps)
         count += 1
     }
     guard count > 0 else { fail("no frames could be extracted") }
@@ -244,9 +246,13 @@ case "trim":
     trimVideo(args[2], args[3], start, end)
 case "gif":
     guard args.count >= 6, let start = Double(args[4]), let end = Double(args[5]) else {
-        fail("usage: vivid-helper gif <srcPath> <destPath> <start> <end>")
+        fail("usage: vivid-helper gif <srcPath> <destPath> <start> <end> [maxHeight]")
     }
-    exportGif(args[2], args[3], start, end)
+    var maxHeight: CGFloat = 720
+    if args.count >= 7, let parsed = Double(args[6]) {
+        maxHeight = CGFloat(parsed)
+    }
+    exportGif(args[2], args[3], start, end, maxHeight)
 default:
     fail("unknown subcommand: \(args[1])")
 }
