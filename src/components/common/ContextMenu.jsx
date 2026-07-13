@@ -413,17 +413,6 @@ export default function ContextMenu({
           <FolderOpen size={14} /> {t('contextMenu.open')}
         </button>
       )}
-      {onEdit && isImage && !isGif && (
-        <button
-          className="context-item"
-          onClick={() => {
-            onEdit(item);
-            onClose();
-          }}
-        >
-          <Pencil size={14} /> Edit
-        </button>
-      )}
       <button
         className="context-item"
         onClick={() => {
@@ -453,37 +442,18 @@ export default function ContextMenu({
         )}
       </button>
 
-      <div className="context-separator" />
-
-      <button
-        className="context-item"
-        onClick={() => {
-          onShare?.([item.file_path]);
-          onClose();
-        }}
-      >
-        <Share2 size={14} /> {t('contextMenu.share')}
-      </button>
-      {onFindSimilar && (isImage || isVideo) && (
-        <button
-          className="context-item"
-          onClick={() => {
-            onFindSimilar(item);
-            onClose();
-          }}
-        >
-          <ScanSearch size={14} /> {t('contextMenu.findSimilar')}
+      {((onSetCollection && collections?.length > 0) ||
+        (onMoveToFolder && diskFolders?.length > 0)) && <div className="context-separator" />}
+      {onSetCollection && collections?.length > 0 && (
+        <button className="context-item" onClick={() => setMode('move')}>
+          <FolderInput size={14} />
+          {t('contextMenu.moveToCollection')}
         </button>
       )}
-      {onCompare && isImage && (
-        <button
-          className="context-item"
-          onClick={() => {
-            onCompare(item);
-            onClose();
-          }}
-        >
-          <Columns2 size={14} /> {t('contextMenu.sideBySide')}
+      {onMoveToFolder && diskFolders?.length > 0 && (
+        <button className="context-item" onClick={() => setMode('movefolder')}>
+          <FolderTree size={14} />
+          {t('contextMenu.moveToFolder')}
         </button>
       )}
 
@@ -526,18 +496,48 @@ export default function ContextMenu({
         </button>
       )}
 
-      {((onSetCollection && collections?.length > 0) ||
-        (onMoveToFolder && diskFolders?.length > 0)) && <div className="context-separator" />}
-      {onSetCollection && collections?.length > 0 && (
-        <button className="context-item" onClick={() => setMode('move')}>
-          <FolderInput size={14} />
-          {t('contextMenu.moveToCollection')}
+      <div className="context-separator" />
+
+      <button
+        className="context-item"
+        onClick={() => {
+          onShare?.([item.file_path]);
+          onClose();
+        }}
+      >
+        <Share2 size={14} /> {t('contextMenu.share')}
+      </button>
+      {onEdit && isImage && !isGif && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onEdit(item);
+            onClose();
+          }}
+        >
+          <Pencil size={14} /> Edit Image
         </button>
       )}
-      {onMoveToFolder && diskFolders?.length > 0 && (
-        <button className="context-item" onClick={() => setMode('movefolder')}>
-          <FolderTree size={14} />
-          {t('contextMenu.moveToFolder')}
+      {onFindSimilar && (isImage || isVideo) && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onFindSimilar(item);
+            onClose();
+          }}
+        >
+          <ScanSearch size={14} /> {t('contextMenu.findSimilar')}
+        </button>
+      )}
+      {onCompare && isImage && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onCompare(item);
+            onClose();
+          }}
+        >
+          <Columns2 size={14} /> {t('contextMenu.sideBySide')}
         </button>
       )}
 
