@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Trash2, CheckCircle, Image, Video, Music, HardDrive, Loader } from 'lucide-react';
@@ -7,6 +8,7 @@ import { formatBytes } from '../../utils/format';
 import './DuplicatesModal.css';
 
 function ItemCard({ item, isKept, onToggleKeep }) {
+  const { t } = useTranslation();
   const src = item.media_type === 'image' ? convertFileSrc(item.file_path) : null;
   const TypeIcon =
     item.media_type === 'video' ? Video : item.media_type === 'audio' ? Music : Image;
@@ -27,11 +29,11 @@ function ItemCard({ item, isKept, onToggleKeep }) {
         <div className="dup-card-badge">
           {isKept ? (
             <span className="dup-badge dup-badge-keep">
-              <CheckCircle size={12} /> Keep
+              <CheckCircle size={12} /> {t('duplicates.keep')}
             </span>
           ) : (
             <span className="dup-badge dup-badge-del">
-              <Trash2 size={12} /> Delete
+              <Trash2 size={12} /> {t('duplicates.delete')}
             </span>
           )}
         </div>
@@ -53,6 +55,7 @@ function ItemCard({ item, isKept, onToggleKeep }) {
 }
 
 export default function DuplicatesModal({ collections, onClose, onItemsRemoved }) {
+  const { t } = useTranslation();
   // keepSets: Map<groupIndex, Set<id>>  — which IDs to keep in each group
   const [keepSets, setKeepSets] = useState(() => {
     const m = new Map();
@@ -113,11 +116,11 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
           <div className="modal-confirm-icon modal-confirm-icon-success">
             <CheckCircle size={20} />
           </div>
-          <h3 className="modal-confirm-title">No Duplicates Found</h3>
-          <p className="modal-confirm-desc">All files in your library have unique content.</p>
+          <h3 className="modal-confirm-title">{t('duplicates.noDuplicatesTitle')}</h3>
+          <p className="modal-confirm-desc">{t('duplicates.noDuplicatesDesc')}</p>
           <div className="modal-confirm-actions">
             <button className="btn btn-primary" onClick={onClose}>
-              Close
+              {t('duplicates.close')}
             </button>
           </div>
         </div>
@@ -126,7 +129,7 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
   }
 
   return (
-    <Modal className="dup-modal" onClose={onClose} title="Duplicate Files">
+    <Modal className="dup-modal" onClose={onClose} title={t('duplicates.title')}>
       {/* Group tabs */}
       <div className="dup-group-tabs">
         {collections.map((g, i) => (
@@ -135,13 +138,13 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
             className={`dup-group-tab ${i === groupIdx ? 'active' : ''}`}
             onClick={() => setGroupIdx(i)}
           >
-            Group {i + 1}
+            {t('duplicates.group', { number: i + 1 })}
             <span className="dup-count-badge">{g.length}</span>
           </button>
         ))}
         <span className="dup-summary">
-          {collections.length} group{collections.length > 1 ? 's' : ''} · {toDelete.length} to
-          delete
+          {t('duplicates.groupsCount', { count: collections.length })} ·{' '}
+          {t('duplicates.toDeleteCount', { count: toDelete.length })}
         </span>
       </div>
 
@@ -158,12 +161,10 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
       </div>
 
       <div className="modal-footer">
-        <p className="dup-hint">
-          Click a card to toggle keep/delete. At least one must be kept per group.
-        </p>
+        <p className="dup-hint">{t('duplicates.hint')}</p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            {t('duplicates.cancel')}
           </button>
           <button
             className="btn btn-danger"
@@ -172,10 +173,10 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
           >
             {deleting ? (
               <>
-                <Loader size={13} className="spin" /> Deleting…
+                <Loader size={13} className="spin" /> {t('duplicates.deleting')}
               </>
             ) : (
-              `Delete ${toDelete.length} file${toDelete.length !== 1 ? 's' : ''}`
+              t('duplicates.deleteCount', { count: toDelete.length })
             )}
           </button>
         </div>

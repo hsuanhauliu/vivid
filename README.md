@@ -54,7 +54,7 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 ### Polish
 
 - Light/dark themes with accent colors.
-- Fully localized: **English, 繁體中文, 日本語**.
+- Fully localized in **11 languages**: English, Spanish, French, German, Portuguese, Vietnamese, 繁體中文, 简体中文, 日本語, 한국어, हिन्दी.
 - Keyboard-driven viewer with slideshow, zoom, and playback controls.
 
 ---
@@ -223,7 +223,7 @@ vivid/
 ├── src/                  # React frontend
 │   ├── components/       # UI (grid, viewer, panels, settings, …)
 │   ├── hooks/            # useMediaLibrary, useNavHistory, useBackup, useNotifications
-│   └── locales/          # en, zh-TW, ja
+│   └── locales/          # en, es, fr, de, pt, vi, zh-TW, zh-CN, ja, ko, hi
 └── src-tauri/
     ├── src/              # Rust backend (commands, db, AI, models)
     ├── swift/            # Swift helper (Vision OCR)

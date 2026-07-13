@@ -515,7 +515,7 @@ export default function ContextMenu({
             onClose();
           }}
         >
-          <Pencil size={14} /> Edit Image
+          <Pencil size={14} /> {t('contextMenu.editImage')}
         </button>
       )}
       {onFindSimilar && (isImage || isVideo) && (

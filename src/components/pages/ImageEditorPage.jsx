@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { transformOrigin, panForZoomAtPoint, clampPan } from '../../utils/zoomPan';
@@ -103,6 +104,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
   },
   ref,
 ) {
+  const { t } = useTranslation();
   const [pendingOps, setPendingOps] = useState([]);
   const [undoneOps, setUndoneOps] = useState([]);
   const [transforming, setTransforming] = useState(false);
@@ -675,14 +677,14 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
           {cropMode ? (
             <>
               <button className="btn btn-secondary btn-sm" onClick={exitCropMode}>
-                Cancel
+                {t('imageEditor.cancel')}
               </button>
               <button
                 className="btn btn-primary btn-sm"
                 onClick={applyCrop}
                 disabled={!cropRect || cropRect.w < 1 || cropRect.h < 1}
               >
-                <Check size={13} /> Crop
+                <Check size={13} /> {t('imageEditor.crop')}
               </button>
             </>
           ) : (
@@ -694,23 +696,23 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                   setUndoneOps([]);
                 }}
                 disabled={!hasPending || transforming}
-                title="Discard all unsaved changes"
+                title={t('imageEditor.discardTooltip')}
               >
-                Discard
+                {t('imageEditor.discard')}
               </button>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowSaveCopyModal(true)}
                 disabled={!hasPending || transforming}
               >
-                <CopyPlus size={13} /> Save Copy
+                <CopyPlus size={13} /> {t('imageEditor.saveCopy')}
               </button>
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => setShowSaveConfirm(true)}
                 disabled={!hasPending || transforming}
               >
-                <Save size={13} /> {transforming ? 'Saving…' : 'Save'}
+                <Save size={13} /> {transforming ? t('imageEditor.saving') : t('imageEditor.save')}
               </button>
             </>
           )}
@@ -725,7 +727,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={handleUndo}
               disabled={!pendingOps.length || transforming}
-              title="Undo (⌘Z)"
+              title={t('imageEditor.undo')}
             >
               <Undo2 size={18} />
             </button>
@@ -733,7 +735,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={handleRedo}
               disabled={!undoneOps.length || transforming}
-              title="Redo (⌘⇧Z)"
+              title={t('imageEditor.redo')}
             >
               <Redo2 size={18} />
             </button>
@@ -744,7 +746,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={() => queueTransform('rotate270')}
               disabled={transforming || cropMode}
-              title="Rotate Left"
+              title={t('imageEditor.rotateLeft')}
             >
               <RotateCcw size={18} />
             </button>
@@ -752,7 +754,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={() => queueTransform('rotate90')}
               disabled={transforming || cropMode}
-              title="Rotate Right"
+              title={t('imageEditor.rotateRight')}
             >
               <RotateCw size={18} />
             </button>
@@ -760,7 +762,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={() => queueTransform('flip_h')}
               disabled={transforming || cropMode}
-              title="Flip Horizontal"
+              title={t('imageEditor.flipHorizontal')}
             >
               <FlipHorizontal size={18} />
             </button>
@@ -768,7 +770,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={() => queueTransform('flip_v')}
               disabled={transforming || cropMode}
-              title="Flip Vertical"
+              title={t('imageEditor.flipVertical')}
             >
               <FlipVertical size={18} />
             </button>
@@ -779,7 +781,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className="image-editor-tool-btn"
               onClick={openResize}
               disabled={transforming || cropMode}
-              title="Resize"
+              title={t('imageEditor.resize')}
             >
               <Scaling size={18} />
             </button>
@@ -787,7 +789,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
               className={`image-editor-tool-btn${cropMode ? ' ie-tool-active' : ''}`}
               onClick={() => (cropMode ? exitCropMode() : setCropMode(true))}
               disabled={transforming}
-              title="Crop"
+              title={t('imageEditor.crop')}
             >
               <Crop size={18} />
             </button>
@@ -797,7 +799,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
             <button
               className="image-editor-tool-btn"
               onClick={() => setScale((s) => Math.min(s + 0.25, 5))}
-              title="Zoom In"
+              title={t('imageEditor.zoomIn')}
             >
               <ZoomIn size={16} />
             </button>
@@ -807,14 +809,14 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                 setScale(1);
                 setPan({ x: 0, y: 0 });
               }}
-              title="Reset zoom"
+              title={t('imageEditor.resetZoom')}
             >
               {Math.round(scale * 100)}%
             </span>
             <button
               className="image-editor-tool-btn"
               onClick={() => setScale((s) => Math.max(s - 0.25, 0.25))}
-              title="Zoom Out"
+              title={t('imageEditor.zoomOut')}
             >
               <ZoomOut size={16} />
             </button>
@@ -914,19 +916,19 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
         <div className="modal-backdrop" onClick={() => setShowSaveConfirm(false)}>
           <div className="modal" style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Save changes?</span>
+              <span className="modal-title">{t('imageEditor.saveChangesTitle')}</span>
             </div>
             <div className="modal-body" style={{ padding: '14px 20px' }}>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-                This permanently overwrites the original file on disk and cannot be undone.
+                {t('imageEditor.saveChangesMsg')}
               </p>
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowSaveConfirm(false)}>
-                Cancel
+                {t('imageEditor.cancel')}
               </button>
               <button className="btn btn-primary" onClick={() => applyAllTransforms('overwrite')}>
-                Save
+                {t('imageEditor.save')}
               </button>
             </div>
           </div>
@@ -943,11 +945,11 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
         >
           <div className="modal" style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Unsaved changes</span>
+              <span className="modal-title">{t('imageEditor.unsavedChangesTitle')}</span>
             </div>
             <div className="modal-body" style={{ padding: '14px 20px' }}>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-                You have unsaved edits. Save before leaving, or discard them?
+                {t('imageEditor.unsavedChangesMsg')}
               </p>
             </div>
             <div className="modal-actions">
@@ -958,7 +960,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                   afterNavRef.current = null;
                 }}
               >
-                Stay
+                {t('imageEditor.stay')}
               </button>
               <button
                 className="btn btn-danger"
@@ -970,7 +972,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                   cb?.();
                 }}
               >
-                Discard
+                {t('imageEditor.discard')}
               </button>
               <button
                 className="btn btn-primary"
@@ -981,7 +983,7 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                   applyAllTransforms('overwrite').then(() => cb?.());
                 }}
               >
-                Save
+                {t('imageEditor.save')}
               </button>
             </div>
           </div>
@@ -1002,12 +1004,12 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
         <div className="modal-backdrop" onClick={() => setShowResize(false)}>
           <div className="modal" style={{ maxWidth: 300 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Resize Image</span>
+              <span className="modal-title">{t('imageEditor.resizeImageTitle')}</span>
             </div>
             <div className="modal-body" style={{ padding: '16px 20px' }}>
               <div className="resize-fields">
                 <div className="field" style={{ margin: 0 }}>
-                  <label>Width (px)</label>
+                  <label>{t('imageEditor.width')}</label>
                   <input
                     className="input"
                     type="number"
@@ -1024,13 +1026,13 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
                 <button
                   className={`resize-lock-btn${ratioLocked ? ' locked' : ''}`}
                   onClick={() => setRatioLocked((v) => !v)}
-                  title={ratioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  title={ratioLocked ? t('imageEditor.unlockRatio') : t('imageEditor.lockRatio')}
                   type="button"
                 >
                   {ratioLocked ? <Lock size={14} /> : <LockOpen size={14} />}
                 </button>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>Height (px)</label>
+                  <label>{t('imageEditor.height')}</label>
                   <input
                     className="input"
                     type="number"
@@ -1047,14 +1049,14 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowResize(false)}>
-                Cancel
+                {t('imageEditor.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={applyResize}
                 disabled={!resizeW || !resizeH}
               >
-                Apply
+                {t('imageEditor.apply')}
               </button>
             </div>
           </div>
