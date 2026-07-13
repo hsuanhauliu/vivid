@@ -19,6 +19,7 @@ import {
   ScanText,
   Layers,
   Camera,
+  ChevronsRight,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { captureDate } from '../../utils/sort';
@@ -68,11 +69,6 @@ const FILE_SIZES = [
   { value: 'small', labelKey: 'filterBar.fileSize.small' },
   { value: 'medium', labelKey: 'filterBar.fileSize.medium' },
   { value: 'large', labelKey: 'filterBar.fileSize.large' },
-];
-
-const COLLECTION_STATES = [
-  { value: 'any', labelKey: 'filterBar.inCollection' },
-  { value: 'none', labelKey: 'filterBar.notInCollection' },
 ];
 
 // ── Dropdown helper ───────────────────────────────────────────────────────────
@@ -147,6 +143,30 @@ function MenuItem({
   );
 }
 
+// Collapsed popover holding the binary (on/off) quick filters — starred,
+// in-collection, has-GPS, has-text — so they don't take up permanent space
+// in the controls row. Unlike `Dropdown`'s menu, clicking a toggle inside
+// doesn't close the popover, so several can be flipped in one visit.
+function TogglesMenu({ active, title, children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useDismiss(ref, () => setOpen(false), { enabled: open, escape: false });
+
+  return (
+    <div className={`fb-toggles-wrap ${active ? 'has-value' : ''}`} ref={ref}>
+      <button
+        className={`fb-toggles-trigger ${open ? 'open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        title={title}
+      >
+        <ChevronsRight size={13} />
+      </button>
+      {open && <div className="fb-toggles-menu">{children}</div>}
+    </div>
+  );
+}
+
 export default function FilterBar({
   filters,
   onChange,
@@ -217,9 +237,10 @@ export default function FilterBar({
   const activeMediaTypes = Array.isArray(mediaType) ? mediaType : mediaType ? [mediaType] : [];
   const activeExtensions = Array.isArray(extension) ? extension : extension ? [extension] : [];
   const activeCameras = Array.isArray(cameras) ? cameras : cameras ? [cameras] : [];
+  const activeColors = Array.isArray(colorLabel) ? colorLabel : colorLabel ? [colorLabel] : [];
 
   const hasAny =
-    colorLabel ||
+    activeColors.length > 0 ||
     dateRange ||
     exactDay ||
     dateFrom ||
@@ -233,7 +254,8 @@ export default function FilterBar({
     orientation ||
     fileSize ||
     collection ||
-    activeCameras.length > 0;
+    activeCameras.length > 0 ||
+    !!moodFilter;
 
   function set(patch) {
     onChange({ ...filters, ...patch });
@@ -265,9 +287,16 @@ export default function FilterBar({
     set({ cameras: next });
   }
 
+  function toggleColor(value) {
+    const next = activeColors.includes(value)
+      ? activeColors.filter((x) => x !== value)
+      : [...activeColors, value];
+    set({ colorLabel: next });
+  }
+
   function clearAll() {
     onChange({
-      colorLabel: null,
+      colorLabel: [],
       dateRange: null,
       exactDay: null,
       dateFrom: null,
@@ -280,9 +309,10 @@ export default function FilterBar({
       hasText: false,
       orientation: null,
       fileSize: null,
-      collection: null,
+      collection: false,
       cameras: [],
     });
+    onMoodFilter?.(null);
   }
 
   const tagLabel =
@@ -326,7 +356,12 @@ export default function FilterBar({
         ? t(activeDateRange.labelKey)
         : t('filterBar.date');
 
-  const colorEntry = colorLabel ? COLOR_LABELS.find((c) => c.value === colorLabel) : null;
+  const colorLabelText =
+    activeColors.length === 0
+      ? t('filterBar.colorLabel')
+      : activeColors.length === 1
+        ? t(COLOR_LABELS.find((c) => c.value === activeColors[0])?.labelKey ?? '')
+        : t('filterBar.colorsCount', { count: activeColors.length });
 
   return (
     <div className="filter-bar fb-v3">
@@ -516,30 +551,6 @@ export default function FilterBar({
             </MenuList>
           </Dropdown>
 
-          {/* Collection membership */}
-          <Dropdown
-            label={
-              collection
-                ? t(COLLECTION_STATES.find((c) => c.value === collection)?.labelKey ?? '')
-                : t('filterBar.collection')
-            }
-            active={!!collection}
-            onClear={() => set({ collection: null })}
-          >
-            <MenuList>
-              {COLLECTION_STATES.map(({ value, labelKey }) => (
-                <MenuItem
-                  key={value}
-                  active={collection === value}
-                  icon={Layers}
-                  onClick={() => set({ collection: collection === value ? null : value })}
-                >
-                  {t(labelKey)}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Dropdown>
-
           {/* Camera device — multi-select */}
           <Dropdown
             label={cameraLabel}
@@ -561,20 +572,23 @@ export default function FilterBar({
             </MenuList>
           </Dropdown>
 
-          {/* Color label */}
+          {/* Color label — multi-select */}
           <Dropdown
-            label={colorEntry ? t(colorEntry.labelKey) : t('filterBar.colorLabel')}
-            active={!!colorLabel}
-            onClear={() => set({ colorLabel: null })}
+            label={colorLabelText}
+            active={activeColors.length > 0}
+            onClear={() => set({ colorLabel: [] })}
           >
             <div className="fb-menu-colors">
               {COLOR_LABELS.map(({ value, hex, labelKey }) => (
                 <button
                   key={value}
-                  className={`fb-color-dot ${colorLabel === value ? 'active' : ''}`}
+                  className={`fb-color-dot ${activeColors.includes(value) ? 'active' : ''}`}
                   style={{ '--dot': hex }}
                   title={t(labelKey)}
-                  onClick={() => set({ colorLabel: colorLabel === value ? null : value })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleColor(value);
+                  }}
                 />
               ))}
             </div>
@@ -605,35 +619,50 @@ export default function FilterBar({
           )}
         </div>
 
-        {/* ── Right group: toggles ── */}
-        <div className="fb-group">
-          <button
-            className={`fb-toggle ${starred ? 'active' : ''}`}
-            onClick={() => set({ starred: !starred })}
-            title={t('filterBar.starred')}
+        {/* ── Right: clear-all + collapsed quick (binary) filters, kept
+            together so Clear never needs a row of its own ── */}
+        <div className="fb-controls-right">
+          {hasAny && (
+            <button className="fb-clear-all" onClick={clearAll} title={t('filterBar.clear')}>
+              <X size={11} /> {t('filterBar.clear')}
+            </button>
+          )}
+          <TogglesMenu
+            active={!!(starred || collection || hasGps || hasText)}
+            title={t('filterBar.quickFilters')}
           >
-            <Star size={12} /> {t('filterBar.starred')}
-          </button>
-          <button
-            className={`fb-toggle ${hasGps ? 'active' : ''}`}
-            onClick={() => set({ hasGps: !hasGps })}
-            title={t('filterBar.hasGps')}
-          >
-            <MapPin size={12} /> {t('filterBar.hasGps')}
-          </button>
-          <button
-            className={`fb-toggle ${hasText ? 'active' : ''}`}
-            onClick={() => set({ hasText: !hasText })}
-            title={t('filterBar.hasText')}
-          >
-            <ScanText size={12} /> {t('filterBar.hasText')}
-          </button>
+            <button
+              className={`fb-toggle ${starred ? 'active' : ''}`}
+              onClick={() => set({ starred: !starred })}
+            >
+              <Star size={12} /> {t('filterBar.starred')}
+            </button>
+            <button
+              className={`fb-toggle ${collection ? 'active' : ''}`}
+              onClick={() => set({ collection: !collection })}
+            >
+              <Layers size={12} /> {t('filterBar.inCollection')}
+            </button>
+            <button
+              className={`fb-toggle ${hasGps ? 'active' : ''}`}
+              onClick={() => set({ hasGps: !hasGps })}
+            >
+              <MapPin size={12} /> {t('filterBar.hasGps')}
+            </button>
+            <button
+              className={`fb-toggle ${hasText ? 'active' : ''}`}
+              onClick={() => set({ hasText: !hasText })}
+            >
+              <ScanText size={12} /> {t('filterBar.hasText')}
+            </button>
+          </TogglesMenu>
         </div>
       </div>
       {/* end fb-controls-row */}
 
-      {/* ── Active pills + clear all row ── */}
-      {hasAny && (
+      {/* ── Active tag/exact-day pills — only rendered when there's an actual
+          pill to show, so it never appears as an empty row on its own ── */}
+      {(activeTags.length > 0 || exactDay) && (
         <div className="fb-pills-row">
           {activeTags.map((tg) => (
             <span key={tg} className="fb-tag-pill">
@@ -648,9 +677,6 @@ export default function FilterBar({
               <Calendar size={10} /> {formatExactDay(exactDay)} <X size={9} />
             </button>
           )}
-          <button className="fb-clear-all" onClick={clearAll} title={t('filterBar.clear')}>
-            <X size={11} /> {t('filterBar.clear')}
-          </button>
         </div>
       )}
     </div>
@@ -660,8 +686,13 @@ export default function FilterBar({
 /** Apply filter object to an array of MediaItem */
 export function applyFilters(items, filters) {
   let out = items;
-  if (filters.colorLabel) {
-    out = out.filter((i) => i.color_label === filters.colorLabel);
+  const colors = Array.isArray(filters.colorLabel)
+    ? filters.colorLabel
+    : filters.colorLabel
+      ? [filters.colorLabel]
+      : [];
+  if (colors.length > 0) {
+    out = out.filter((i) => colors.includes(i.color_label));
   }
   if (filters.dateRange) {
     const now = new Date();

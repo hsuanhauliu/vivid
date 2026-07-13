@@ -415,11 +415,13 @@
     "hasGps": "有 GPS",
     "hasText": "含文字",
     "clear": "清除",
+    "quickFilters": "快速篩選",
     "tagsCount": "{{count}} 個標籤",
     "typesCount": "{{count}} 種類型",
     "formatsCount": "{{count}} 種格式",
     "camera": "相機",
     "camerasCount": "{{count}} 台相機",
+    "colorsCount": "{{count}} 個標籤",
     "color": {
       "red": "紅色",
       "orange": "橘色",
@@ -449,9 +451,7 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
-    "collection": "收藏",
-    "inCollection": "已在收藏中",
-    "notInCollection": "不在任何收藏"
+    "inCollection": "已在收藏中"
   },
   "panel": {
     "collapsePanel": "收合面板",

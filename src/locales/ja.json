@@ -415,11 +415,13 @@
     "hasGps": "GPS あり",
     "hasText": "テキストあり",
     "clear": "クリア",
+    "quickFilters": "クイックフィルター",
     "tagsCount": "{{count}} 個のタグ",
     "typesCount": "{{count}} 種類",
     "formatsCount": "{{count}} 形式",
     "camera": "カメラ",
     "camerasCount": "{{count}} 台のカメラ",
+    "colorsCount": "{{count}} 個のラベル",
     "color": {
       "red": "赤",
       "orange": "オレンジ",
@@ -449,9 +451,7 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
-    "collection": "コレクション",
-    "inCollection": "コレクションに含む",
-    "notInCollection": "どのコレクションにもない"
+    "inCollection": "コレクションに含む"
   },
   "panel": {
     "collapsePanel": "パネルを折りたたむ",

@@ -415,6 +415,7 @@
     "hasGps": "Has GPS",
     "hasText": "Has Text",
     "clear": "Clear",
+    "quickFilters": "Quick filters",
     "tagsCount_one": "{{count}} tag",
     "tagsCount_other": "{{count}} tags",
     "typesCount_one": "{{count}} type",
@@ -424,6 +425,8 @@
     "camera": "Camera",
     "camerasCount_one": "{{count}} camera",
     "camerasCount_other": "{{count}} cameras",
+    "colorsCount_one": "{{count}} label",
+    "colorsCount_other": "{{count}} labels",
     "color": {
       "red": "Red",
       "orange": "Orange",
@@ -453,9 +456,7 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
-    "collection": "Collection",
-    "inCollection": "In a collection",
-    "notInCollection": "Not in any collection"
+    "inCollection": "In a collection"
   },
   "panel": {
     "collapsePanel": "Collapse panel",

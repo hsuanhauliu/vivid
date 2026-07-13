@@ -90,7 +90,7 @@ import './App.css';
 // The "no filters applied" shape — shared by the initial state, the clear
 // action, and navigation resets so the filter icon never lingers highlighted.
 const EMPTY_FILTERS = {
-  colorLabel: null,
+  colorLabel: [],
   dateRange: null,
   exactDay: null,
   dateFrom: null,
@@ -103,7 +103,7 @@ const EMPTY_FILTERS = {
   hasText: false,
   orientation: null,
   fileSize: null,
-  collection: null,
+  collection: false,
   cameras: [],
 };
 
@@ -1381,8 +1381,7 @@ export default function App() {
       if (filters.starred && !i.starred) return false;
       if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
       if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
-      if (filters.collection === 'any' && !i.collection_id) return false;
-      if (filters.collection === 'none' && i.collection_id) return false;
+      if (filters.collection && !i.collection_id) return false;
       if (
         filters.cameras?.length &&
         !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
@@ -1626,7 +1625,7 @@ export default function App() {
           {/* Filter toggle — right of search bar, visually separated from view buttons */}
           {view === 'library' && (
             <button
-              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
+              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel?.length > 0 || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
               title={t('toolbar.filters')}
             >
@@ -1775,7 +1774,7 @@ export default function App() {
               (() => {
                 const hasActiveSearch = search.trim().length > 0;
                 const hasActiveFilters = !!(
-                  filters.colorLabel ||
+                  filters.colorLabel?.length > 0 ||
                   filters.dateRange ||
                   filters.exactDay ||
                   filters.dateFrom ||
@@ -2219,7 +2218,7 @@ export default function App() {
                     isFiltered={
                       !!(
                         search.trim() ||
-                        filters.colorLabel ||
+                        filters.colorLabel?.length > 0 ||
                         filters.dateRange ||
                         filters.exactDay ||
                         filters.dateFrom ||
