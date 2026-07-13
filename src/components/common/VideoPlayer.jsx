@@ -27,9 +27,11 @@ import {
   Scissors,
   X,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
 import { formatClock } from '../../utils/format';
 import { useVideoSrc } from '../../hooks/useVideoSrc';
+import useDismiss from '../../hooks/useDismiss';
 import './VideoPlayer.css';
 
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -121,7 +123,9 @@ export default function VideoPlayer({
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [trimBusy, setTrimBusy] = useState(false);
-  const [gifMaxHeight, setGifMaxHeight] = useState(720);
+  const [trimMaxHeight, setTrimMaxHeight] = useState(720);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const saveMenuRef = useRef(null);
   const trimTooShort = trimEnd - trimStart < MIN_TRIM_DURATION;
   // While trimming, every seek path (arrows, frame-step, scrubbing) is
   // confined to the selected range — otherwise "preview the trim" and
@@ -424,7 +428,7 @@ export default function VideoPlayer({
             filePath: item.file_path,
             start: trimStart,
             end: trimEnd,
-            maxHeight: gifMaxHeight,
+            maxHeight: trimMaxHeight,
           });
           onNewItem?.(saved);
           onToast?.('success', t('viewer.gifSaved'));
@@ -435,6 +439,7 @@ export default function VideoPlayer({
             start: trimStart,
             end: trimEnd,
             saveMode: mode,
+            maxHeight: trimMaxHeight,
           });
           if (mode === 'copy') {
             onNewItem?.(result);
@@ -456,7 +461,7 @@ export default function VideoPlayer({
       item,
       trimStart,
       trimEnd,
-      gifMaxHeight,
+      trimMaxHeight,
       onNewItem,
       onItemUpdated,
       onToast,
@@ -477,6 +482,8 @@ export default function VideoPlayer({
       },
     });
   }, [onRequestConfirm, doTrim, t]);
+
+  useDismiss(saveMenuRef, () => setSaveMenuOpen(false), { enabled: saveMenuOpen, escape: false });
 
   const clampPan = useCallback((x, y) => {
     const wrap = wrapRef.current;
@@ -991,41 +998,61 @@ export default function VideoPlayer({
             </span>
             <span className="vp-trim-hint">{t('viewer.trimDragHint')}</span>
             <div className="vp-trim-spacer" />
-            <button
-              className="vp-trim-btn"
-              onClick={() => doTrim('copy')}
-              disabled={trimBusy || trimTooShort}
-            >
-              {t('viewer.trimSaveNew')}
-            </button>
-            <button
-              className="vp-trim-btn"
-              onClick={handleTrimReplace}
-              disabled={trimBusy || trimTooShort}
-            >
-              {t('viewer.trimReplace')}
-            </button>
             <select
               className="vp-trim-gif-size"
-              value={gifMaxHeight}
-              onChange={(e) => setGifMaxHeight(Number(e.target.value))}
+              value={trimMaxHeight}
+              onChange={(e) => setTrimMaxHeight(Number(e.target.value))}
               disabled={trimBusy}
-              title={t('viewer.gifSizeTitle')}
+              title={t('viewer.resolutionTitle')}
             >
               <option value={240}>240p</option>
               <option value={360}>360p</option>
               <option value={480}>480p</option>
               <option value={720}>720p</option>
               <option value={1080}>1080p</option>
-              <option value={4096}>{t('viewer.gifSizeOriginal')}</option>
+              <option value={4096}>{t('viewer.resolutionOriginal')}</option>
             </select>
-            <button
-              className="vp-trim-btn"
-              onClick={() => doTrim('gif')}
-              disabled={trimBusy || trimTooShort}
-            >
-              {t('viewer.trimSaveGif')}
-            </button>
+            <div className="vp-trim-save-wrap" ref={saveMenuRef}>
+              <button
+                className="vp-trim-btn vp-trim-save-btn"
+                onClick={() => setSaveMenuOpen((v) => !v)}
+                disabled={trimBusy || trimTooShort}
+              >
+                {t('common.save')}
+                <ChevronDown size={12} />
+              </button>
+              {saveMenuOpen && (
+                <div className="vp-trim-save-menu">
+                  <button
+                    className="vp-trim-save-item"
+                    onClick={() => {
+                      setSaveMenuOpen(false);
+                      doTrim('copy');
+                    }}
+                  >
+                    {t('viewer.trimSaveNew')}
+                  </button>
+                  <button
+                    className="vp-trim-save-item"
+                    onClick={() => {
+                      setSaveMenuOpen(false);
+                      handleTrimReplace();
+                    }}
+                  >
+                    {t('viewer.trimReplace')}
+                  </button>
+                  <button
+                    className="vp-trim-save-item"
+                    onClick={() => {
+                      setSaveMenuOpen(false);
+                      doTrim('gif');
+                    }}
+                  >
+                    {t('viewer.trimSaveGif')}
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="vp-trim-btn vp-trim-cancel"
               onClick={closeTrim}

@@ -496,10 +496,12 @@ pb's writeObjects_({{theImage}})"#
 // ── Video trim ────────────────────────────────────────────────────────────────
 
 /// Trim `file_path` to `[start, end]` (seconds) via the Swift helper
-/// (AVFoundation — no ffmpeg). It tries a passthrough (re-mux only, no
-/// re-encode — fast, lossless, and sample-accurate) export first, falling
-/// back to a re-encoding preset if the source/preset combo can't produce MP4
-/// via passthrough. `save_mode`: "copy" writes a new library item;
+/// (AVFoundation — no ffmpeg). When `max_height` is omitted or the source is
+/// already at or below it, it tries a passthrough (re-mux only, no re-encode
+/// — fast, lossless, and sample-accurate) export first, falling back to a
+/// re-encoding preset if the source/preset combo can't produce MP4 via
+/// passthrough. When `max_height` requires downscaling, it always re-encodes
+/// (passthrough can't resize). `save_mode`: "copy" writes a new library item;
 /// "overwrite" replaces the original — like `transform_image`'s HEIC path,
 /// this always lands on a new sibling filename and repoints the DB row
 /// rather than literally overwriting the same path, so the webview never
@@ -513,6 +515,7 @@ pub fn trim_video(
     start: f64,
     end: f64,
     save_mode: String,
+    max_height: Option<u32>,
 ) -> Result<Option<MediaItem>, String> {
     if end - start < MIN_TRIM_DURATION_SECS {
         return Err("Trim range must be at least a tenth of a second".into());
@@ -531,14 +534,16 @@ pub fn trim_video(
     let tmp_out = std::env::temp_dir().join(format!("vivid_trim_{ts}.mp4"));
 
     let helper = super::helper_path(&app);
-    let out = std::process::Command::new(&helper)
-        .arg("trim")
+    let mut cmd = std::process::Command::new(&helper);
+    cmd.arg("trim")
         .arg(&file_path)
         .arg(&tmp_out)
         .arg(start.to_string())
-        .arg(end.to_string())
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
+        .arg(end.to_string());
+    if let Some(h) = max_height {
+        cmd.arg(h.to_string());
+    }
+    let out = cmd.output().map_err(|e| format!("failed to run vivid-helper: {e}"))?;
     if !out.status.success() || !tmp_out.exists() {
         let _ = fs::remove_file(&tmp_out);
         return Err(format!(
