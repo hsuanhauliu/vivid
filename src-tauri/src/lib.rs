@@ -1,11 +1,13 @@
 mod clip;
 mod commands;
+pub mod config;
 mod db;
 mod emb_index;
 mod logger;
 mod models;
 // pub so examples/calibrate.rs (a kept-around manual testing tool for
-// AUTO_TAG_THRESHOLD/AUTO_TAG_MAX calibration) can reach SiglipClip directly.
+// AUTO_TAG_THRESHOLD/AUTO_TAG_MAX calibration, see config.rs) can reach
+// SiglipClip directly.
 pub mod siglip_clip;
 
 #[cfg(target_os = "macos")]

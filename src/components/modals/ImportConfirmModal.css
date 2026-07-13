@@ -67,6 +67,11 @@
   color: var(--danger);
 }
 
+.modal-confirm-icon-success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
 .modal-confirm-title {
   font-size: 15px;
   font-weight: 600;

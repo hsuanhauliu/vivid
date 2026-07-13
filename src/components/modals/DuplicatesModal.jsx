@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { X, Trash2, CheckCircle, Image, Video, Music, HardDrive, Loader } from 'lucide-react';
+import { Trash2, CheckCircle, Image, Video, Music, HardDrive, Loader } from 'lucide-react';
 import Modal from '../common/Modal';
 import { formatBytes } from '../../utils/format';
 import './DuplicatesModal.css';
@@ -108,31 +108,25 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
 
   if (!collections.length) {
     return (
-      <Modal onClose={onClose} title="No Duplicates Found">
-        <div
-          className="modal-body"
-          style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-muted)' }}
-        >
-          <CheckCircle size={40} strokeWidth={1} style={{ marginBottom: 12 }} />
-          <p>All files have unique content.</p>
+      <Modal header={false} onClose={onClose} width={340}>
+        <div className="modal-confirm">
+          <div className="modal-confirm-icon modal-confirm-icon-success">
+            <CheckCircle size={20} />
+          </div>
+          <h3 className="modal-confirm-title">No Duplicates Found</h3>
+          <p className="modal-confirm-desc">All files in your library have unique content.</p>
+          <div className="modal-confirm-actions">
+            <button className="btn btn-primary" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     );
   }
 
   return (
-    <Modal className="dup-modal" header={false}>
-      <div className="modal-header">
-        <span className="modal-title">Duplicate Files</span>
-        <span className="dup-summary">
-          {collections.length} group{collections.length > 1 ? 's' : ''} · {toDelete.length} to
-          delete
-        </span>
-        <button className="icon-btn" onClick={onClose}>
-          <X size={16} />
-        </button>
-      </div>
-
+    <Modal className="dup-modal" onClose={onClose} title="Duplicate Files">
       {/* Group tabs */}
       <div className="dup-group-tabs">
         {collections.map((g, i) => (
@@ -145,6 +139,10 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
             <span className="dup-count-badge">{g.length}</span>
           </button>
         ))}
+        <span className="dup-summary">
+          {collections.length} group{collections.length > 1 ? 's' : ''} · {toDelete.length} to
+          delete
+        </span>
       </div>
 
       {/* Cards for current group */}

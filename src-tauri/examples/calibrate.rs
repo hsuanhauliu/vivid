@@ -1,4 +1,4 @@
-//! Calibration tool for `AUTO_TAG_THRESHOLD`/`AUTO_TAG_MAX` (clip.rs) against
+//! Calibration tool for `AUTO_TAG_THRESHOLD`/`AUTO_TAG_MAX` (config.rs) against
 //! the SigLIP model. Not part of the app itself — run manually whenever you
 //! want to sanity-check tag scoring against real photos.
 //!

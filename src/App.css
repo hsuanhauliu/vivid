@@ -309,6 +309,14 @@ body.window-unfocused .app {
   color: var(--text);
 }
 
+/* Sits directly next to SortDropdown's .sort-dd-btn (height: 22px) in the
+   toolbar — shrunk from the default 28px .icon-btn square so its hover
+   highlight doesn't look oversized next to it. */
+.toolbar-dupes-btn {
+  width: 22px;
+  height: 22px;
+}
+
 /* Icon shrink on press — shared by all icon-style buttons */
 .icon-btn svg,
 .viewer-btn svg,

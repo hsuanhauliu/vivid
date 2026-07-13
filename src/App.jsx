@@ -2115,7 +2115,7 @@ export default function App() {
                       !activeCollection &&
                       !activeTag && (
                         <button
-                          className="icon-btn"
+                          className="icon-btn toolbar-dupes-btn"
                           title={t('toolbar.findDuplicates')}
                           onClick={() =>
                             handleFindDuplicates(

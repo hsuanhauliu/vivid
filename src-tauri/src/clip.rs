@@ -2,20 +2,6 @@ use anyhow::{anyhow, Result};
 use candle_core::{Device, Tensor, D};
 use std::path::Path;
 
-// Calibrated for SigLIP multilingual (see siglip_clip.rs) against 4 real
-// photos with unambiguous content (beach, food, dog, car), cross-checked
-// byte-for-byte against the official HF/PyTorch implementation to rule out
-// an implementation bug before tuning anything: the correct top-1 tag scored
-// 0.066-0.078 in every case, with the next-nearest genuinely-unrelated tag
-// usually below 0.02-0.03 (a few plausibly-related secondary tags — e.g.
-// "cooking"/"cafe" for a burger photo, "aerial view"/"ocean" for a beach
-// photo — legitimately scored in the 0.02-0.05 range too, which is fine,
-// they're not wrong). 0.035 sits comfortably below every real top-1 match
-// and above most unrelated noise. Small sample size (4 images, 1 per
-// category) — revisit if real usage shows it's off.
-pub const AUTO_TAG_THRESHOLD: f32 = 0.035;
-pub const AUTO_TAG_MAX: usize = 5;
-
 // ── Tag vocabulary (auto-tagging) ─────────────────────────────────────────────
 
 pub const TAG_VOCAB: &[&str] = &[
