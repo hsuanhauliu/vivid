@@ -116,6 +116,9 @@ body.window-unfocused .app {
   display: flex;
   overflow: hidden;
   min-height: 0;
+  /* Containing block for .secondary-panel, which overlays this rather than
+     sitting in flex flow (so it doesn't push .main to the right). */
+  position: relative;
 }
 
 .main {
