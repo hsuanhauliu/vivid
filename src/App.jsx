@@ -441,6 +441,11 @@ export default function App() {
 
     // Backfill missing grid thumbnails in the background (one-time per library).
     invoke('generate_thumbnails_all').catch(console.error);
+
+    // Same backfill for OCR text-scan coverage — otherwise images imported
+    // via bulk import (drag-drop, watched folders) never get scanned unless
+    // the user manually clicks "Scan for text" in Settings.
+    invoke('run_ocr_all').catch(console.error);
   }, []);
 
   // mood names are static — load them immediately, no model needed
@@ -1922,11 +1927,6 @@ export default function App() {
                       allItems={allItems}
                       onClose={() => setViewerDetails(false)}
                       onSave={handleSave}
-                      onRemove={(id) => {
-                        setViewerItem(null);
-                        setViewerDetails(false);
-                        handleRemove(id);
-                      }}
                       onStarToggle={handleStarToggle}
                       onSetCollection={handleSetCollection}
                       onRemoveAutoTag={handleRemoveAutoTag}
@@ -2282,7 +2282,6 @@ export default function App() {
                   allItems={allItems}
                   onClose={() => setSelected(null)}
                   onSave={handleSave}
-                  onRemove={handleRemove}
                   onStarToggle={handleStarToggle}
                   onSetCollection={handleSetCollection}
                   onRemoveAutoTag={handleRemoveAutoTag}

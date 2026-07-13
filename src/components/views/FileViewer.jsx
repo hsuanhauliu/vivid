@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Music,
   Star,
   Trash2,
   Copy,
@@ -17,6 +16,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import VideoPlayer from '../common/VideoPlayer';
+import AudioViewer from '../common/AudioViewer';
 import './FileViewer.css';
 
 export default function FileViewer({
@@ -41,8 +41,6 @@ export default function FileViewer({
 }) {
   const { t } = useTranslation();
   const [videoFullscreen, setVideoFullscreen] = useState(false);
-  const audioRef = useRef(null);
-  const audioHasPlayedRef = useRef(false);
   const viewerRef = useRef(null);
   const filmWrapRef = useRef(null);
   const FILM_THUMB = 72; // 68px thumb + 4px gap, keep in sync with FileViewer.css
@@ -69,7 +67,6 @@ export default function FileViewer({
   const imgSrc = overrideSrc || (displaySrc ? `${displaySrc}?v=${cacheKey}` : null);
 
   useEffect(() => {
-    audioHasPlayedRef.current = false;
     setScale(1);
     setPan({ x: 0, y: 0 });
   }, [item.id]);
@@ -110,17 +107,12 @@ export default function FileViewer({
     );
   }, [scale]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts. Space/ArrowLeft/ArrowRight for audio are owned by
+  // AudioViewer's own capture-phase handler (mirroring VideoPlayer), so this
+  // handler skips them entirely for audio items rather than double-handling.
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      if (e.key === ' ') {
-        e.preventDefault();
-        const audio = item.media_type === 'audio' ? audioRef.current : null;
-        if (audio) audio.paused ? audio.play() : audio.pause();
-        return;
-      }
 
       if (e.key === 'Escape') {
         if (videoFullscreen) return;
@@ -133,26 +125,19 @@ export default function FileViewer({
         return;
       }
 
-      const audio = item.media_type === 'audio' ? audioRef.current : null;
-      if (e.key === 'ArrowLeft') {
-        if (audio && audioHasPlayedRef.current) {
-          e.preventDefault();
-          audio.currentTime = Math.max(0, audio.currentTime - 5);
-        } else if (prev) onNavigate(prev);
+      if (item.media_type !== 'audio') {
+        if (e.key === 'ArrowLeft' && prev) onNavigate(prev);
+        if (e.key === 'ArrowRight' && next) onNavigate(next);
       }
-      if (e.key === 'ArrowRight') {
-        if (audio && audioHasPlayedRef.current) {
-          e.preventDefault();
-          audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
-        } else if (next) onNavigate(next);
-      }
-      if (item.media_type !== 'video') {
+      if (item.media_type === 'image') {
         if (e.key === '+' || e.key === '=') setScale((s) => Math.min(s + 0.25, 5));
         if (e.key === '-') setScale((s) => Math.max(s - 0.25, 0.25));
         if (e.key === '0') {
           setScale(1);
           setPan({ x: 0, y: 0 });
         }
+      }
+      if (item.media_type !== 'video') {
         if (e.key === 'f' || e.key === 'F') {
           if (document.fullscreenElement) document.exitFullscreen?.();
           else viewerRef.current?.requestFullscreen?.();
@@ -343,7 +328,7 @@ export default function FileViewer({
       {/* ── Media ── */}
       <div
         ref={bodyRef}
-        className={`viewer-body${item.media_type === 'video' ? ' viewer-body-video' : ''}`}
+        className={`viewer-body${['video', 'audio'].includes(item.media_type) ? ' viewer-body-player' : ''}`}
         style={{ overflow: scale > 1 ? 'hidden' : undefined, position: 'relative' }}
         onWheel={handleWheel}
       >
@@ -377,30 +362,7 @@ export default function FileViewer({
           />
         )}
         {item.media_type === 'audio' && (
-          <div className="viewer-audio-wrap">
-            <div className="viewer-audio-icon">
-              {item.audio_cover || item.thumb_path ? (
-                <img
-                  src={convertFileSrc(item.audio_cover || item.thumb_path)}
-                  alt={item.display_name}
-                  className="viewer-audio-cover"
-                />
-              ) : (
-                <Music size={56} strokeWidth={1} color="rgba(255,255,255,0.25)" />
-              )}
-            </div>
-            <p className="viewer-audio-name">{item.display_name}</p>
-            <audio
-              key={item.id}
-              ref={audioRef}
-              src={convertFileSrc(item.file_path)}
-              controls
-              className="viewer-audio"
-              onPlay={() => {
-                audioHasPlayedRef.current = true;
-              }}
-            />
-          </div>
+          <AudioViewer key={item.id} item={item} queue={items} onNavigate={onNavigate} />
         )}
 
         {/* ── Navigation ── */}

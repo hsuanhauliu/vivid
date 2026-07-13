@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { X, Tag, Trash2, Check, Plus, Star, MapPin, FolderInput, RefreshCw } from 'lucide-react';
+import { X, Tag, Check, Plus, Star, MapPin, FolderInput, RefreshCw } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatBytes, formatDateTime } from '../../utils/format';
@@ -129,7 +129,6 @@ export default function DetailPanel({
   allItems,
   onClose,
   onSave,
-  onRemove,
   onStarToggle,
   onRemoveAutoTag,
   onRetagImage,
@@ -607,52 +606,44 @@ export default function DetailPanel({
         <ExifSection meta={exifMeta} item={item} t={t} />
       </ScrollArea>
 
-      <div className="detail-footer">
-        {confirmDiscard ? (
-          <>
-            <span className="detail-discard-msg">{t('detail.discardMsg')}</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                className="btn btn-secondary"
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                onClick={() => setConfirmDiscard(false)}
-              >
-                {t('detail.keep')}
+      {(confirmDiscard || dirty) && (
+        <div className="detail-footer">
+          {confirmDiscard ? (
+            <>
+              <span className="detail-discard-msg">{t('detail.discardMsg')}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => setConfirmDiscard(false)}
+                >
+                  {t('detail.keep')}
+                </button>
+                <button
+                  className="btn btn-danger-solid"
+                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => {
+                    handleCancel();
+                    setConfirmDiscard(false);
+                    onClose();
+                  }}
+                >
+                  {t('detail.discard')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={handleCancel}>
+                {t('common.cancel')}
               </button>
-              <button
-                className="btn btn-danger-solid"
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                onClick={() => {
-                  handleCancel();
-                  setConfirmDiscard(false);
-                  onClose();
-                }}
-              >
-                {t('detail.discard')}
+              <button className="btn btn-primary" onClick={handleSave}>
+                <Check size={14} /> {t('common.save')}
               </button>
-            </div>
-          </>
-        ) : dirty ? (
-          <>
-            <button className="btn btn-secondary" onClick={handleCancel}>
-              {t('common.cancel')}
-            </button>
-            <button className="btn btn-primary" onClick={handleSave}>
-              <Check size={14} /> {t('common.save')}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="btn btn-danger-solid"
-              onClick={() => onRemove(item.id)}
-              title={t('detail.removeFromLibrary')}
-            >
-              <Trash2 size={14} />
-            </button>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

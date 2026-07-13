@@ -721,6 +721,11 @@ pub(crate) fn run_import(
         // Backfill thumbnails for the new items; streams thumb-item events so
         // grid previews appear without a full reload.
         let _ = generate_thumbnails_all(app.clone());
+        // Same catch-up for OCR — bulk import inserts rows directly via
+        // flush_chunk (not insert_imported), so it never gets the per-item
+        // trigger_ocr call that single-item creation paths (trim, image
+        // editor "Save Copy", GIF export, etc.) get automatically.
+        let _ = ocr::run_ocr_all(app.clone());
     }
     if !silent { let _ = app.emit("import-done", ImportDone { imported, skipped_type, skipped_dupe, failed }); }
     Ok(())

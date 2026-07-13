@@ -1,0 +1,211 @@
+/* ─── Full-page audio player (FileViewer) ────────────────────────────── */
+
+/* Fills the viewer body exactly like VideoPlayer's .vp-wrap does, so the
+   floating control bar below anchors to the same position on screen. */
+.audio-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.av-art {
+  width: 220px;
+  height: 220px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.av-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.av-title {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-weight: 600;
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.av-artist {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  margin: -10px 0 0;
+}
+
+/* ── Control bar — identical chrome/position to VideoPlayer's .vp-controls
+   (same width formula, padding, blur, border, radius, bottom offset), so
+   it sits in the same spot on screen as the video controls bar does. ── */
+.av-controls {
+  position: absolute;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 24px));
+  bottom: 12px;
+  padding: 5px 10px;
+  background: rgba(18, 18, 18, 0.72);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  z-index: 10;
+}
+
+/* Inner row — same layout as VideoPlayer's .vp-bar. */
+.av-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.av-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.av-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.av-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+.av-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.av-btn-active {
+  color: var(--accent);
+}
+.av-btn-play {
+  color: #fff;
+}
+
+.av-volume {
+  display: flex;
+  align-items: center;
+}
+.av-volume-slider {
+  width: 0;
+  opacity: 0;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--vol-pct, 100%),
+    rgba(255, 255, 255, 0.18) var(--vol-pct, 100%),
+    rgba(255, 255, 255, 0.18) 100%
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition:
+    width 0.18s ease,
+    opacity 0.18s ease,
+    margin 0.18s ease;
+}
+.av-volume:hover .av-volume-slider,
+.av-volume:focus-within .av-volume-slider {
+  width: 72px;
+  opacity: 1;
+  margin: 0 4px 0 2px;
+}
+.av-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.av-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.av-time-sep {
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 1px;
+}
+
+/* Same bigger hit-area technique as VideoPlayer's .vp-seek: a 16px-tall
+   clickable strip around a thin 4px visual track. */
+.av-seek {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 120px;
+  margin: 0 8px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.av-seek::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.av-seek-fill {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.av-seek-thumb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.av-seek:hover .av-seek-thumb {
+  opacity: 1;
+}
