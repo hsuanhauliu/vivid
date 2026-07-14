@@ -6,16 +6,18 @@ import { Trash2, RotateCcw, AlertTriangle, Music, Video, Image, PackageX } from 
 import { formatBytes } from '../../utils/format';
 import './TrashView.css';
 
-function formatTimestamp(isoStr) {
-  if (!isoStr) return 'Unknown';
+function formatTimestamp(isoStr, t, lng) {
+  if (!isoStr) return t('trash.dateUnknown');
   const d = new Date(isoStr);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86400000);
   if (diffDays === 0)
-    return 'Today, ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  if (diffDays === 1) return d.toLocaleDateString(undefined, { weekday: 'long' });
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return t('trash.dateToday', {
+      time: d.toLocaleTimeString(lng, { hour: 'numeric', minute: '2-digit' }),
+    });
+  if (diffDays === 1) return d.toLocaleDateString(lng, { weekday: 'long' });
+  if (diffDays < 7) return t('trash.daysAgo', { count: diffDays });
+  return d.toLocaleDateString(lng, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const TYPE_ICONS = { image: Image, video: Video, audio: Music };
@@ -24,6 +26,7 @@ const TYPE_COLORS = {
   video: '#3b82f6',
   audio: '#f59e0b',
 };
+const TYPE_LABEL_KEYS = { image: 'trash.typeImage', video: 'trash.typeVideo', audio: 'trash.typeAudio' };
 
 function TrashThumb({ item }) {
   const [failed, setFailed] = useState(false);
@@ -50,7 +53,7 @@ function TrashThumb({ item }) {
 }
 
 function TrashRow({ item, onRestore, onDeleteForever }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <div className="trash-row">
       <div className="trash-thumb">
@@ -62,10 +65,14 @@ function TrashRow({ item, onRestore, onDeleteForever }) {
           {item.display_name}
         </p>
         <div className="trash-item-meta">
-          <span className={`trash-type-chip trash-type-${item.media_type}`}>{item.media_type}</span>
+          <span className={`trash-type-chip trash-type-${item.media_type}`}>
+            {t(TYPE_LABEL_KEYS[item.media_type] ?? 'trash.typeImage')}
+          </span>
           <span className="trash-meta-size">{formatBytes(item.file_size)}</span>
           <span className="trash-meta-dot">·</span>
-          <span className="trash-meta-date">{formatTimestamp(item.deleted_at)}</span>
+          <span className="trash-meta-date">
+            {formatTimestamp(item.deleted_at, t, i18n.language)}
+          </span>
         </div>
       </div>
 

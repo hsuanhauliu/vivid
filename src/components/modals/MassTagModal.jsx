@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tag, X, Plus } from 'lucide-react';
 import Modal from '../common/Modal';
 import './MassTagModal.css';
@@ -6,6 +7,7 @@ import './MassTagModal.css';
 const MAX_SUGGESTIONS = 8;
 
 export default function MassTagModal({ count, allItems = [], onApply, onClose }) {
+  const { t } = useTranslation();
   const [tags, setTags] = useState([]);
   const [input, setInput] = useState('');
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -70,17 +72,17 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
       wide
       onClose={onClose}
       icon={<Tag size={20} />}
-      title={`Add Tags to ${count} ${count === 1 ? 'file' : 'files'}`}
+      title={t('massTag.title', { count })}
     >
       <div className="modal-form">
         <div className="field">
-          <label>Tags to add</label>
+          <label>{t('massTag.tagsToAdd')}</label>
           <div className="tags-wrap" style={{ marginBottom: 6 }}>
-            {tags.map((t) => (
-              <span key={t} className="tag">
+            {tags.map((tg) => (
+              <span key={tg} className="tag">
                 <Tag size={11} />
-                {t}
-                <button className="tag-remove" onClick={() => removeTag(t)}>
+                {tg}
+                <button className="tag-remove" onClick={() => removeTag(tg)}>
                   <X size={10} />
                 </button>
               </span>
@@ -90,7 +92,7 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
             <input
               ref={inputRef}
               className="input tag-input"
-              placeholder="Type a tag and press Enter…"
+              placeholder={t('massTag.placeholder')}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -125,13 +127,11 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          These tags will be merged with each file&apos;s existing tags.
-        </p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('massTag.mergeHint')}</p>
 
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            {t('massTag.cancel')}
           </button>
           <button
             className="btn btn-primary"
@@ -141,7 +141,7 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
             }}
             disabled={tags.length === 0}
           >
-            Add {tags.length} {tags.length === 1 ? 'tag' : 'tags'}
+            {t('massTag.addCount', { count: tags.length })}
           </button>
         </div>
       </div>

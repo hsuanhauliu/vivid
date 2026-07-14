@@ -357,7 +357,18 @@
     "nothingInTrashDesc": "从媒体库中删除的项目会先出现在这里，然后再被永久移除。",
     "restore": "恢复",
     "deleteForever": "永久删除",
-    "loadingItems": "正在加载已删除的项目…"
+    "loadingItems": "正在加载已删除的项目…",
+    "moveTitle": "移到废纸篓",
+    "moveMsg": "该文件将被移到废纸篓，并在设定的保留期后自动删除。",
+    "moveConfirmBtn": "移到废纸篓",
+    "moveManyTitle": "将 {{count}} 个文件移到废纸篓",
+    "moveManyMsg": "将 {{count}} 个文件移到废纸篓？它们将在设定的保留期后被永久删除。",
+    "dateUnknown": "未知",
+    "dateToday": "今天 {{time}}",
+    "daysAgo": "{{count}} 天前",
+    "typeImage": "照片",
+    "typeVideo": "视频",
+    "typeAudio": "音频"
   },
   "sysmsgs": {
     "title": "系统消息",
@@ -1093,5 +1104,60 @@
     "cancel": "取消",
     "deleting": "正在删除…",
     "deleteCount": "删除 {{count}} 个文件"
+  },
+  "selection": {
+    "selected": "已选择 {{count}} 项",
+    "selectAll": "全选 {{count}} 项",
+    "clearSelection": "清除选择",
+    "export": "导出",
+    "rename": "重命名",
+    "addTags": "添加标签",
+    "moveToCollection": "移动到合集…",
+    "moveToFolder": "移动到文件夹…",
+    "noCollection": "无合集",
+    "searchCollections": "搜索合集…",
+    "searchFolders": "搜索文件夹…",
+    "noFolders": "没有文件夹",
+    "noMatches": "没有匹配项",
+    "noCollections": "没有合集",
+    "findMore": "查找更多…（{{count}}）",
+    "albums": "相册",
+    "playlists": "播放列表",
+    "deleteCount": "删除 {{count}} 项"
+  },
+  "massTag": {
+    "title": "为 {{count}} 个文件添加标签",
+    "tagsToAdd": "要添加的标签",
+    "placeholder": "输入标签并按 Enter…",
+    "mergeHint": "这些标签将与每个文件已有的标签合并。",
+    "cancel": "取消",
+    "addCount": "添加 {{count}} 个标签"
+  },
+  "batchRename": {
+    "title": "重命名 {{count}} 个项目",
+    "pattern": "命名规则",
+    "variablesLabel": "变量：",
+    "originalName": "原文件名",
+    "sequenceNumber": "序号",
+    "importDate": "导入日期",
+    "preview": "预览",
+    "moreCount": "……还有 {{count}} 个",
+    "cancel": "取消",
+    "renameAll": "全部重命名"
+  },
+  "exportModal": {
+    "title": "导出 {{count}} 个文件",
+    "chooseFolder": "选择目标文件夹",
+    "copyingFiles": "正在复制文件…",
+    "exportedToFolder": "已将 {{count}} 个文件导出到文件夹。",
+    "saveZip": "保存 ZIP 压缩包",
+    "creatingZip": "正在创建 ZIP…",
+    "savedToZip": "已将 {{count}} 个文件保存到 ZIP。",
+    "exportToFolder": "导出到文件夹",
+    "exportToFolderDesc": "将文件复制到你选择的文件夹",
+    "exportAsZip": "导出为 ZIP",
+    "exportAsZipDesc": "将所有文件打包为一个 ZIP 压缩包",
+    "close": "关闭",
+    "errorPrefix": "错误："
   }
 }

@@ -362,7 +362,18 @@
     "nothingInTrashDesc": "您從媒體庫刪除的項目在永久移除前會出現在這裡。",
     "restore": "還原",
     "deleteForever": "永久刪除",
-    "loadingItems": "載入已刪除的項目…"
+    "loadingItems": "載入已刪除的項目…",
+    "moveTitle": "移到垃圾桶",
+    "moveMsg": "此檔案將移至垃圾桶，並在設定的保留期限後自動刪除。",
+    "moveConfirmBtn": "移到垃圾桶",
+    "moveManyTitle": "將 {{count}} 個檔案移到垃圾桶",
+    "moveManyMsg": "將 {{count}} 個檔案移到垃圾桶？它們將在設定的保留期限後被永久刪除。",
+    "dateUnknown": "未知",
+    "dateToday": "今天 {{time}}",
+    "daysAgo": "{{count}} 天前",
+    "typeImage": "照片",
+    "typeVideo": "影片",
+    "typeAudio": "音訊"
   },
   "sysmsgs": {
     "title": "系統訊息",
@@ -1107,5 +1118,60 @@
     "cancel": "取消",
     "deleting": "刪除中…",
     "deleteCount": "刪除 {{count}} 個檔案"
+  },
+  "selection": {
+    "selected": "已選取 {{count}} 項",
+    "selectAll": "全選 {{count}} 項",
+    "clearSelection": "清除選取",
+    "export": "匯出",
+    "rename": "重新命名",
+    "addTags": "新增標籤",
+    "moveToCollection": "移動到收藏…",
+    "moveToFolder": "移動到資料夾…",
+    "noCollection": "無收藏",
+    "searchCollections": "搜尋收藏…",
+    "searchFolders": "搜尋資料夾…",
+    "noFolders": "沒有資料夾",
+    "noMatches": "沒有符合項目",
+    "noCollections": "沒有收藏",
+    "findMore": "尋找更多…（{{count}}）",
+    "albums": "相簿",
+    "playlists": "播放清單",
+    "deleteCount": "刪除 {{count}} 項"
+  },
+  "massTag": {
+    "title": "為 {{count}} 個檔案新增標籤",
+    "tagsToAdd": "要新增的標籤",
+    "placeholder": "輸入標籤並按 Enter…",
+    "mergeHint": "這些標籤將與每個檔案現有的標籤合併。",
+    "cancel": "取消",
+    "addCount": "新增 {{count}} 個標籤"
+  },
+  "batchRename": {
+    "title": "重新命名 {{count}} 個項目",
+    "pattern": "命名規則",
+    "variablesLabel": "變數：",
+    "originalName": "原始檔名",
+    "sequenceNumber": "序號",
+    "importDate": "匯入日期",
+    "preview": "預覽",
+    "moreCount": "……還有 {{count}} 個",
+    "cancel": "取消",
+    "renameAll": "全部重新命名"
+  },
+  "exportModal": {
+    "title": "匯出 {{count}} 個檔案",
+    "chooseFolder": "選擇目的地資料夾",
+    "copyingFiles": "正在複製檔案…",
+    "exportedToFolder": "已將 {{count}} 個檔案匯出到資料夾。",
+    "saveZip": "儲存 ZIP 壓縮檔",
+    "creatingZip": "正在建立 ZIP…",
+    "savedToZip": "已將 {{count}} 個檔案儲存到 ZIP。",
+    "exportToFolder": "匯出到資料夾",
+    "exportToFolderDesc": "將檔案複製到你選擇的資料夾",
+    "exportAsZip": "匯出為 ZIP",
+    "exportAsZipDesc": "將所有檔案打包成單一 ZIP 壓縮檔",
+    "close": "關閉",
+    "errorPrefix": "錯誤："
   }
 }

@@ -357,7 +357,18 @@
     "nothingInTrashDesc": "Các mục bạn xóa khỏi thư viện sẽ xuất hiện ở đây trước khi bị xóa vĩnh viễn.",
     "restore": "Khôi phục",
     "deleteForever": "Xóa vĩnh viễn",
-    "loadingItems": "Đang tải các mục đã xóa…"
+    "loadingItems": "Đang tải các mục đã xóa…",
+    "moveTitle": "Chuyển vào thùng rác",
+    "moveMsg": "Tệp sẽ được chuyển vào thùng rác và tự động xóa sau thời gian lưu giữ đã định.",
+    "moveConfirmBtn": "Chuyển vào thùng rác",
+    "moveManyTitle": "Chuyển {{count}} tệp vào thùng rác",
+    "moveManyMsg": "Chuyển {{count}} tệp vào thùng rác? Chúng sẽ bị xóa vĩnh viễn sau thời gian lưu giữ đã định.",
+    "dateUnknown": "Không rõ",
+    "dateToday": "Hôm nay, {{time}}",
+    "daysAgo": "{{count}} ngày trước",
+    "typeImage": "Ảnh",
+    "typeVideo": "Video",
+    "typeAudio": "Âm thanh"
   },
   "sysmsgs": {
     "title": "Thông báo hệ thống",
@@ -1098,5 +1109,60 @@
     "cancel": "Hủy",
     "deleting": "Đang xóa…",
     "deleteCount": "Xóa {{count}} tệp"
+  },
+  "selection": {
+    "selected": "Đã chọn {{count}}",
+    "selectAll": "Chọn tất cả {{count}}",
+    "clearSelection": "Bỏ chọn",
+    "export": "Xuất",
+    "rename": "Đổi tên",
+    "addTags": "Thêm thẻ",
+    "moveToCollection": "Chuyển vào bộ sưu tập…",
+    "moveToFolder": "Chuyển vào thư mục…",
+    "noCollection": "Không có bộ sưu tập",
+    "searchCollections": "Tìm bộ sưu tập…",
+    "searchFolders": "Tìm thư mục…",
+    "noFolders": "Không có thư mục",
+    "noMatches": "Không có kết quả phù hợp",
+    "noCollections": "Không có bộ sưu tập",
+    "findMore": "Tìm thêm… ({{count}})",
+    "albums": "Album",
+    "playlists": "Danh sách phát",
+    "deleteCount": "Xóa {{count}}"
+  },
+  "massTag": {
+    "title": "Thêm thẻ cho {{count}} tệp",
+    "tagsToAdd": "Thẻ cần thêm",
+    "placeholder": "Nhập thẻ rồi nhấn Enter…",
+    "mergeHint": "Các thẻ này sẽ được gộp với thẻ hiện có của mỗi tệp.",
+    "cancel": "Hủy",
+    "addCount": "Thêm {{count}} thẻ"
+  },
+  "batchRename": {
+    "title": "Đổi tên {{count}} mục",
+    "pattern": "Mẫu",
+    "variablesLabel": "Biến:",
+    "originalName": "tên gốc",
+    "sequenceNumber": "số thứ tự",
+    "importDate": "ngày nhập",
+    "preview": "Xem trước",
+    "moreCount": "…và {{count}} mục khác",
+    "cancel": "Hủy",
+    "renameAll": "Đổi tên tất cả"
+  },
+  "exportModal": {
+    "title": "Xuất {{count}} tệp",
+    "chooseFolder": "Chọn thư mục đích",
+    "copyingFiles": "Đang sao chép tệp…",
+    "exportedToFolder": "Đã xuất {{count}} tệp ra thư mục.",
+    "saveZip": "Lưu tệp ZIP",
+    "creatingZip": "Đang tạo ZIP…",
+    "savedToZip": "Đã lưu {{count}} tệp vào ZIP.",
+    "exportToFolder": "Xuất ra thư mục",
+    "exportToFolderDesc": "Sao chép tệp vào thư mục bạn chọn",
+    "exportAsZip": "Xuất dưới dạng ZIP",
+    "exportAsZipDesc": "Gộp tất cả tệp vào một tệp ZIP duy nhất",
+    "close": "Đóng",
+    "errorPrefix": "Lỗi:"
   }
 }

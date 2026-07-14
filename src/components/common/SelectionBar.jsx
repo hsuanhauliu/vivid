@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X,
   Trash2,
@@ -20,6 +21,7 @@ const VISIBLE_LIMIT = 6;
 // "Move to Collection" menu: collections collections by type (albums / playlists),
 // shows real cover thumbnails, and reveals a search box when there are many.
 function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState('');
@@ -46,8 +48,13 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
 
   // Build a flat list with type headers; cap the collapsed view.
   const sections = [
-    { key: 'album', label: 'Albums', icon: BookImage, items: albums.filter(match) },
-    { key: 'playlist', label: 'Playlists', icon: Disc, items: playlists.filter(match) },
+    { key: 'album', label: t('selection.albums'), icon: BookImage, items: albums.filter(match) },
+    {
+      key: 'playlist',
+      label: t('selection.playlists'),
+      icon: Disc,
+      items: playlists.filter(match),
+    },
   ].filter((s) => s.items.length > 0);
 
   const totalReal = albums.length + playlists.length;
@@ -60,7 +67,7 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
     <div className="sel-collection-menu" ref={ref}>
       <button className="btn btn-secondary selection-action" onClick={() => setOpen((v) => !v)}>
         <FolderInput size={13} />
-        Move to Collection…
+        {t('selection.moveToCollection')}
       </button>
       {open && (
         <div className="sel-collection-pop">
@@ -70,7 +77,7 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
               <input
                 autoFocus
                 className="sel-collection-search-input"
-                placeholder="Search collections…"
+                placeholder={t('selection.searchCollections')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -81,7 +88,7 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
               className="sel-collection-item sel-collection-none"
               onClick={() => pick('__none__')}
             >
-              <X size={12} /> No collection
+              <X size={12} /> {t('selection.noCollection')}
             </button>
             {sections.map(({ key, label, icon: Icon, items }) => {
               const rows = items.slice(0, budget);
@@ -108,12 +115,14 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
               );
             })}
             {sections.length === 0 && (
-              <div className="sel-collection-empty">{q ? 'No matches' : 'No collections'}</div>
+              <div className="sel-collection-empty">
+                {q ? t('selection.noMatches') : t('selection.noCollections')}
+              </div>
             )}
           </div>
           {hasMore && (
             <button className="sel-collection-more" onClick={() => setExpanded(true)}>
-              <Search size={11} /> Find more… ({totalReal - VISIBLE_LIMIT})
+              <Search size={11} /> {t('selection.findMore', { count: totalReal - VISIBLE_LIMIT })}
             </button>
           )}
         </div>
@@ -125,6 +134,7 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
 // "Move to Folder" menu: on-disk destination folders, indented by depth,
 // Uncategorized first, with a search box for large trees.
 function MoveToFolderMenu({ folders, onMassMoveFolder }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -156,7 +166,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
     <div className="sel-collection-menu" ref={ref}>
       <button className="btn btn-secondary selection-action" onClick={() => setOpen((v) => !v)}>
         <FolderTree size={13} />
-        Move to Folder…
+        {t('selection.moveToFolder')}
       </button>
       {open && (
         <div className="sel-collection-pop">
@@ -166,7 +176,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
               <input
                 autoFocus
                 className="sel-collection-search-input"
-                placeholder="Search folders…"
+                placeholder={t('selection.searchFolders')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -184,7 +194,9 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
                 </button>
               );
             })}
-            {shown.length === 0 && <div className="sel-collection-empty">No folders</div>}
+            {shown.length === 0 && (
+              <div className="sel-collection-empty">{t('selection.noFolders')}</div>
+            )}
           </div>
         </div>
       )}
@@ -208,18 +220,21 @@ export default function SelectionBar({
   allItems,
   hasPlayer,
 }) {
+  const { t } = useTranslation();
   return (
     <div className="selection-bar" style={hasPlayer ? { bottom: 'calc(65px + 16px)' } : undefined}>
       <div className="selection-bar-left">
-        <button className="icon-btn selection-close" onClick={onClearAll} title="Clear selection">
+        <button
+          className="icon-btn selection-close"
+          onClick={onClearAll}
+          title={t('selection.clearSelection')}
+        >
           <X size={15} />
         </button>
-        <span className="selection-count">
-          <strong>{count}</strong> selected
-        </span>
+        <span className="selection-count">{t('selection.selected', { count })}</span>
         {count < total && (
           <button className="selection-link" onClick={onSelectAll}>
-            Select all {total}
+            {t('selection.selectAll', { count: total })}
           </button>
         )}
       </div>
@@ -227,15 +242,15 @@ export default function SelectionBar({
       <div className="selection-bar-actions">
         <button className="btn btn-secondary selection-action" onClick={onExport}>
           <Download size={13} />
-          Export
+          {t('selection.export')}
         </button>
         <button className="btn btn-secondary selection-action" onClick={onBatchRename}>
           <Pencil size={13} />
-          Rename
+          {t('selection.rename')}
         </button>
         <button className="btn btn-secondary selection-action" onClick={onMassTag}>
           <Tag size={13} />
-          Add Tags
+          {t('selection.addTags')}
         </button>
         <MoveToCollectionMenu
           collections={collections}
@@ -247,7 +262,7 @@ export default function SelectionBar({
         )}
         <button className="btn btn-danger selection-action" onClick={onMassDelete}>
           <Trash2 size={13} />
-          Delete {count}
+          {t('selection.deleteCount', { count })}
         </button>
       </div>
     </div>

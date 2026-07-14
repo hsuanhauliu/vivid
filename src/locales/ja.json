@@ -362,7 +362,18 @@
     "nothingInTrashDesc": "ライブラリから削除したアイテムは、完全に削除される前にここに表示されます。",
     "restore": "復元",
     "deleteForever": "完全に削除",
-    "loadingItems": "削除済みアイテムを読み込み中…"
+    "loadingItems": "削除済みアイテムを読み込み中…",
+    "moveTitle": "ゴミ箱に移動",
+    "moveMsg": "このファイルはゴミ箱に移動され、設定された保持期間の経過後に自動的に削除されます。",
+    "moveConfirmBtn": "ゴミ箱に移動",
+    "moveManyTitle": "{{count}} 件のファイルをゴミ箱に移動",
+    "moveManyMsg": "{{count}} 件のファイルをゴミ箱に移動しますか？設定された保持期間の経過後に完全に削除されます。",
+    "dateUnknown": "不明",
+    "dateToday": "今日 {{time}}",
+    "daysAgo": "{{count}}日前",
+    "typeImage": "写真",
+    "typeVideo": "動画",
+    "typeAudio": "音声"
   },
   "sysmsgs": {
     "title": "システムメッセージ",
@@ -1107,5 +1118,60 @@
     "cancel": "キャンセル",
     "deleting": "削除中…",
     "deleteCount": "{{count}} 件のファイルを削除"
+  },
+  "selection": {
+    "selected": "{{count}} 件選択中",
+    "selectAll": "{{count}} 件すべて選択",
+    "clearSelection": "選択を解除",
+    "export": "書き出し",
+    "rename": "名前を変更",
+    "addTags": "タグを追加",
+    "moveToCollection": "コレクションに移動…",
+    "moveToFolder": "フォルダに移動…",
+    "noCollection": "コレクションなし",
+    "searchCollections": "コレクションを検索…",
+    "searchFolders": "フォルダを検索…",
+    "noFolders": "フォルダがありません",
+    "noMatches": "該当なし",
+    "noCollections": "コレクションがありません",
+    "findMore": "さらに検索…（{{count}}）",
+    "albums": "アルバム",
+    "playlists": "プレイリスト",
+    "deleteCount": "{{count}} 件を削除"
+  },
+  "massTag": {
+    "title": "{{count}} 件のファイルにタグを追加",
+    "tagsToAdd": "追加するタグ",
+    "placeholder": "タグを入力してEnterを押す…",
+    "mergeHint": "これらのタグは各ファイルの既存のタグと統合されます。",
+    "cancel": "キャンセル",
+    "addCount": "{{count}} 件のタグを追加"
+  },
+  "batchRename": {
+    "title": "{{count}} 件のアイテムの名前を変更",
+    "pattern": "パターン",
+    "variablesLabel": "変数：",
+    "originalName": "元の名前",
+    "sequenceNumber": "連番",
+    "importDate": "取り込み日",
+    "preview": "プレビュー",
+    "moreCount": "…他 {{count}} 件",
+    "cancel": "キャンセル",
+    "renameAll": "すべて名前変更"
+  },
+  "exportModal": {
+    "title": "{{count}} 件のファイルを書き出し",
+    "chooseFolder": "保存先フォルダを選択",
+    "copyingFiles": "ファイルをコピー中…",
+    "exportedToFolder": "{{count}} 件のファイルをフォルダに書き出しました。",
+    "saveZip": "ZIPアーカイブを保存",
+    "creatingZip": "ZIPを作成中…",
+    "savedToZip": "{{count}} 件のファイルをZIPに保存しました。",
+    "exportToFolder": "フォルダに書き出し",
+    "exportToFolderDesc": "選択したフォルダにファイルをコピーします",
+    "exportAsZip": "ZIPとして書き出し",
+    "exportAsZipDesc": "すべてのファイルを1つのZIPアーカイブにまとめます",
+    "close": "閉じる",
+    "errorPrefix": "エラー："
   }
 }

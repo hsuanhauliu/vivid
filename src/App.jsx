@@ -633,10 +633,9 @@ export default function App() {
   const handleRemove = useCallback((id) => {
     setContextMenu(null);
     setConfirm({
-      title: 'Move to Trash',
-      message:
-        'The file will be moved to Trash and automatically deleted after the configured retention period.',
-      confirmLabel: 'Move to Trash',
+      title: t('trash.moveTitle'),
+      message: t('trash.moveMsg'),
+      confirmLabel: t('trash.moveConfirmBtn'),
       onConfirm: async () => {
         await invoke('trash_media', { id });
         setAllItems((prev) => prev.filter((it) => it.id !== id));
@@ -650,16 +649,16 @@ export default function App() {
         setConfirm(null);
       },
     });
-  }, []);
+  }, [t]);
 
   // ── Multi-select mutations ────────────────────────────────────────────────
 
   const handleMassDelete = useCallback(() => {
     const ids = [...checkedIds];
     setConfirm({
-      title: `Move ${ids.length} files to Trash`,
-      message: `Move ${ids.length} files to Trash? They will be permanently deleted after the configured retention period.`,
-      confirmLabel: `Move to Trash`,
+      title: t('trash.moveManyTitle', { count: ids.length }),
+      message: t('trash.moveManyMsg', { count: ids.length }),
+      confirmLabel: t('trash.moveConfirmBtn'),
       onConfirm: async () => {
         await Promise.all(ids.map((id) => invoke('trash_media', { id })));
         setAllItems((prev) => prev.filter((it) => !checkedIds.has(it.id)));
@@ -667,7 +666,7 @@ export default function App() {
         setConfirm(null);
       },
     });
-  }, [checkedIds, clearChecked]);
+  }, [checkedIds, clearChecked, t]);
 
   const handleMassTag = useCallback(
     async (tagsToAdd) => {

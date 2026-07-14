@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { FolderOpen, Archive, Download } from 'lucide-react';
@@ -6,6 +7,7 @@ import Modal from '../common/Modal';
 import './ExportModal.css';
 
 export default function ExportModal({ items, onClose }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(null); // null | 'working' | 'done' | 'error'
   const [message, setMessage] = useState('');
 
@@ -15,15 +17,15 @@ export default function ExportModal({ items, onClose }) {
     const dest = await open({
       directory: true,
       multiple: false,
-      title: 'Choose destination folder',
+      title: t('exportModal.chooseFolder'),
     });
     if (!dest) return;
     setStatus('working');
-    setMessage('Copying files…');
+    setMessage(t('exportModal.copyingFiles'));
     try {
       await invoke('export_files_to_folder', { filePaths, destFolder: dest });
       setStatus('done');
-      setMessage(`${items.length} file${items.length !== 1 ? 's' : ''} exported to folder.`);
+      setMessage(t('exportModal.exportedToFolder', { count: items.length }));
     } catch (e) {
       setStatus('error');
       setMessage(String(e));
@@ -32,17 +34,17 @@ export default function ExportModal({ items, onClose }) {
 
   async function handleExportZip() {
     const dest = await save({
-      title: 'Save ZIP archive',
+      title: t('exportModal.saveZip'),
       defaultPath: 'vivid-export.zip',
       filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
     });
     if (!dest) return;
     setStatus('working');
-    setMessage('Creating ZIP…');
+    setMessage(t('exportModal.creatingZip'));
     try {
       await invoke('export_files_as_zip', { filePaths, destPath: dest });
       setStatus('done');
-      setMessage(`${items.length} file${items.length !== 1 ? 's' : ''} saved to ZIP.`);
+      setMessage(t('exportModal.savedToZip', { count: items.length }));
     } catch (e) {
       setStatus('error');
       setMessage(String(e));
@@ -55,23 +57,19 @@ export default function ExportModal({ items, onClose }) {
       className="export-modal"
       onClose={onClose}
       titleIcon={<Download size={16} />}
-      title={
-        <>
-          Export {items.length} file{items.length !== 1 ? 's' : ''}
-        </>
-      }
+      title={t('exportModal.title', { count: items.length })}
     >
       {status === null || status === 'error' ? (
         <div className="export-options">
           <button className="export-option-btn" onClick={handleExportFolder}>
             <FolderOpen size={28} />
-            <span className="export-option-title">Export to Folder</span>
-            <span className="export-option-desc">Copy files to a folder you choose</span>
+            <span className="export-option-title">{t('exportModal.exportToFolder')}</span>
+            <span className="export-option-desc">{t('exportModal.exportToFolderDesc')}</span>
           </button>
           <button className="export-option-btn" onClick={handleExportZip}>
             <Archive size={28} />
-            <span className="export-option-title">Export as ZIP</span>
-            <span className="export-option-desc">Bundle all files into a single ZIP archive</span>
+            <span className="export-option-title">{t('exportModal.exportAsZip')}</span>
+            <span className="export-option-desc">{t('exportModal.exportAsZipDesc')}</span>
           </button>
         </div>
       ) : null}
@@ -89,11 +87,15 @@ export default function ExportModal({ items, onClose }) {
         <div className="export-status export-done">
           ✓ {message}
           <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={onClose}>
-            Close
+            {t('exportModal.close')}
           </button>
         </div>
       )}
-      {status === 'error' && <div className="export-status export-error">Error: {message}</div>}
+      {status === 'error' && (
+        <div className="export-status export-error">
+          {t('exportModal.errorPrefix')} {message}
+        </div>
+      )}
     </Modal>
   );
 }

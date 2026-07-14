@@ -357,7 +357,18 @@
     "nothingInTrashDesc": "라이브러리에서 삭제한 항목은 영구적으로 제거되기 전에 여기에 표시됩니다.",
     "restore": "복원",
     "deleteForever": "영구 삭제",
-    "loadingItems": "삭제된 항목을 불러오는 중…"
+    "loadingItems": "삭제된 항목을 불러오는 중…",
+    "moveTitle": "휴지통으로 이동",
+    "moveMsg": "이 파일은 휴지통으로 이동되며, 설정된 보관 기간이 지나면 자동으로 삭제됩니다.",
+    "moveConfirmBtn": "휴지통으로 이동",
+    "moveManyTitle": "{{count}}개 파일을 휴지통으로 이동",
+    "moveManyMsg": "{{count}}개 파일을 휴지통으로 이동할까요? 설정된 보관 기간이 지나면 영구적으로 삭제됩니다.",
+    "dateUnknown": "알 수 없음",
+    "dateToday": "오늘 {{time}}",
+    "daysAgo": "{{count}}일 전",
+    "typeImage": "사진",
+    "typeVideo": "동영상",
+    "typeAudio": "오디오"
   },
   "sysmsgs": {
     "title": "시스템 메시지",
@@ -1093,5 +1104,60 @@
     "cancel": "취소",
     "deleting": "삭제 중…",
     "deleteCount": "{{count}}개 파일 삭제"
+  },
+  "selection": {
+    "selected": "{{count}}개 선택됨",
+    "selectAll": "{{count}}개 모두 선택",
+    "clearSelection": "선택 해제",
+    "export": "내보내기",
+    "rename": "이름 바꾸기",
+    "addTags": "태그 추가",
+    "moveToCollection": "컬렉션으로 이동…",
+    "moveToFolder": "폴더로 이동…",
+    "noCollection": "컬렉션 없음",
+    "searchCollections": "컬렉션 검색…",
+    "searchFolders": "폴더 검색…",
+    "noFolders": "폴더 없음",
+    "noMatches": "일치하는 항목 없음",
+    "noCollections": "컬렉션 없음",
+    "findMore": "더 찾기…（{{count}}）",
+    "albums": "앨범",
+    "playlists": "플레이리스트",
+    "deleteCount": "{{count}}개 삭제"
+  },
+  "massTag": {
+    "title": "{{count}}개 파일에 태그 추가",
+    "tagsToAdd": "추가할 태그",
+    "placeholder": "태그를 입력하고 Enter를 누르세요…",
+    "mergeHint": "이 태그는 각 파일의 기존 태그와 합쳐집니다.",
+    "cancel": "취소",
+    "addCount": "태그 {{count}}개 추가"
+  },
+  "batchRename": {
+    "title": "항목 {{count}}개 이름 바꾸기",
+    "pattern": "패턴",
+    "variablesLabel": "변수:",
+    "originalName": "원래 이름",
+    "sequenceNumber": "순번",
+    "importDate": "가져온 날짜",
+    "preview": "미리 보기",
+    "moreCount": "…외 {{count}}개",
+    "cancel": "취소",
+    "renameAll": "모두 이름 바꾸기"
+  },
+  "exportModal": {
+    "title": "파일 {{count}}개 내보내기",
+    "chooseFolder": "대상 폴더 선택",
+    "copyingFiles": "파일 복사 중…",
+    "exportedToFolder": "{{count}}개 파일을 폴더로 내보냈습니다.",
+    "saveZip": "ZIP 압축 파일 저장",
+    "creatingZip": "ZIP 생성 중…",
+    "savedToZip": "{{count}}개 파일을 ZIP으로 저장했습니다.",
+    "exportToFolder": "폴더로 내보내기",
+    "exportToFolderDesc": "선택한 폴더에 파일을 복사합니다",
+    "exportAsZip": "ZIP으로 내보내기",
+    "exportAsZipDesc": "모든 파일을 하나의 ZIP 압축 파일로 묶습니다",
+    "close": "닫기",
+    "errorPrefix": "오류:"
   }
 }
