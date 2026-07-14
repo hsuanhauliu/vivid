@@ -819,7 +819,13 @@
     "collectionLabel": "Coleção",
     "folder": "Pasta",
     "displayNamePlaceholder": "Nome de exibição",
-    "descPlaceholder": "Adicionar uma descrição…"
+    "descPlaceholder": "Adicionar uma descrição…",
+    "setLocationTitle": "Definir localização",
+    "setLocationHint": "Clique em qualquer lugar do mapa para colocar um marcador, ou arraste-o para ajustar.",
+    "noLocationPicked": "Nenhuma localização selecionada",
+    "clearLocation": "Remover localização",
+    "viewOnMap": "Ver no mapa",
+    "noLocation": "Nenhuma localização definida"
   },
   "exif": {
     "image": "Imagem",

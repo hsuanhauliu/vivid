@@ -819,7 +819,13 @@
     "collectionLabel": "Collection",
     "folder": "Folder",
     "displayNamePlaceholder": "Display name",
-    "descPlaceholder": "Add a description…"
+    "descPlaceholder": "Add a description…",
+    "setLocationTitle": "Set Location",
+    "setLocationHint": "Click anywhere on the map to place a pin, or drag the pin to fine-tune it.",
+    "noLocationPicked": "No location selected",
+    "clearLocation": "Clear location",
+    "viewOnMap": "View on Map",
+    "noLocation": "No location set"
   },
   "exif": {
     "image": "Image",

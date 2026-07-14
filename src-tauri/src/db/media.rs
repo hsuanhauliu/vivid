@@ -82,6 +82,23 @@ pub fn set_color_label(conn: &Connection, id: &str, label: Option<&str>) -> Resu
     fetch_one(conn, id)
 }
 
+/// Manually set (or clear, passing both as None) an item's GPS coordinates —
+/// used by the "adjust location" map picker in the detail panel, independent
+/// of whatever EXIF GPS data (if any) the file itself carries.
+pub fn set_location(
+    conn: &Connection,
+    id: &str,
+    lat: Option<f64>,
+    lng: Option<f64>,
+) -> Result<MediaItem> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET gps_lat=?1, gps_lng=?2, updated_at=?3 WHERE id=?4",
+        params![lat, lng, now, id],
+    )?;
+    fetch_one(conn, id)
+}
+
 /// Store recognized OCR text for an item and mark it as scanned. An empty string
 /// is a valid result (image scanned, no text found) and still flips the flag.
 pub fn set_ocr(conn: &Connection, id: &str, text: &str) -> Result<()> {

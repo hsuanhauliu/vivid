@@ -792,7 +792,13 @@
     "collectionLabel": "컬렉션",
     "folder": "폴더",
     "displayNamePlaceholder": "표시 이름",
-    "descPlaceholder": "설명 추가…"
+    "descPlaceholder": "설명 추가…",
+    "setLocationTitle": "위치 설정",
+    "setLocationHint": "지도를 클릭해 핀을 놓거나, 핀을 드래그해 위치를 미세 조정하세요.",
+    "noLocationPicked": "선택된 위치 없음",
+    "clearLocation": "위치 지우기",
+    "viewOnMap": "지도에서 보기",
+    "noLocation": "위치 정보 없음"
   },
   "exif": {
     "image": "이미지",

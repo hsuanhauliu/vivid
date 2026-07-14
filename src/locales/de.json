@@ -819,7 +819,13 @@
     "collectionLabel": "Sammlung",
     "folder": "Ordner",
     "displayNamePlaceholder": "Anzeigename",
-    "descPlaceholder": "Beschreibung hinzufügen…"
+    "descPlaceholder": "Beschreibung hinzufügen…",
+    "setLocationTitle": "Standort festlegen",
+    "setLocationHint": "Klicken Sie auf die Karte, um eine Markierung zu setzen, oder ziehen Sie sie zur Feinabstimmung.",
+    "noLocationPicked": "Kein Standort ausgewählt",
+    "clearLocation": "Standort entfernen",
+    "viewOnMap": "Auf der Karte anzeigen",
+    "noLocation": "Kein Standort festgelegt"
   },
   "exif": {
     "image": "Bild",

@@ -1195,6 +1195,19 @@ pub fn set_color_label(
     db::set_color_label(&conn, &id, label.as_deref()).map_err(|e| e.to_string())
 }
 
+/// Manually set (or, passing both as null, clear) an item's location — used
+/// by the "adjust location" map picker in the detail panel.
+#[tauri::command]
+pub fn set_media_location(
+    id: String,
+    lat: Option<f64>,
+    lng: Option<f64>,
+    state: State<DbState>,
+) -> Result<MediaItem, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    db::set_location(&conn, &id, lat, lng).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn update_item_order(id: String, sort_order: i64, state: State<DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;

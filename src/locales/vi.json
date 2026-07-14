@@ -796,7 +796,13 @@
     "collectionLabel": "Bộ sưu tập",
     "folder": "Thư mục",
     "displayNamePlaceholder": "Tên hiển thị",
-    "descPlaceholder": "Thêm mô tả…"
+    "descPlaceholder": "Thêm mô tả…",
+    "setLocationTitle": "Đặt vị trí",
+    "setLocationHint": "Nhấp vào bất kỳ đâu trên bản đồ để đặt ghim, hoặc kéo ghim để tinh chỉnh.",
+    "noLocationPicked": "Chưa chọn vị trí",
+    "clearLocation": "Xóa vị trí",
+    "viewOnMap": "Xem trên bản đồ",
+    "noLocation": "Chưa có vị trí"
   },
   "exif": {
     "image": "Ảnh",

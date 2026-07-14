@@ -819,7 +819,13 @@
     "collectionLabel": "संग्रह",
     "folder": "फ़ोल्डर",
     "displayNamePlaceholder": "दिखने वाला नाम",
-    "descPlaceholder": "विवरण जोड़ें…"
+    "descPlaceholder": "विवरण जोड़ें…",
+    "setLocationTitle": "स्थान सेट करें",
+    "setLocationHint": "पिन लगाने के लिए मैप पर कहीं भी क्लिक करें, या उसे ठीक करने के लिए पिन को खींचें।",
+    "noLocationPicked": "कोई स्थान नहीं चुना गया",
+    "clearLocation": "स्थान हटाएं",
+    "viewOnMap": "मैप पर देखें",
+    "noLocation": "कोई स्थान सेट नहीं है"
   },
   "exif": {
     "image": "इमेज",

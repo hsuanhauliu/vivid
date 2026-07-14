@@ -819,7 +819,13 @@
     "collectionLabel": "Colección",
     "folder": "Carpeta",
     "displayNamePlaceholder": "Nombre visible",
-    "descPlaceholder": "Añade una descripción…"
+    "descPlaceholder": "Añade una descripción…",
+    "setLocationTitle": "Establecer ubicación",
+    "setLocationHint": "Haz clic en cualquier punto del mapa para colocar un pin, o arrástralo para ajustarlo.",
+    "noLocationPicked": "Ninguna ubicación seleccionada",
+    "clearLocation": "Quitar ubicación",
+    "viewOnMap": "Ver en el mapa",
+    "noLocation": "Sin ubicación"
   },
   "exif": {
     "image": "Imagen",

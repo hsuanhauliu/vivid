@@ -792,7 +792,13 @@
     "collectionLabel": "合集",
     "folder": "文件夹",
     "displayNamePlaceholder": "显示名称",
-    "descPlaceholder": "添加描述…"
+    "descPlaceholder": "添加描述…",
+    "setLocationTitle": "设置位置",
+    "setLocationHint": "点击地图上的任意位置放置图钉，或拖动图钉进行微调。",
+    "noLocationPicked": "未选择位置",
+    "clearLocation": "清除位置",
+    "viewOnMap": "在地图上查看",
+    "noLocation": "未设置位置"
   },
   "exif": {
     "image": "图片",

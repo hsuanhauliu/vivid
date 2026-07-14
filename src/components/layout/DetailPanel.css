@@ -353,6 +353,15 @@ select.input {
   text-decoration: underline;
 }
 
+.detail-view-on-map-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-top: 6px;
+}
+
 /* ── Collection badge in detail panel ────────────────────────────────────── */
 .collection-badge {
   display: flex;

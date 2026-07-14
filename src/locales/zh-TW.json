@@ -806,7 +806,13 @@
     "collectionLabel": "收藏",
     "folder": "資料夾",
     "displayNamePlaceholder": "顯示名稱",
-    "descPlaceholder": "新增描述…"
+    "descPlaceholder": "新增描述…",
+    "setLocationTitle": "設定位置",
+    "setLocationHint": "點擊地圖上的任意位置放置圖釘，或拖曳圖釘進行微調。",
+    "noLocationPicked": "未選擇位置",
+    "clearLocation": "清除位置",
+    "viewOnMap": "在地圖上檢視",
+    "noLocation": "未設定位置"
   },
   "exif": {
     "image": "圖片",

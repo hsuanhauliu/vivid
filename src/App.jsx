@@ -144,6 +144,7 @@ export default function App() {
   const [screensaverItems, setScreensaverItems] = useState(null); // screensaver mode items
   const [playerItem, setPlayerItem] = useState(null); // bottom audio player
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
+  const [mapFocusId, setMapFocusId] = useState(null); // item to center the World Map on
   const [view, setView] = useState(() => {
     const home = localStorage.getItem('vivid-home-page') || 'all';
     // Folders is a panel (file tree) rather than a page — open it via
@@ -1079,13 +1080,14 @@ export default function App() {
   );
 
   const handleViewChange = useCallback(
-    (v) => {
+    (v, { mapFocusId: focusId = null } = {}) => {
       guardedNav(() => {
         setView(v);
         setActiveFolder(null);
         clearChecked();
         clearSearchAndFilters();
         setShowDuplicates(false);
+        setMapFocusId(focusId);
         pushNav({ filter, activeTag, activeCollection, activeFolder: null, search: '', view: v });
       });
     },
@@ -1100,6 +1102,25 @@ export default function App() {
       guardedNav,
     ],
   );
+
+  // "View on Map" from the detail panel — jumps to the World Map centered on
+  // this specific item instead of the usual fit-to-all-pins behavior.
+  const handleViewOnMap = useCallback(
+    (item) => {
+      setViewerItem(null);
+      setViewerDetails(false);
+      setSelected(null);
+      handleViewChange('worldmap', { mapFocusId: item.id });
+    },
+    [handleViewChange],
+  );
+
+  const handleSetLocation = useCallback(async (id, lat, lng) => {
+    const updated = await invoke('set_media_location', { id, lat, lng });
+    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+    setSelected((prev) => (prev?.id === id ? updated : prev));
+    setViewerItem((prev) => (prev?.id === id ? updated : prev));
+  }, []);
 
   const handleCardOpen = useCallback(
     (item) => {
@@ -1934,6 +1955,8 @@ export default function App() {
                         setViewerDetails(false);
                         handleFolderClick(id);
                       }}
+                      onViewOnMap={handleViewOnMap}
+                      onSetLocation={handleSetLocation}
                       freshSrc={freshUrls[viewerItem.id] || null}
                     />
                   )}
@@ -2000,6 +2023,7 @@ export default function App() {
                   onOpenCluster={(clItems) => {
                     setViewerItem(clItems[0]);
                   }}
+                  focusItemId={mapFocusId}
                 />
               ) : view === 'trash' ? (
                 <TrashView
@@ -2285,6 +2309,8 @@ export default function App() {
                   onRemoveAutoTag={handleRemoveAutoTag}
                   onRetagImage={handleRetagImage}
                   onNavigateToFolder={handleFolderClick}
+                  onViewOnMap={handleViewOnMap}
+                  onSetLocation={handleSetLocation}
                   freshSrc={selected ? freshUrls[selected.id] || null : null}
                 />
               )}

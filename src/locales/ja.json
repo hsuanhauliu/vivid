@@ -806,7 +806,13 @@
     "collectionLabel": "コレクション",
     "folder": "フォルダ",
     "displayNamePlaceholder": "表示名",
-    "descPlaceholder": "説明を追加…"
+    "descPlaceholder": "説明を追加…",
+    "setLocationTitle": "位置を設定",
+    "setLocationHint": "地図上をクリックしてピンを配置するか、ピンをドラッグして微調整します。",
+    "noLocationPicked": "位置が選択されていません",
+    "clearLocation": "位置を削除",
+    "viewOnMap": "地図で見る",
+    "noLocation": "位置情報なし"
   },
   "exif": {
     "image": "画像",

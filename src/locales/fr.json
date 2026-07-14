@@ -819,7 +819,13 @@
     "collectionLabel": "Collection",
     "folder": "Dossier",
     "displayNamePlaceholder": "Nom affiché",
-    "descPlaceholder": "Ajouter une description…"
+    "descPlaceholder": "Ajouter une description…",
+    "setLocationTitle": "Définir la position",
+    "setLocationHint": "Cliquez n'importe où sur la carte pour placer un repère, ou faites-le glisser pour l'ajuster.",
+    "noLocationPicked": "Aucune position sélectionnée",
+    "clearLocation": "Supprimer la position",
+    "viewOnMap": "Voir sur la carte",
+    "noLocation": "Aucune position définie"
   },
   "exif": {
     "image": "Image",
