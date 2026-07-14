@@ -3,6 +3,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
 import Modal from '../common/Modal';
+import './ImportSourceModal.css';
 
 export default function GoogleTakeoutModal({ onClose, onImportPaths }) {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ export default function GoogleTakeoutModal({ onClose, onImportPaths }) {
         <p className="import-source-note">{t('googlePhotos.note')}</p>
       </div>
 
-      <div className="import-source-actions">
+      <div className="modal-actions">
         <button className="btn btn-secondary" onClick={() => openUrl('https://takeout.google.com')}>
           <ExternalLink size={14} /> {t('googlePhotos.openTakeout')}
         </button>

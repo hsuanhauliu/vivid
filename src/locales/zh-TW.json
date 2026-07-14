@@ -313,7 +313,7 @@
     "ai": {
       "semanticDesc": "驅動語意搜尋、情境篩選、自動標記和尋找相似功能。需要一次性模型下載（約 1.5 GB），完全在本機執行。",
       "visualAI": "視覺 AI",
-      "visualAIDesc": "依語意搜尋、自動標記照片、依情境篩選，並尋找視覺相似的圖片。支援 50 種以上語言，完全在您的裝置上執行。",
+      "visualAIDesc": "依語意搜尋、自動標記照片、依情境篩選，並尋找視覺相似的圖片。支援 100 種以上語言，完全在您的裝置上執行。",
       "ramReqVisual": "~2 GB RAM · ~1.5 GB 下載",
       "activeDesc": "啟用中 — 語意搜尋、自動標記、情境篩選及尋找相似功能皆可使用。",
       "loadingDesc": "載入記憶體中…",
@@ -373,7 +373,9 @@
     "daysAgo": "{{count}} 天前",
     "typeImage": "照片",
     "typeVideo": "影片",
-    "typeAudio": "音訊"
+    "typeAudio": "音訊",
+    "confirmRestoreItemTitle": "恢復此項目？",
+    "confirmRestoreItem": "「{{name}}」將被移回你的資料庫。"
   },
   "sysmsgs": {
     "title": "系統訊息",
@@ -1145,7 +1147,8 @@
     "placeholder": "輸入標籤並按 Enter…",
     "mergeHint": "這些標籤將與每個檔案現有的標籤合併。",
     "cancel": "取消",
-    "addCount": "新增 {{count}} 個標籤"
+    "addCount": "新增 {{count}} 個標籤",
+    "topTags": "常用標籤"
   },
   "batchRename": {
     "title": "重新命名 {{count}} 個項目",

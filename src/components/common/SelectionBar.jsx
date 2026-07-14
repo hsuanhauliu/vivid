@@ -65,9 +65,12 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
 
   return (
     <div className="sel-collection-menu" ref={ref}>
-      <button className="btn btn-secondary selection-action" onClick={() => setOpen((v) => !v)}>
-        <FolderInput size={13} />
-        {t('selection.moveToCollection')}
+      <button
+        className="btn btn-secondary selection-action"
+        onClick={() => setOpen((v) => !v)}
+        title={t('selection.moveToCollection')}
+      >
+        <FolderInput size={16} />
       </button>
       {open && (
         <div className="sel-collection-pop">
@@ -164,9 +167,12 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
 
   return (
     <div className="sel-collection-menu" ref={ref}>
-      <button className="btn btn-secondary selection-action" onClick={() => setOpen((v) => !v)}>
-        <FolderTree size={13} />
-        {t('selection.moveToFolder')}
+      <button
+        className="btn btn-secondary selection-action"
+        onClick={() => setOpen((v) => !v)}
+        title={t('selection.moveToFolder')}
+      >
+        <FolderTree size={16} />
       </button>
       {open && (
         <div className="sel-collection-pop">
@@ -240,17 +246,22 @@ export default function SelectionBar({
       </div>
 
       <div className="selection-bar-actions">
-        <button className="btn btn-secondary selection-action" onClick={onExport}>
-          <Download size={13} />
-          {t('selection.export')}
+        <button className="btn btn-secondary selection-action" onClick={onExport} title={t('selection.export')}>
+          <Download size={16} />
         </button>
-        <button className="btn btn-secondary selection-action" onClick={onBatchRename}>
-          <Pencil size={13} />
-          {t('selection.rename')}
+        <button
+          className="btn btn-secondary selection-action"
+          onClick={onBatchRename}
+          title={t('selection.rename')}
+        >
+          <Pencil size={16} />
         </button>
-        <button className="btn btn-secondary selection-action" onClick={onMassTag}>
-          <Tag size={13} />
-          {t('selection.addTags')}
+        <button
+          className="btn btn-secondary selection-action"
+          onClick={onMassTag}
+          title={t('selection.addTags')}
+        >
+          <Tag size={16} />
         </button>
         <MoveToCollectionMenu
           collections={collections}
@@ -260,9 +271,12 @@ export default function SelectionBar({
         {folders?.length > 0 && onMassMoveFolder && (
           <MoveToFolderMenu folders={folders} onMassMoveFolder={onMassMoveFolder} />
         )}
-        <button className="btn btn-danger selection-action" onClick={onMassDelete}>
-          <Trash2 size={13} />
-          {t('selection.deleteCount', { count })}
+        <button
+          className="btn btn-danger selection-action"
+          onClick={onMassDelete}
+          title={t('selection.deleteCount', { count })}
+        >
+          <Trash2 size={16} />
         </button>
       </div>
     </div>

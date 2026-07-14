@@ -273,7 +273,7 @@
     "ai": {
       "semanticDesc": "Hỗ trợ tìm kiếm theo ý nghĩa, lọc theo tâm trạng, gắn thẻ tự động và tìm mục tương tự. Cần tải mô hình một lần (~1.5 GB) và chạy hoàn toàn trên thiết bị.",
       "visualAI": "Visual AI",
-      "visualAIDesc": "Tìm kiếm theo ý nghĩa, tự động gắn thẻ ảnh, lọc theo tâm trạng, và tìm ảnh tương tự về mặt thị giác. Hoạt động với hơn 50 ngôn ngữ. Chạy hoàn toàn trên thiết bị của bạn — không gửi gì lên đám mây.",
+      "visualAIDesc": "Tìm kiếm theo ý nghĩa, tự động gắn thẻ ảnh, lọc theo tâm trạng, và tìm ảnh tương tự về mặt thị giác. Hoạt động với hơn 100 ngôn ngữ. Chạy hoàn toàn trên thiết bị của bạn — không gửi gì lên đám mây.",
       "ramReqVisual": "~2 GB RAM · tải ~1.5 GB",
       "activeDesc": "Đang hoạt động — tìm kiếm ngữ nghĩa, gắn thẻ tự động, lọc tâm trạng, và tìm mục tương tự đều khả dụng.",
       "loadingDesc": "Đang nạp vào bộ nhớ…",
@@ -368,7 +368,9 @@
     "daysAgo": "{{count}} ngày trước",
     "typeImage": "Ảnh",
     "typeVideo": "Video",
-    "typeAudio": "Âm thanh"
+    "typeAudio": "Âm thanh",
+    "confirmRestoreItemTitle": "Khôi phục mục này?",
+    "confirmRestoreItem": "“{{name}}” sẽ được chuyển lại vào thư viện của bạn."
   },
   "sysmsgs": {
     "title": "Thông báo hệ thống",
@@ -1136,7 +1138,8 @@
     "placeholder": "Nhập thẻ rồi nhấn Enter…",
     "mergeHint": "Các thẻ này sẽ được gộp với thẻ hiện có của mỗi tệp.",
     "cancel": "Hủy",
-    "addCount": "Thêm {{count}} thẻ"
+    "addCount": "Thêm {{count}} thẻ",
+    "topTags": "Thường dùng"
   },
   "batchRename": {
     "title": "Đổi tên {{count}} mục",

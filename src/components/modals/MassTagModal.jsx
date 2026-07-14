@@ -5,6 +5,7 @@ import Modal from '../common/Modal';
 import './MassTagModal.css';
 
 const MAX_SUGGESTIONS = 8;
+const MAX_TOP_TAGS = 10;
 
 export default function MassTagModal({ count, allItems = [], onApply, onClose }) {
   const { t } = useTranslation();
@@ -13,15 +14,29 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
   const [activeIdx, setActiveIdx] = useState(-1);
   const inputRef = useRef(null);
 
-  // All existing tags across the library (manual + auto), for autocomplete.
-  const allTags = useMemo(() => {
-    const set = new Set();
+  // Frequency of every existing tag across the library (manual + auto), used
+  // both for autocomplete and for surfacing top tags below.
+  const tagCounts = useMemo(() => {
+    const counts = new Map();
     allItems.forEach((i) => {
-      (i.tags || []).forEach((t) => set.add(t));
-      (i.auto_tags || []).forEach((t) => set.add(t));
+      (i.tags || []).forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
+      (i.auto_tags || []).forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
     });
-    return [...set];
+    return counts;
   }, [allItems]);
+
+  const allTags = useMemo(() => [...tagCounts.keys()], [tagCounts]);
+
+  // Most-used tags not already added, for one-click adding without typing.
+  const topTags = useMemo(
+    () =>
+      [...tagCounts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([tg]) => tg)
+        .filter((tg) => !tags.includes(tg))
+        .slice(0, MAX_TOP_TAGS),
+    [tagCounts, tags],
+  );
 
   // Partial-match suggestions for the current input, excluding already-added tags.
   const suggestions = useMemo(() => {
@@ -126,6 +141,20 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
             )}
           </div>
         </div>
+
+        {topTags.length > 0 && (
+          <div className="field">
+            <label>{t('massTag.topTags')}</label>
+            <div className="masstag-toptags">
+              {topTags.map((tg) => (
+                <button key={tg} className="masstag-toptag" onClick={() => addTag(tg)}>
+                  <Plus size={10} />
+                  {tg}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('massTag.mergeHint')}</p>
 

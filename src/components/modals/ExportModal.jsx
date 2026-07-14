@@ -54,9 +54,8 @@ export default function ExportModal({ items, onClose }) {
   return (
     <Modal
       wide
-      className="export-modal"
       onClose={onClose}
-      titleIcon={<Download size={16} />}
+      icon={<Download size={20} />}
       title={t('exportModal.title', { count: items.length })}
     >
       {status === null || status === 'error' ? (
@@ -84,12 +83,14 @@ export default function ExportModal({ items, onClose }) {
         </div>
       )}
       {status === 'done' && (
-        <div className="export-status export-done">
-          ✓ {message}
-          <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={onClose}>
-            {t('exportModal.close')}
-          </button>
-        </div>
+        <>
+          <div className="export-status export-done">✓ {message}</div>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={onClose}>
+              {t('exportModal.close')}
+            </button>
+          </div>
+        </>
       )}
       {status === 'error' && (
         <div className="export-status export-error">

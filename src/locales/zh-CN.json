@@ -273,7 +273,7 @@
     "ai": {
       "semanticDesc": "为语义搜索、氛围筛选、自动打标签和查找相似项提供支持。需要一次性下载模型（约 1.5 GB），完全在本地运行。",
       "visualAI": "视觉 AI",
-      "visualAIDesc": "按语义搜索、自动为照片打标签、按氛围筛选，并查找视觉相似的图片。支持 50 多种语言。完全在你的设备上运行 — 不会上传到云端。",
+      "visualAIDesc": "按语义搜索、自动为照片打标签、按氛围筛选，并查找视觉相似的图片。支持 100 多种语言。完全在你的设备上运行 — 不会上传到云端。",
       "ramReqVisual": "约 2 GB 内存 · 约 1.5 GB 下载",
       "activeDesc": "已启用 — 语义搜索、自动打标签、氛围筛选和查找相似项均可使用。",
       "loadingDesc": "正在加载到内存…",
@@ -368,7 +368,9 @@
     "daysAgo": "{{count}} 天前",
     "typeImage": "照片",
     "typeVideo": "视频",
-    "typeAudio": "音频"
+    "typeAudio": "音频",
+    "confirmRestoreItemTitle": "恢复该项目？",
+    "confirmRestoreItem": "“{{name}}” 将被移回你的资料库。"
   },
   "sysmsgs": {
     "title": "系统消息",
@@ -1131,7 +1133,8 @@
     "placeholder": "输入标签并按 Enter…",
     "mergeHint": "这些标签将与每个文件已有的标签合并。",
     "cancel": "取消",
-    "addCount": "添加 {{count}} 个标签"
+    "addCount": "添加 {{count}} 个标签",
+    "topTags": "常用标签"
   },
   "batchRename": {
     "title": "重命名 {{count}} 个项目",

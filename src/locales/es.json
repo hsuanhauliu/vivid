@@ -274,7 +274,7 @@
     "ai": {
       "semanticDesc": "Permite la búsqueda por significado, el filtro por ambiente, el etiquetado automático y Buscar similares. Requiere una descarga única del modelo (~1.5 GB) y funciona completamente en tu dispositivo.",
       "visualAI": "IA visual",
-      "visualAIDesc": "Busca por significado, etiqueta fotos automáticamente, filtra por ambiente y encuentra imágenes visualmente similares. Funciona en más de 50 idiomas. Se ejecuta completamente en tu dispositivo — nada se envía a la nube.",
+      "visualAIDesc": "Busca por significado, etiqueta fotos automáticamente, filtra por ambiente y encuentra imágenes visualmente similares. Funciona en más de 100 idiomas. Se ejecuta completamente en tu dispositivo — nada se envía a la nube.",
       "ramReqVisual": "~2 GB de RAM · descarga de ~1.5 GB",
       "activeDesc": "Activo — la búsqueda semántica, el etiquetado automático, los filtros por ambiente y Buscar similares están disponibles.",
       "loadingDesc": "Cargando en memoria…",
@@ -375,7 +375,9 @@
     "daysAgo": "hace {{count}} d",
     "typeImage": "Foto",
     "typeVideo": "Video",
-    "typeAudio": "Audio"
+    "typeAudio": "Audio",
+    "confirmRestoreItemTitle": "¿Restaurar elemento?",
+    "confirmRestoreItem": "\"{{name}}\" se moverá de vuelta a tu biblioteca."
   },
   "sysmsgs": {
     "title": "Mensajes del sistema",
@@ -1164,7 +1166,8 @@
     "mergeHint": "Estas etiquetas se combinarán con las etiquetas existentes de cada archivo.",
     "cancel": "Cancelar",
     "addCount_one": "Añadir {{count}} etiqueta",
-    "addCount_other": "Añadir {{count}} etiquetas"
+    "addCount_other": "Añadir {{count}} etiquetas",
+    "topTags": "Usadas con frecuencia"
   },
   "batchRename": {
     "title_one": "Renombrar {{count}} elemento",

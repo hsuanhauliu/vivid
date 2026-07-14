@@ -64,7 +64,8 @@
   flex-shrink: 0;
 }
 
-.modal-wide .modal-icon {
+.modal-wide .modal-icon,
+.modal-icon-accent {
   background: var(--accent-dim);
   color: var(--accent);
 }
@@ -90,4 +91,12 @@
   gap: 10px;
   padding: 4px 0 0;
   text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 4px;
 }

@@ -313,7 +313,7 @@
     "ai": {
       "semanticDesc": "意味による検索、ムードフィルタリング、自動タグ付け、類似検索を提供します。一度限りのモデルダウンロード（約1.5 GB）が必要で、完全にデバイス上で動作します。",
       "visualAI": "ビジュアルAI",
-      "visualAIDesc": "意味による検索、写真の自動タグ付け、ムードによるフィルタリング、視覚的に類似した画像の検索ができます。50以上の言語に対応。すべてデバイス上で動作します。",
+      "visualAIDesc": "意味による検索、写真の自動タグ付け、ムードによるフィルタリング、視覚的に類似した画像の検索ができます。100以上の言語に対応。すべてデバイス上で動作します。",
       "ramReqVisual": "~2 GB RAM · ~1.5 GBダウンロード",
       "activeDesc": "有効 — セマンティック検索、自動タグ付け、雰囲気フィルター、類似検索が利用できます。",
       "loadingDesc": "メモリに読み込み中…",
@@ -373,7 +373,9 @@
     "daysAgo": "{{count}}日前",
     "typeImage": "写真",
     "typeVideo": "動画",
-    "typeAudio": "音声"
+    "typeAudio": "音声",
+    "confirmRestoreItemTitle": "アイテムを復元しますか？",
+    "confirmRestoreItem": "「{{name}}」がライブラリに戻されます。"
   },
   "sysmsgs": {
     "title": "システムメッセージ",
@@ -1145,7 +1147,8 @@
     "placeholder": "タグを入力してEnterを押す…",
     "mergeHint": "これらのタグは各ファイルの既存のタグと統合されます。",
     "cancel": "キャンセル",
-    "addCount": "{{count}} 件のタグを追加"
+    "addCount": "{{count}} 件のタグを追加",
+    "topTags": "よく使うタグ"
   },
   "batchRename": {
     "title": "{{count}} 件のアイテムの名前を変更",

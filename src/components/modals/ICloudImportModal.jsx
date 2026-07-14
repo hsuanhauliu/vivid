@@ -2,6 +2,7 @@ import { Apple, FolderOpen } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import Modal from '../common/Modal';
+import './ImportSourceModal.css';
 
 export default function ICloudImportModal({ onClose, onImportPaths }) {
   const { t } = useTranslation();
@@ -33,7 +34,10 @@ export default function ICloudImportModal({ onClose, onImportPaths }) {
         <p className="import-source-note">{t('icloud.note')}</p>
       </div>
 
-      <div className="import-source-actions">
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose}>
+          {t('common.cancel')}
+        </button>
         <button className="btn btn-primary" onClick={importLibrary}>
           <FolderOpen size={14} /> {t('icloud.importBtn')}
         </button>

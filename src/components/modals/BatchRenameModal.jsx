@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pencil } from 'lucide-react';
 import Modal from '../common/Modal';
 import { NAME_MAX_LEN } from '../../utils/limits';
 import './BatchRenameModal.css';
@@ -38,11 +39,13 @@ export default function BatchRenameModal({ items, onRename, onClose }) {
   }
 
   return (
-    <Modal onClose={onClose} width={480} title={t('batchRename.title', { count: items.length })}>
-      <div
-        className="modal-body"
-        style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
-      >
+    <Modal
+      wide
+      onClose={onClose}
+      icon={<Pencil size={20} />}
+      title={t('batchRename.title', { count: items.length })}
+    >
+      <div className="modal-form">
         <div>
           <label className="rename-label">{t('batchRename.pattern')}</label>
           <input

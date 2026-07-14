@@ -274,7 +274,7 @@
     "ai": {
       "semanticDesc": "Permet la recherche par sens, le filtrage par ambiance, l'étiquetage automatique et la recherche d'éléments similaires. Nécessite un téléchargement unique du modèle (~1,5 Go) et fonctionne entièrement en local.",
       "visualAI": "IA visuelle",
-      "visualAIDesc": "Recherchez par sens, étiquetez automatiquement vos photos, filtrez par ambiance et trouvez des images visuellement similaires. Fonctionne dans plus de 50 langues. S'exécute entièrement sur votre appareil — rien n'est envoyé dans le cloud.",
+      "visualAIDesc": "Recherchez par sens, étiquetez automatiquement vos photos, filtrez par ambiance et trouvez des images visuellement similaires. Fonctionne dans plus de 100 langues. S'exécute entièrement sur votre appareil — rien n'est envoyé dans le cloud.",
       "ramReqVisual": "~2 Go de RAM · téléchargement ~1,5 Go",
       "activeDesc": "Actif — recherche sémantique, étiquetage automatique, filtres d'ambiance et recherche d'éléments similaires sont disponibles.",
       "loadingDesc": "Chargement en mémoire…",
@@ -375,7 +375,9 @@
     "daysAgo": "il y a {{count}} j",
     "typeImage": "Photo",
     "typeVideo": "Vidéo",
-    "typeAudio": "Audio"
+    "typeAudio": "Audio",
+    "confirmRestoreItemTitle": "Restaurer cet élément ?",
+    "confirmRestoreItem": "« {{name}} » sera replacé dans votre bibliothèque."
   },
   "sysmsgs": {
     "title": "Messages système",
@@ -1164,7 +1166,8 @@
     "mergeHint": "Ces tags seront fusionnés avec les tags existants de chaque fichier.",
     "cancel": "Annuler",
     "addCount_one": "Ajouter {{count}} tag",
-    "addCount_other": "Ajouter {{count}} tags"
+    "addCount_other": "Ajouter {{count}} tags",
+    "topTags": "Fréquemment utilisés"
   },
   "batchRename": {
     "title_one": "Renommer {{count}} élément",

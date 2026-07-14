@@ -46,15 +46,20 @@
 .selection-bar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-left: 4px;
   border-left: 1px solid var(--border-subtle);
-  padding-left: 12px;
+  padding-left: 10px;
 }
 
-.selection-action {
-  padding: 5px 10px;
-  font-size: 12px;
+.btn.selection-action {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .selection-group-select {
@@ -92,7 +97,25 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   padding: 6px;
   z-index: 1200;
-  animation: import-result-in 0.14s ease;
+  animation: sel-collection-pop-in 0.14s ease;
+}
+
+/* Keeps the base rule's translateX(-50%) centering active throughout the
+   animation — a keyframe `transform` fully replaces (not composes with) the
+   static one while it's running, so reusing a plain translateY-only keyframe
+   here would drop the -50% offset for the animation's duration: the popup
+   would render flush against the trigger's left edge (reading as "shifted
+   right", since the button sits near the bar's horizontal center) and then
+   visibly snap left into its centered position once the animation ends. */
+@keyframes sel-collection-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .sel-collection-search {

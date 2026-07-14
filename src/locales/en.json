@@ -274,7 +274,7 @@
     "ai": {
       "semanticDesc": "Powers search by meaning, mood filtering, auto-tagging, and Find Similar. Requires a one-time model download (~1.5 GB) and runs fully on-device.",
       "visualAI": "Visual AI",
-      "visualAIDesc": "Search by meaning, auto-tag photos, filter by mood, and find visually similar images. Works in 50+ languages. Runs fully on your device — nothing is sent to the cloud.",
+      "visualAIDesc": "Search by meaning, auto-tag photos, filter by mood, and find visually similar images. Works in 100+ languages. Runs fully on your device — nothing is sent to the cloud.",
       "ramReqVisual": "~2 GB RAM · ~1.5 GB download",
       "activeDesc": "Active — semantic search, auto-tagging, mood filters, and Find Similar are available.",
       "loadingDesc": "Loading into memory…",
@@ -375,7 +375,9 @@
     "daysAgo": "{{count}}d ago",
     "typeImage": "Photo",
     "typeVideo": "Video",
-    "typeAudio": "Audio"
+    "typeAudio": "Audio",
+    "confirmRestoreItemTitle": "Restore item?",
+    "confirmRestoreItem": "\"{{name}}\" will be moved back to your library."
   },
   "sysmsgs": {
     "title": "System Messages",
@@ -1164,7 +1166,8 @@
     "mergeHint": "These tags will be merged with each file's existing tags.",
     "cancel": "Cancel",
     "addCount_one": "Add {{count}} tag",
-    "addCount_other": "Add {{count}} tags"
+    "addCount_other": "Add {{count}} tags",
+    "topTags": "Frequently used"
   },
   "batchRename": {
     "title_one": "Rename {{count}} Item",

@@ -274,7 +274,7 @@
     "ai": {
       "semanticDesc": "Habilita busca por significado, filtragem por clima, marcação automática e busca por itens semelhantes. Requer um download único do modelo (~1,5 GB) e roda totalmente no dispositivo.",
       "visualAI": "IA Visual",
-      "visualAIDesc": "Busque por significado, marque fotos automaticamente, filtre por clima e encontre imagens visualmente semelhantes. Funciona em mais de 50 idiomas. Roda totalmente no seu dispositivo — nada é enviado para a nuvem.",
+      "visualAIDesc": "Busque por significado, marque fotos automaticamente, filtre por clima e encontre imagens visualmente semelhantes. Funciona em mais de 100 idiomas. Roda totalmente no seu dispositivo — nada é enviado para a nuvem.",
       "ramReqVisual": "~2 GB de RAM · download de ~1,5 GB",
       "activeDesc": "Ativo — busca semântica, marcação automática, filtros de clima e busca por semelhantes estão disponíveis.",
       "loadingDesc": "Carregando na memória…",
@@ -375,7 +375,9 @@
     "daysAgo": "há {{count}} d",
     "typeImage": "Foto",
     "typeVideo": "Vídeo",
-    "typeAudio": "Áudio"
+    "typeAudio": "Áudio",
+    "confirmRestoreItemTitle": "Restaurar item?",
+    "confirmRestoreItem": "\"{{name}}\" será movido de volta para sua biblioteca."
   },
   "sysmsgs": {
     "title": "Mensagens do sistema",
@@ -1164,7 +1166,8 @@
     "mergeHint": "Essas tags serão combinadas com as tags existentes de cada arquivo.",
     "cancel": "Cancelar",
     "addCount_one": "Adicionar {{count}} tag",
-    "addCount_other": "Adicionar {{count}} tags"
+    "addCount_other": "Adicionar {{count}} tags",
+    "topTags": "Usadas com frequência"
   },
   "batchRename": {
     "title_one": "Renomear {{count}} item",

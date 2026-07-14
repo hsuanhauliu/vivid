@@ -274,7 +274,7 @@
     "ai": {
       "semanticDesc": "Ermöglicht Suche nach Bedeutung, Stimmungsfilter, automatische Tags und das Finden ähnlicher Elemente. Erfordert einen einmaligen Modell-Download (~1,5 GB) und läuft vollständig lokal.",
       "visualAI": "Visuelle KI",
-      "visualAIDesc": "Suchen Sie nach Bedeutung, taggen Sie Fotos automatisch, filtern Sie nach Stimmung und finden Sie visuell ähnliche Bilder. Funktioniert in über 50 Sprachen. Läuft vollständig auf Ihrem Gerät — nichts wird an die Cloud gesendet.",
+      "visualAIDesc": "Suchen Sie nach Bedeutung, taggen Sie Fotos automatisch, filtern Sie nach Stimmung und finden Sie visuell ähnliche Bilder. Funktioniert in über 100 Sprachen. Läuft vollständig auf Ihrem Gerät — nichts wird an die Cloud gesendet.",
       "ramReqVisual": "~2 GB RAM · ~1,5 GB Download",
       "activeDesc": "Aktiv — semantische Suche, automatische Tags, Stimmungsfilter und ähnliche Elemente sind verfügbar.",
       "loadingDesc": "Wird in den Speicher geladen…",
@@ -375,7 +375,9 @@
     "daysAgo": "vor {{count}} T",
     "typeImage": "Foto",
     "typeVideo": "Video",
-    "typeAudio": "Audio"
+    "typeAudio": "Audio",
+    "confirmRestoreItemTitle": "Element wiederherstellen?",
+    "confirmRestoreItem": "„{{name}}“ wird zurück in Ihre Mediathek verschoben."
   },
   "sysmsgs": {
     "title": "Systemmeldungen",
@@ -1164,7 +1166,8 @@
     "mergeHint": "Diese Tags werden mit den vorhandenen Tags jeder Datei zusammengeführt.",
     "cancel": "Abbrechen",
     "addCount_one": "{{count}} Tag hinzufügen",
-    "addCount_other": "{{count}} Tags hinzufügen"
+    "addCount_other": "{{count}} Tags hinzufügen",
+    "topTags": "Häufig verwendet"
   },
   "batchRename": {
     "title_one": "{{count}} Element umbenennen",
