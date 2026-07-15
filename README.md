@@ -20,7 +20,7 @@ Organize photos, videos, and music in one place. Search your library by _meaning
 
 ---
 
-![Demo Image](docs/demo_1.png)
+![Demo Image](docs/demo_2.png)
 
 ## What it does
 
@@ -44,7 +44,7 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 
 ### Built-in editing & tools
 
-- Image edits: rotate, flip, resize crop.
+- Image edits: rotate, flip, resize, crop.
 - Image side-by-side comparison tool.
 - A real **music player** with album/playlist views and cover art.
 - A feature-rich **video player** built-in.
