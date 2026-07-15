@@ -1,5 +1,6 @@
 use crate::{db, models::MediaItem, DbState};
 use crate::clip::{bytes_to_embedding, cosine_sim, embedding_to_bytes, MOOD_VOCAB};
+use crate::config::{FIND_SIMILAR_THRESHOLD, MOOD_FILTER_THRESHOLD, SEMANTIC_SEARCH_THRESHOLD};
 use crate::emb_index::EmbIndex;
 use crate::siglip_clip::SiglipClip;
 use serde::Serialize;
@@ -520,6 +521,9 @@ pub async fn semantic_search(
             .iter()
             .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
             .collect();
+        // Drop weak matches before truncating — better to return fewer,
+        // genuinely relevant results than to pad out to `limit`.
+        scored.retain(|(score, _)| *score > SEMANTIC_SEARCH_THRESHOLD);
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(limit);
         Ok(scored)
@@ -562,6 +566,9 @@ pub async fn mood_filter(
             .iter()
             .map(|(id, emb)| (multilingual.score_moods(emb)[mood_idx].1, id.to_string()))
             .collect();
+        // Drop weak matches before truncating — better to return fewer,
+        // genuinely mood-matching items than to pad out to `limit`.
+        scored.retain(|(score, _)| *score > MOOD_FILTER_THRESHOLD);
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(limit.max(1));
         scored
@@ -609,6 +616,9 @@ pub fn find_similar(
             .collect()
     };
 
+    // Drop weak matches before truncating — better to return fewer, genuinely
+    // similar items than to pad out to `limit` with unrelated ones.
+    scored.retain(|(score, _)| *score > FIND_SIMILAR_THRESHOLD);
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     scored.truncate(limit.max(1));
 

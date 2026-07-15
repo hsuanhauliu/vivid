@@ -30,7 +30,7 @@
 /// embeddings for each side independently, then cosine-similarities them
 /// itself). Raw cosine scores here run much lower than the old M-CLIP setup's
 /// did — genuinely-correct top matches land around 0.06-0.08, clearly-wrong
-/// tags mostly sit below 0.02 (see `AUTO_TAG_THRESHOLD` in `crate::clip`,
+/// tags mostly sit below 0.02 (see `AUTO_TAG_THRESHOLD` in `crate::config`,
 /// calibrated against real photos + a byte-for-byte cross-check against the
 /// official HF/PyTorch implementation).
 use anyhow::{anyhow, Result};
@@ -42,8 +42,9 @@ use tokenizers::Tokenizer;
 
 use crate::clip::{
     best_device, cosine_sim, extract_video_frame, heif_to_jpeg_if_needed, sips_to_jpeg,
-    to_normed_vec, AUTO_TAG_MAX, AUTO_TAG_THRESHOLD, MOOD_VOCAB, SCENE_VOCAB, TAG_VOCAB,
+    to_normed_vec, MOOD_VOCAB, SCENE_VOCAB, TAG_VOCAB,
 };
+use crate::config::{AUTO_TAG_MAX, AUTO_TAG_THRESHOLD};
 
 const IMAGE_SIZE: usize = 256;
 const SIGLIP_MEAN: f32 = 0.5;

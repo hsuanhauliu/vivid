@@ -95,7 +95,7 @@ export function VideoThumb({
   }
 
   return (
-    <div className="video-thumb-root" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div className="media-thumb-root" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {/* Thumbnail — always rendered, fades out once video is ready */}
       {still ? (
         <img
@@ -174,6 +174,97 @@ export function VideoThumb({
   );
 }
 
+// GIF preview: shows the cached static first-frame thumbnail at rest (see
+// ImageThumb — GIFs get one just like any other image now), swaps to the
+// animated original on hover, mirroring VideoThumb's poster→video swap. No
+// <video> element needed — mounting an <img src="*.gif"> just plays its
+// animation natively; unmounting it on mouse-leave stops the decode/loop.
+// Exported so MasonryItem in MediaGrid.jsx can reuse it.
+export function GifThumb({
+  thumbSrc,
+  gifSrc,
+  alt,
+  imgClassName = 'card-thumb-img',
+  disableHoverPlay = false,
+  onRatio,
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [gifReady, setGifReady] = useState(false);
+  const hoverTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+
+  function onMouseEnter() {
+    if (disableHoverPlay) return;
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => setIsPlaying(true), 1500);
+  }
+  function onMouseLeave() {
+    clearTimeout(hoverTimer.current);
+    setIsPlaying(false);
+    setGifReady(false);
+  }
+
+  const handleStillLoad = useCallback(
+    (e) => {
+      const { naturalWidth: w, naturalHeight: h } = e.target;
+      if (w && h) onRatio?.(w / h);
+    },
+    [onRatio],
+  );
+
+  return (
+    <div className="media-thumb-root" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      {thumbSrc ? (
+        <img
+          src={thumbSrc}
+          alt={alt}
+          className={imgClassName}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onLoad={handleStillLoad}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            opacity: isPlaying && gifReady ? 0 : 1,
+            transition: 'opacity 0.25s ease',
+            zIndex: 1,
+          }}
+        />
+      ) : (
+        <div className="card-thumb-skeleton" style={{ position: 'absolute', inset: 0 }} />
+      )}
+
+      {isPlaying && (
+        <img
+          key="play"
+          src={gifSrc}
+          alt={alt}
+          className={imgClassName}
+          draggable={false}
+          onLoad={() => setGifReady(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            opacity: gifReady ? 1 : 0,
+            transition: 'opacity 0.25s ease',
+            zIndex: 2,
+          }}
+        />
+      )}
+
+      {/* "GIF" badge overlay — always visible when idle, same chrome as the
+          video play button and audio note. */}
+      {!isPlaying && (
+        <span className="card-gif-icon" style={{ zIndex: 3 }}>
+          GIF
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Presentational thumbnail: skeleton until the image loads. `src` may be null
 // while a fallback is still resolving — keep showing the skeleton.
 function ThumbImg({ src, alt }) {
@@ -207,22 +298,37 @@ function FallbackImageThumb({ item }) {
   return <ThumbImg src={src} alt={item.display_name} />;
 }
 
-function ImageThumb({ item, freshThumbSrc }) {
-  // Prefer the cheap cached thumbnail — no per-card backend work, no HEIC decode.
-  // GIFs always use the original so they keep animating (a thumbnail is one frame).
+function ImageThumb({ item, freshThumbSrc, disableHoverPlay }) {
+  // Prefer the cheap cached thumbnail — no per-card backend work, no HEIC
+  // decode, and (for GIFs) no full animated-file decode either: a grid full
+  // of live GIFs each independently decoding/looping is what made the grid
+  // slow to begin with, so GIFs get a static first-frame thumbnail here just
+  // like every other image — the full animated original only plays on hover
+  // (via GifThumb) or in the single-item detail/viewer.
   const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
-  if (freshThumbSrc) {
-    return <ThumbImg src={freshThumbSrc} alt={item.display_name} />;
+  const thumbSrc = freshThumbSrc || (item.thumb_path ? convertFileSrc(item.thumb_path) : null);
+
+  if (isGif && thumbSrc) {
+    return (
+      <GifThumb
+        thumbSrc={thumbSrc}
+        gifSrc={convertFileSrc(item.file_path)}
+        alt={item.display_name}
+        disableHoverPlay={disableHoverPlay}
+      />
+    );
   }
-  if (item.thumb_path && !isGif) {
-    return <ThumbImg src={convertFileSrc(item.thumb_path)} alt={item.display_name} />;
+  if (thumbSrc) {
+    return <ThumbImg src={thumbSrc} alt={item.display_name} />;
   }
   return <FallbackImageThumb item={item} />;
 }
 
 function MediaThumbnail({ item, disableHoverPlay, freshThumbSrc }) {
   if (item.media_type === 'image') {
-    return <ImageThumb item={item} freshThumbSrc={freshThumbSrc} />;
+    return (
+      <ImageThumb item={item} freshThumbSrc={freshThumbSrc} disableHoverPlay={disableHoverPlay} />
+    );
   }
   if (item.media_type === 'video') {
     return (

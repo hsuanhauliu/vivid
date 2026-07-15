@@ -5,8 +5,8 @@
 //   ocr <imagePath>                          → {"text": "..."}    (Vision text recognition)
 //   frame <videoPath> <outPath>               → {"ok": true}       (poster frame → JPEG)
 //   audiocover <audioPath> <outPath>          → {"ok": true}       (embedded picture track → JPEG)
-//   trim <srcPath> <destPath> <start> <end>   → {"ok": true}       (time-range export → MP4)
-//   gif <srcPath> <destPath> <start> <end>    → {"ok": true, "frames": N} (time-range → animated GIF)
+//   trim <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true} (time-range export → MP4)
+//   gif <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true, "frames": N} (time-range → animated GIF)
 //
 // All video/audio work here goes through AVFoundation/ImageIO — no ffmpeg or
 // any other external process. AVFoundation only demuxes Apple's own container
@@ -87,13 +87,15 @@ func writeJPEG(_ image: CGImage, to path: String, quality: CGFloat = 0.88) -> Bo
     return CGImageDestinationFinalize(dest)
 }
 
-// Downscale (never upscale) to at most `maxWidth`, preserving aspect ratio.
-func scaleDown(_ image: CGImage, maxWidth: CGFloat) -> CGImage {
-    let w = CGFloat(image.width)
-    guard w > maxWidth else { return image }
-    let scale = maxWidth / w
-    let newW = max(1, Int(w * scale))
-    let newH = max(1, Int(CGFloat(image.height) * scale))
+// Downscale (never upscale) to at most `maxHeight` tall, preserving aspect
+// ratio — matches the conventional "Xp" video resolution naming (e.g. 1080p
+// = 1080 lines tall, however wide that makes it), not a width cap.
+func scaleDown(_ image: CGImage, maxHeight: CGFloat) -> CGImage {
+    let h = CGFloat(image.height)
+    guard h > maxHeight else { return image }
+    let scale = maxHeight / h
+    let newW = max(1, Int(CGFloat(image.width) * scale))
+    let newH = max(1, Int(h * scale))
     guard let ctx = CGContext(
         data: nil, width: newW, height: newH,
         bitsPerComponent: 8, bytesPerRow: 0,
@@ -143,12 +145,17 @@ func extractAudioCover(_ audioPath: String, _ outPath: String) -> Never {
     emit(["ok": true])
 }
 
-// Export `[start, end]` of srcPath to destPath as MP4. Tries Passthrough first
+// Export `[start, end]` of srcPath to destPath as MP4. When `maxHeight` is
+// nil or the source's rendered height already fits, tries Passthrough first
 // (re-multiplex only, no re-encode — fast and lossless, and AVFoundation's
 // trimming is sample-accurate unlike a keyframe-snapped `ffmpeg -c copy`),
 // falling back to a re-encoding preset if the source/preset combo can't
-// produce MP4 via passthrough.
-func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double) -> Never {
+// produce MP4 via passthrough. When downscaling is needed, passthrough is
+// skipped entirely (it can't resize) and a video composition scales every
+// frame via Core Image — `request.sourceImage` there is already corrected
+// for the track's preferredTransform, so rotated (e.g. portrait phone)
+// source video scales correctly without any manual transform math.
+func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double, _ maxHeight: CGFloat?) -> Never {
     guard end > start else { fail("end must be after start") }
     let asset = AVURLAsset(url: URL(fileURLWithPath: srcPath))
     let destURL = URL(fileURLWithPath: destPath)
@@ -157,14 +164,40 @@ func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
         end: CMTime(seconds: end, preferredTimescale: 600)
     )
 
+    var videoComposition: AVMutableVideoComposition? = nil
+    if let maxHeight = maxHeight, let track = asset.tracks(withMediaType: .video).first {
+        let natural = track.naturalSize.applying(track.preferredTransform)
+        let renderW = abs(natural.width)
+        let renderH = abs(natural.height)
+        if renderH > maxHeight {
+            let scale = maxHeight / renderH
+            let outSize = CGSize(
+                width: (renderW * scale).rounded(.down),
+                height: (renderH * scale).rounded(.down)
+            )
+            let composition = AVMutableVideoComposition(asset: asset) { request in
+                let scaled = request.sourceImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                request.finish(with: scaled, context: nil)
+            }
+            composition.renderSize = outSize
+            videoComposition = composition
+        }
+    }
+
     var lastError = "no compatible export preset for this source"
-    for preset in [AVAssetExportPresetPassthrough, AVAssetExportPresetHighestQuality] {
+    let presets: [String] = videoComposition == nil
+        ? [AVAssetExportPresetPassthrough, AVAssetExportPresetHighestQuality]
+        : [AVAssetExportPresetHighestQuality]
+    for preset in presets {
         guard let session = AVAssetExportSession(asset: asset, presetName: preset) else { continue }
         guard session.supportedFileTypes.contains(.mp4) else { continue }
         try? FileManager.default.removeItem(at: destURL)
         session.outputURL = destURL
         session.outputFileType = .mp4
         session.timeRange = timeRange
+        if let videoComposition = videoComposition {
+            session.videoComposition = videoComposition
+        }
 
         let sem = DispatchSemaphore(value: 0)
         session.exportAsynchronously { sem.signal() }
@@ -180,9 +213,9 @@ func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
 }
 
 // Export `[start, end]` of srcPath as an animated GIF at destPath. Frames are
-// sampled at 12fps and downscaled to at most 720px wide (never upscaled),
-// assembled via ImageIO's GIF writer — no external tool.
-func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double) -> Never {
+// sampled at 12fps and downscaled to at most `maxHeight` pixels tall (never
+// upscaled), assembled via ImageIO's GIF writer — no external tool.
+func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Double, _ maxHeight: CGFloat) -> Never {
     guard end > start else { fail("end must be after start") }
     let asset = AVURLAsset(url: URL(fileURLWithPath: srcPath))
     let generator = AVAssetImageGenerator(asset: asset)
@@ -215,7 +248,7 @@ func exportGif(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
     var count = 0
     for time in times {
         guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { continue }
-        CGImageDestinationAddImage(dest, scaleDown(cg, maxWidth: 720), frameProps)
+        CGImageDestinationAddImage(dest, scaleDown(cg, maxHeight: maxHeight), frameProps)
         count += 1
     }
     guard count > 0 else { fail("no frames could be extracted") }
@@ -239,14 +272,22 @@ case "audiocover":
     extractAudioCover(args[2], args[3])
 case "trim":
     guard args.count >= 6, let start = Double(args[4]), let end = Double(args[5]) else {
-        fail("usage: vivid-helper trim <srcPath> <destPath> <start> <end>")
+        fail("usage: vivid-helper trim <srcPath> <destPath> <start> <end> [maxHeight]")
     }
-    trimVideo(args[2], args[3], start, end)
+    var trimMaxHeight: CGFloat? = nil
+    if args.count >= 7, let parsed = Double(args[6]) {
+        trimMaxHeight = CGFloat(parsed)
+    }
+    trimVideo(args[2], args[3], start, end, trimMaxHeight)
 case "gif":
     guard args.count >= 6, let start = Double(args[4]), let end = Double(args[5]) else {
-        fail("usage: vivid-helper gif <srcPath> <destPath> <start> <end>")
+        fail("usage: vivid-helper gif <srcPath> <destPath> <start> <end> [maxHeight]")
     }
-    exportGif(args[2], args[3], start, end)
+    var maxHeight: CGFloat = 720
+    if args.count >= 7, let parsed = Double(args[6]) {
+        maxHeight = CGFloat(parsed)
+    }
+    exportGif(args[2], args[3], start, end, maxHeight)
 default:
     fail("unknown subcommand: \(args[1])")
 }

@@ -184,8 +184,8 @@
   background: #111;
   padding: 24px 72px;
 }
-.viewer-body-video {
-  padding: 8px 24px 16px; /* video has its own controls bar; use minimal padding */
+.viewer-body-player {
+  padding: 8px 24px 16px; /* video/audio manage their own floating controls bar; use minimal padding */
 }
 
 .viewer-image {

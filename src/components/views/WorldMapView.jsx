@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Map as MapIcon, Satellite } from 'lucide-react';
+import { Map as MapIcon, Satellite, MapPin } from 'lucide-react';
 import MapGL, { Marker, NavigationControl, AttributionControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './WorldMapView.css';
@@ -9,7 +9,11 @@ import './WorldMapView.css';
 // OpenFreeMap Liberty — free vector tiles, natural terrain colors (forests, water, mountains)
 const TERRAIN_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-// ESRI World Imagery — satellite raster expressed as a MapLibre style object (no API key)
+// ESRI World Imagery — satellite raster expressed as a MapLibre style object
+// (no API key), with ESRI's matching "reference" overlay layered on top: a
+// transparent tile set of just place/country/road labels and borders, made
+// specifically to sit on top of World_Imagery for a hybrid satellite+labels
+// look (the same combo Google/Apple Maps' satellite mode uses).
 const SATELLITE_STYLE = {
   version: 8,
   sources: {
@@ -22,8 +26,19 @@ const SATELLITE_STYLE = {
       attribution: 'Tiles © Esri — Esri, Maxar, Earthstar Geographics',
       maxzoom: 19,
     },
+    'satellite-labels': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 19,
+    },
   },
-  layers: [{ id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 22 }],
+  layers: [
+    { id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 22 },
+    { id: 'satellite-labels', type: 'raster', source: 'satellite-labels', minzoom: 0, maxzoom: 22 },
+  ],
 };
 
 const MAP_STYLES = {
@@ -117,12 +132,21 @@ export default function WorldMapView({
   onOpenCluster,
   showStyleToggle = true,
   simplePins = false,
+  focusItemId = null,
+  pickable = false,
+  pickedLocation = null,
+  onPick = null,
+  initialCenter = null,
 }) {
   const { t } = useTranslation();
   const mapRef = useRef(null);
   const prevGeoRef = useRef(null);
 
-  const [viewState, setViewState] = useState({ longitude: 0, latitude: 20, zoom: 2 });
+  const [viewState, setViewState] = useState(() =>
+    initialCenter
+      ? { longitude: initialCenter.lng, latitude: initialCenter.lat, zoom: 12 }
+      : { longitude: 0, latitude: 20, zoom: 2 },
+  );
   const [clusterZoom, setClusterZoom] = useState(2); // only updates when zoom gesture ends
   const [mapStyle, setMapStyle] = useState('terrain');
   const [selected, setSelected] = useState(null);
@@ -135,19 +159,30 @@ export default function WorldMapView({
 
   const clusters = useMemo(() => clusterItems(geoItems, clusterZoom), [geoItems, clusterZoom]);
 
-  // Fit bounds when the item set changes (but not on every zoom/pan)
+  // Fit bounds when the item set changes (but not on every zoom/pan) — skipped
+  // when a single item is being focused on (see handleMapLoad) so the two
+  // don't fight over the camera.
   useEffect(() => {
     if (geoItems === prevGeoRef.current) return;
     prevGeoRef.current = geoItems;
+    if (focusItemId) return;
     const map = mapRef.current?.getMap();
     if (map) setClusterZoom(getTargetZoom(map, geoItems));
     fitGeoItems(map, geoItems, true);
-  }, [geoItems]);
+  }, [geoItems, focusItemId]);
 
   const handleMapLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
-    setClusterZoom(getTargetZoom(map, geoItems));
-    fitGeoItems(map, geoItems, false);
+    const focusTarget = focusItemId ? geoItems.find((i) => i.id === focusItemId) : null;
+    if (focusTarget) {
+      map?.jumpTo({ center: [focusTarget.gps_lng, focusTarget.gps_lat], zoom: 12 });
+      setClusterZoom(12);
+      setSelected(focusTarget);
+      setSelectedCluster([focusTarget]);
+    } else if (!initialCenter) {
+      setClusterZoom(getTargetZoom(map, geoItems));
+      fitGeoItems(map, geoItems, false);
+    }
     prevGeoRef.current = geoItems;
 
     // MapLibre's compact attribution starts expanded (it only *toggles*
@@ -158,10 +193,10 @@ export default function WorldMapView({
       ?.getContainer()
       .querySelector('.maplibregl-ctrl-attrib.maplibregl-compact-show');
     attrib?.querySelector('.maplibregl-ctrl-attrib-button')?.click();
-  }, [geoItems]);
+  }, [geoItems, focusItemId, initialCenter]);
 
   return (
-    <div className="world-map-container">
+    <div className={`world-map-container${pickable ? ' world-map-pickable' : ''}`}>
       <MapGL
         ref={mapRef}
         {...viewState}
@@ -171,7 +206,10 @@ export default function WorldMapView({
         mapStyle={MAP_STYLES[mapStyle].style}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
-        onClick={() => setSelected(null)}
+        onClick={(e) => {
+          if (pickable) onPick?.(e.lngLat.lat, e.lngLat.lng);
+          else setSelected(null);
+        }}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
         <AttributionControl compact position="bottom-left" />
@@ -213,6 +251,18 @@ export default function WorldMapView({
             </Marker>
           );
         })}
+
+        {pickable && pickedLocation && (
+          <Marker
+            latitude={pickedLocation.lat}
+            longitude={pickedLocation.lng}
+            anchor="bottom"
+            draggable
+            onDragEnd={(e) => onPick?.(e.lngLat.lat, e.lngLat.lng)}
+          >
+            <MapPin size={30} className="map-pick-marker" fill="currentColor" />
+          </Marker>
+        )}
       </MapGL>
 
       {/* Style toggle */}
@@ -231,7 +281,7 @@ export default function WorldMapView({
         </div>
       )}
 
-      {geoItems.length === 0 && (
+      {!pickable && geoItems.length === 0 && (
         <div className="world-map-empty">
           <span>📍</span>
           <p>{t('map.empty')}</p>
@@ -239,7 +289,7 @@ export default function WorldMapView({
         </div>
       )}
 
-      {selected && (
+      {!pickable && selected && (
         <div
           className="map-item-card"
           onClick={() =>

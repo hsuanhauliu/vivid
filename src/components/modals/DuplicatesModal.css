@@ -8,6 +8,13 @@
   align-items: stretch;
   overflow: hidden;
 }
+/* .dup-modal zeroes the box's own padding (tabs/cards/footer want edge-to-edge
+   full-width sections), so the standard Modal header needs its own — kept
+   tight so title and the tabs row right below don't feel far apart. */
+.dup-modal .modal-header {
+  padding: 14px 16px 10px;
+  margin-bottom: 0;
+}
 .modal-footer {
   display: flex;
   align-items: center;
@@ -17,18 +24,21 @@
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
-.dup-summary {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-left: 8px;
-  flex: 1;
-}
 .dup-group-tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border-subtle);
   overflow-x: auto;
+  flex-shrink: 0;
+}
+.dup-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 .dup-group-tab {

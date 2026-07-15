@@ -29,9 +29,17 @@ const ACCENTS = [
 
 const LANGUAGES = [
   { value: '', labelKey: 'settings.appearance.systemDefault' },
-  { value: 'en', label: 'English' },
-  { value: 'zh-TW', label: '繁體中文' },
-  { value: 'ja', label: '日本語' },
+  { value: 'zh-CN', labelKey: 'settings.appearance.languages.zhCN' },
+  { value: 'zh-TW', labelKey: 'settings.appearance.languages.zhTW' },
+  { value: 'en', labelKey: 'settings.appearance.languages.en' },
+  { value: 'fr', labelKey: 'settings.appearance.languages.fr' },
+  { value: 'de', labelKey: 'settings.appearance.languages.de' },
+  { value: 'hi', labelKey: 'settings.appearance.languages.hi' },
+  { value: 'ja', labelKey: 'settings.appearance.languages.ja' },
+  { value: 'ko', labelKey: 'settings.appearance.languages.ko' },
+  { value: 'pt', labelKey: 'settings.appearance.languages.pt' },
+  { value: 'es', labelKey: 'settings.appearance.languages.es' },
+  { value: 'vi', labelKey: 'settings.appearance.languages.vi' },
 ];
 
 const HOME_OPTIONS = [

@@ -14,7 +14,16 @@ describe('applyFilters', () => {
       { id: 'a', color_label: 'red' },
       { id: 'b', color_label: 'blue' },
     ];
-    expect(ids(applyFilters(items, { colorLabel: 'red' }))).toEqual(['a']);
+    expect(ids(applyFilters(items, { colorLabel: ['red'] }))).toEqual(['a']);
+  });
+
+  it('filters by multiple color labels (multi-select)', () => {
+    const items = [
+      { id: 'a', color_label: 'red' },
+      { id: 'b', color_label: 'blue' },
+      { id: 'c', color_label: 'green' },
+    ];
+    expect(ids(applyFilters(items, { colorLabel: ['red', 'blue'] }))).toEqual(['a', 'b']);
   });
 
   describe('orientation', () => {

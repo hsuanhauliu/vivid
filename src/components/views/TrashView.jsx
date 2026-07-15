@@ -2,20 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Trash2, RotateCcw, AlertTriangle, Music, Video, Image, PackageX } from 'lucide-react';
+import { Trash2, RotateCcw, Music, Video, Image, PackageX } from 'lucide-react';
 import { formatBytes } from '../../utils/format';
+import ConfirmModal from '../modals/ConfirmModal';
 import './TrashView.css';
 
-function formatTimestamp(isoStr) {
-  if (!isoStr) return 'Unknown';
+function formatTimestamp(isoStr, t, lng) {
+  if (!isoStr) return t('trash.dateUnknown');
   const d = new Date(isoStr);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86400000);
   if (diffDays === 0)
-    return 'Today, ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  if (diffDays === 1) return d.toLocaleDateString(undefined, { weekday: 'long' });
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return t('trash.dateToday', {
+      time: d.toLocaleTimeString(lng, { hour: 'numeric', minute: '2-digit' }),
+    });
+  if (diffDays === 1) return d.toLocaleDateString(lng, { weekday: 'long' });
+  if (diffDays < 7) return t('trash.daysAgo', { count: diffDays });
+  return d.toLocaleDateString(lng, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const TYPE_ICONS = { image: Image, video: Video, audio: Music };
@@ -24,6 +27,7 @@ const TYPE_COLORS = {
   video: '#3b82f6',
   audio: '#f59e0b',
 };
+const TYPE_LABEL_KEYS = { image: 'trash.typeImage', video: 'trash.typeVideo', audio: 'trash.typeAudio' };
 
 function TrashThumb({ item }) {
   const [failed, setFailed] = useState(false);
@@ -50,7 +54,7 @@ function TrashThumb({ item }) {
 }
 
 function TrashRow({ item, onRestore, onDeleteForever }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <div className="trash-row">
       <div className="trash-thumb">
@@ -62,23 +66,27 @@ function TrashRow({ item, onRestore, onDeleteForever }) {
           {item.display_name}
         </p>
         <div className="trash-item-meta">
-          <span className={`trash-type-chip trash-type-${item.media_type}`}>{item.media_type}</span>
-          <span className="trash-meta-size">{formatBytes(item.file_size)}</span>
+          <span className={`trash-type-chip trash-type-${item.media_type}`}>
+            {t(TYPE_LABEL_KEYS[item.media_type] ?? 'trash.typeImage')}
+          </span>
+          <span className="trash-meta-date">
+            {formatTimestamp(item.deleted_at, t, i18n.language)}
+          </span>
           <span className="trash-meta-dot">·</span>
-          <span className="trash-meta-date">{formatTimestamp(item.deleted_at)}</span>
+          <span className="trash-meta-size">{formatBytes(item.file_size)}</span>
         </div>
       </div>
 
       <div className="trash-actions">
         <button
-          className="btn btn-sm btn-secondary trash-restore-btn"
+          className="trash-restore-btn"
           title={t('trash.restore')}
-          onClick={() => onRestore(item.id)}
+          onClick={() => onRestore(item)}
         >
           <RotateCcw size={13} />
         </button>
         <button
-          className="btn btn-sm btn-danger-outline trash-delete-btn"
+          className="trash-delete-btn"
           title={t('trash.deleteForever')}
           onClick={() => onDeleteForever(item)}
         >
@@ -95,6 +103,7 @@ export default function TrashView({ retentionDays, onItemsRestored, onItemsDelet
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(false);
   const [confirmRestoreAll, setConfirmRestoreAll] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = useCallback(async () => {
@@ -121,6 +130,7 @@ export default function TrashView({ retentionDays, onItemsRestored, onItemsDelet
     } catch (e) {
       console.error(e);
     }
+    setConfirmRestore(null);
   }
 
   async function handleDeleteForever(id) {
@@ -230,7 +240,7 @@ export default function TrashView({ retentionDays, onItemsRestored, onItemsDelet
                 <TrashRow
                   key={item.id}
                   item={item}
-                  onRestore={handleRestore}
+                  onRestore={setConfirmRestore}
                   onDeleteForever={setConfirmDelete}
                 />
               ))}
@@ -241,90 +251,51 @@ export default function TrashView({ retentionDays, onItemsRestored, onItemsDelet
 
       {/* Restore-all confirmation */}
       {confirmRestoreAll && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmRestoreAll(false);
-          }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div
-              className="modal-icon"
-              style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}
-            >
-              <RotateCcw size={20} />
-            </div>
-            <h3 className="modal-title">{t('trash.confirmRestoreTitle')}</h3>
-            <p className="modal-message">{t('trash.confirmRestore', { count: items.length })}</p>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setConfirmRestoreAll(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn btn-primary" onClick={handleRestoreAll}>
-                {t('trash.restoreAll')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          icon={RotateCcw}
+          tone="accent"
+          title={t('trash.confirmRestoreTitle')}
+          message={t('trash.confirmRestore', { count: items.length })}
+          confirmLabel={t('trash.restoreAll')}
+          onConfirm={handleRestoreAll}
+          onCancel={() => setConfirmRestoreAll(false)}
+        />
+      )}
+
+      {/* Single-item restore confirmation */}
+      {confirmRestore && (
+        <ConfirmModal
+          icon={RotateCcw}
+          tone="accent"
+          title={t('trash.confirmRestoreItemTitle')}
+          message={t('trash.confirmRestoreItem', { name: confirmRestore.display_name })}
+          confirmLabel={t('trash.restore')}
+          onConfirm={() => handleRestore(confirmRestore.id)}
+          onCancel={() => setConfirmRestore(null)}
+        />
       )}
 
       {/* Single-item delete confirmation */}
       {confirmDelete && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmDelete(null);
-          }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon">
-              <Trash2 size={20} />
-            </div>
-            <h3 className="modal-title">{t('trash.confirmDeleteTitle')}</h3>
-            <p className="modal-message">
-              {t('trash.confirmDelete', { name: confirmDelete.display_name })}
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>
-                {t('common.cancel')}
-              </button>
-              <button
-                className="btn btn-danger-solid"
-                onClick={() => handleDeleteForever(confirmDelete.id)}
-              >
-                {t('trash.deleteForever')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          icon={Trash2}
+          title={t('trash.confirmDeleteTitle')}
+          message={t('trash.confirmDelete', { name: confirmDelete.display_name })}
+          confirmLabel={t('trash.deleteForever')}
+          onConfirm={() => handleDeleteForever(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       {/* Empty-trash confirmation */}
       {confirm && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirm(false);
-          }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon">
-              <AlertTriangle size={20} />
-            </div>
-            <h3 className="modal-title">{t('trash.confirmEmptyTitle')}</h3>
-            <p className="modal-message">
-              {t('trash.confirmEmpty', { count: items.length, size: formatBytes(totalSize) })}
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setConfirm(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn btn-danger-solid" onClick={handleEmptyTrash}>
-                {t('trash.emptyTrash')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title={t('trash.confirmEmptyTitle')}
+          message={t('trash.confirmEmpty', { count: items.length, size: formatBytes(totalSize) })}
+          confirmLabel={t('trash.emptyTrash')}
+          onConfirm={handleEmptyTrash}
+          onCancel={() => setConfirm(false)}
+        />
       )}
     </div>
   );

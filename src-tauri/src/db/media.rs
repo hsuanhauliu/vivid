@@ -82,6 +82,23 @@ pub fn set_color_label(conn: &Connection, id: &str, label: Option<&str>) -> Resu
     fetch_one(conn, id)
 }
 
+/// Manually set (or clear, passing both as None) an item's GPS coordinates —
+/// used by the "adjust location" map picker in the detail panel, independent
+/// of whatever EXIF GPS data (if any) the file itself carries.
+pub fn set_location(
+    conn: &Connection,
+    id: &str,
+    lat: Option<f64>,
+    lng: Option<f64>,
+) -> Result<MediaItem> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET gps_lat=?1, gps_lng=?2, updated_at=?3 WHERE id=?4",
+        params![lat, lng, now, id],
+    )?;
+    fetch_one(conn, id)
+}
+
 /// Store recognized OCR text for an item and mark it as scanned. An empty string
 /// is a valid result (image scanned, no text found) and still flips the flag.
 pub fn set_ocr(conn: &Connection, id: &str, text: &str) -> Result<()> {
@@ -117,19 +134,17 @@ pub fn set_thumb_dims(conn: &Connection, id: &str, thumb_path: &str, w: u32, h: 
 }
 
 /// Items without a cached thumbnail yet, smallest files first. Covers images
-/// and videos (videos get a poster frame extracted via AVFoundation). Returns
-/// `(id, file_path, media_type)`.
+/// and videos (videos get a poster frame extracted via AVFoundation; GIFs get
+/// their first frame, same as any other image — `image::open` on a GIF only
+/// ever decodes frame 0). Audio is included so embedded cover art (e.g.
+/// yt-dlp --embed-thumbnail) gets extracted; audio with no artwork simply
+/// yields no thumbnail and is harmlessly re-attempted on later passes.
+/// Returns `(id, file_path, media_type)`.
 pub fn get_items_without_thumb(conn: &Connection) -> Result<Vec<(String, String, String)>> {
-    // GIFs are skipped — they render as the original so they keep animating, so a
-    // static thumbnail would be wasted work (and `LIKE` is ASCII-case-insensitive).
-    // Audio is included so embedded cover art (e.g. yt-dlp --embed-thumbnail)
-    // gets extracted; audio with no artwork simply yields no thumbnail and is
-    // harmlessly re-attempted on later passes.
     let mut stmt = conn.prepare(
         "SELECT id, file_path, media_type FROM media_items \
          WHERE deleted_at IS NULL AND thumb_path IS NULL \
          AND media_type IN ('image', 'video', 'audio') \
-         AND file_path NOT LIKE '%.gif' \
          ORDER BY file_size ASC",
     )?;
     let rows = stmt
@@ -144,16 +159,15 @@ pub fn get_items_without_thumb(conn: &Connection) -> Result<Vec<(String, String,
 }
 
 /// (with_thumb, total) counts for progress reporting, across images and videos.
-/// GIFs are excluded since they intentionally never get a thumbnail.
 pub fn get_thumb_counts(conn: &Connection) -> Result<(i64, i64)> {
     let total: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items \
-         WHERE deleted_at IS NULL AND media_type IN ('image', 'video') AND file_path NOT LIKE '%.gif'",
+         WHERE deleted_at IS NULL AND media_type IN ('image', 'video')",
         [], |r| r.get(0),
     )?;
     let done: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items \
-         WHERE deleted_at IS NULL AND media_type IN ('image', 'video') AND file_path NOT LIKE '%.gif' AND thumb_path IS NOT NULL",
+         WHERE deleted_at IS NULL AND media_type IN ('image', 'video') AND thumb_path IS NOT NULL",
         [], |r| r.get(0),
     )?;
     Ok((done, total))

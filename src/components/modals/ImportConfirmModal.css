@@ -67,6 +67,11 @@
   color: var(--danger);
 }
 
+.modal-confirm-icon-success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
 .modal-confirm-title {
   font-size: 15px;
   font-weight: 600;
@@ -125,12 +130,4 @@
   border-radius: var(--radius-sm);
   padding: 7px 10px;
   animation: fade-in 0.15s ease;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  width: 100%;
-  margin-top: 4px;
 }

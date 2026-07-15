@@ -1,13 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { X, Tag, Trash2, Check, Plus, Star, MapPin, FolderInput, RefreshCw } from 'lucide-react';
+import {
+  X,
+  Tag,
+  Check,
+  Plus,
+  Star,
+  MapPin,
+  MapPinOff,
+  Map as MapIcon,
+  FolderInput,
+  RefreshCw,
+} from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
 import WorldMapView from '../views/WorldMapView';
 import ScrollArea from '../common/ScrollArea';
+import LocationPickerModal from '../modals/LocationPickerModal';
 import {
   NAME_MAX_LEN,
   DESCRIPTION_MAX_LEN,
@@ -33,23 +45,6 @@ function ExifSection({ meta, item, t }) {
   const hasCamera = meta.camera_make || meta.camera_model;
   const cameraStr = [meta.camera_make, meta.camera_model].filter(Boolean).join(' ');
   const hasExposure = meta.focal_length || meta.aperture || meta.shutter_speed || meta.iso;
-  const hasGps = meta.gps_latitude != null && meta.gps_longitude != null;
-  const mapPin = hasGps
-    ? [
-        {
-          id: item.id,
-          gps_lat: meta.gps_latitude,
-          gps_lng: meta.gps_longitude,
-          media_type: item.media_type,
-          file_path: item.file_path,
-          display_name: item.display_name,
-        },
-      ]
-    : [];
-
-  const mapsUrl = hasGps
-    ? `https://www.google.com/maps?q=${meta.gps_latitude?.toFixed(6)},${meta.gps_longitude?.toFixed(6)}`
-    : null;
 
   return (
     <>
@@ -91,23 +86,65 @@ function ExifSection({ meta, item, t }) {
           <MetaRow label={t('exif.dateTaken')} value={meta.date_taken} />
         </div>
       )}
+    </>
+  );
+}
 
-      {hasGps && (
-        <div className="meta-section">
-          <p className="meta-section-title">{t('exif.location')}</p>
+// Authoritative location UI — driven by item.gps_lat/gps_lng (synced from
+// EXIF at import time for images, but also the field manual edits write to),
+// unlike ExifSection's read-only display of the raw EXIF tags. Available for
+// images and videos: view the pin on the full World Map, or add/adjust it
+// via the map picker.
+function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
+  const hasGps = item.gps_lat != null && item.gps_lng != null;
+  const mapPin = hasGps
+    ? [
+        {
+          id: item.id,
+          gps_lat: item.gps_lat,
+          gps_lng: item.gps_lng,
+          media_type: item.media_type,
+          file_path: item.file_path,
+          display_name: item.display_name,
+        },
+      ]
+    : [];
+  const mapsUrl = hasGps
+    ? `https://www.google.com/maps?q=${item.gps_lat.toFixed(6)},${item.gps_lng.toFixed(6)}`
+    : null;
+
+  return (
+    <div className="meta-section">
+      <p
+        className="meta-section-title"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}
+      >
+        <span>{t('exif.location')}</span>
+        <button className="icon-btn retag-btn" onClick={onOpenPicker} title={t('detail.setLocationTitle')}>
+          {hasGps ? <MapPin size={12} /> : <MapPinOff size={12} />}
+        </button>
+      </p>
+
+      {hasGps ? (
+        <>
           <div className="meta-row meta-gps-row">
             <span>{t('exif.gps')}</span>
             <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="meta-gps-link">
               <MapPin size={11} />
-              {meta.gps_latitude?.toFixed(5)}, {meta.gps_longitude?.toFixed(5)}
+              {item.gps_lat.toFixed(5)}, {item.gps_lng.toFixed(5)}
             </a>
           </div>
           <div className="map-view">
             <WorldMapView items={mapPin} onOpen={() => {}} showStyleToggle={false} simplePins />
           </div>
-        </div>
+          <button className="btn btn-secondary btn-sm detail-view-on-map-btn" onClick={onViewOnMap}>
+            <MapIcon size={12} /> {t('detail.viewOnMap')}
+          </button>
+        </>
+      ) : (
+        <p className="meta-empty-hint">{t('detail.noLocation')}</p>
       )}
-    </>
+    </div>
   );
 }
 
@@ -129,14 +166,16 @@ export default function DetailPanel({
   allItems,
   onClose,
   onSave,
-  onRemove,
   onStarToggle,
   onRemoveAutoTag,
   onRetagImage,
   onNavigateToFolder,
+  onViewOnMap,
+  onSetLocation,
   freshSrc = null,
 }) {
   const { t } = useTranslation();
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState([]);
@@ -174,6 +213,7 @@ export default function DetailPanel({
     setRetagError(null);
     setRetagInfo(null);
     setRemovedAutoTags([]);
+    setShowLocationPicker(false);
     if (item.media_type === 'audio') {
       setAudioArtist(item.audio_artist ?? '');
       setAudioAlbum(item.audio_album ?? '');
@@ -573,6 +613,12 @@ export default function DetailPanel({
         <div className="meta-section">
           <p className="meta-section-title">{t('detail.file')}</p>
           <MetaRow label={t('detail.format')} value={ext} />
+          {item.media_type === 'video' && (
+            <MetaRow
+              label={t('exif.dimensions')}
+              value={item.width && item.height ? `${item.width} × ${item.height}` : null}
+            />
+          )}
           <MetaRow label={t('detail.size')} value={formatBytes(item.file_size)} />
           <MetaRow label={t('detail.added')} value={formatDateTime(item.created_at)} />
           <div className="meta-row path-row">
@@ -597,56 +643,66 @@ export default function DetailPanel({
           )}
         </div>
 
+        {/* ── Location ── */}
+        {(item.media_type === 'image' || item.media_type === 'video') && (
+          <LocationSection
+            item={item}
+            onViewOnMap={() => onViewOnMap?.(item)}
+            onOpenPicker={() => setShowLocationPicker(true)}
+            t={t}
+          />
+        )}
+
         {/* ── EXIF metadata ── */}
         <ExifSection meta={exifMeta} item={item} t={t} />
       </ScrollArea>
 
-      <div className="detail-footer">
-        {confirmDiscard ? (
-          <>
-            <span className="detail-discard-msg">{t('detail.discardMsg')}</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                className="btn btn-secondary"
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                onClick={() => setConfirmDiscard(false)}
-              >
-                {t('detail.keep')}
+      {showLocationPicker && (
+        <LocationPickerModal
+          item={item}
+          onSave={(id, lat, lng) => onSetLocation?.(id, lat, lng)}
+          onClose={() => setShowLocationPicker(false)}
+        />
+      )}
+
+      {(confirmDiscard || dirty) && (
+        <div className="detail-footer">
+          {confirmDiscard ? (
+            <>
+              <span className="detail-discard-msg">{t('detail.discardMsg')}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => setConfirmDiscard(false)}
+                >
+                  {t('detail.keep')}
+                </button>
+                <button
+                  className="btn btn-danger-solid"
+                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  onClick={() => {
+                    handleCancel();
+                    setConfirmDiscard(false);
+                    onClose();
+                  }}
+                >
+                  {t('detail.discard')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={handleCancel}>
+                {t('common.cancel')}
               </button>
-              <button
-                className="btn btn-danger-solid"
-                style={{ fontSize: 12, padding: '4px 10px' }}
-                onClick={() => {
-                  handleCancel();
-                  setConfirmDiscard(false);
-                  onClose();
-                }}
-              >
-                {t('detail.discard')}
+              <button className="btn btn-primary" onClick={handleSave}>
+                <Check size={14} /> {t('common.save')}
               </button>
-            </div>
-          </>
-        ) : dirty ? (
-          <>
-            <button className="btn btn-secondary" onClick={handleCancel}>
-              {t('common.cancel')}
-            </button>
-            <button className="btn btn-primary" onClick={handleSave}>
-              <Check size={14} /> {t('common.save')}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="btn btn-danger-solid"
-              onClick={() => onRemove(item.id)}
-              title={t('detail.removeFromLibrary')}
-            >
-              <Trash2 size={14} />
-            </button>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

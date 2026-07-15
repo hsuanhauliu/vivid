@@ -99,6 +99,20 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
+/* Draggable marker shown while picking/adjusting a location */
+.map-pick-marker {
+  color: var(--accent);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  cursor: grab;
+}
+.map-pick-marker:active {
+  cursor: grabbing;
+}
+
+.world-map-pickable .maplibregl-canvas {
+  cursor: crosshair;
+}
+
 /* Map marker thumbnail */
 .map-thumb-icon {
   background: transparent !important;

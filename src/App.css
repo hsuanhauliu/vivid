@@ -116,6 +116,9 @@ body.window-unfocused .app {
   display: flex;
   overflow: hidden;
   min-height: 0;
+  /* Containing block for .secondary-panel, which overlays this rather than
+     sitting in flex flow (so it doesn't push .main to the right). */
+  position: relative;
 }
 
 .main {
@@ -307,6 +310,14 @@ body.window-unfocused .app {
 .icon-btn:hover {
   background: var(--surface-active);
   color: var(--text);
+}
+
+/* Sits directly next to SortDropdown's .sort-dd-btn (height: 22px) in the
+   toolbar — shrunk from the default 28px .icon-btn square so its hover
+   highlight doesn't look oversized next to it. */
+.toolbar-dupes-btn {
+  width: 22px;
+  height: 22px;
 }
 
 /* Icon shrink on press — shared by all icon-style buttons */

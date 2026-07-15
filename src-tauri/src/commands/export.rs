@@ -4,6 +4,14 @@ use tauri::State;
 
 use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 
+/// Shortest trim range accepted by `trim_video`/`export_video_gif` — matches
+/// the frontend's drag-handle minimum gap (VideoPlayer.jsx's MIN_TRIM_DURATION)
+/// so a range that's draggable in the UI is never rejected server-side, while
+/// a degenerate/near-zero range (e.g. an unmoved selection right after opening
+/// trim mode, or a sub-second sliver that displays as e.g. "0:00 – 0:00" once
+/// truncated to whole seconds) always is.
+const MIN_TRIM_DURATION_SECS: f64 = 1.0;
+
 // ── Basic export ──────────────────────────────────────────────────────────────
 
 /// Reveal a file in Finder (macOS `open -R`).
@@ -103,6 +111,9 @@ pub fn transform_image(
 
     let src_path = Path::new(&file_path);
     let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("jpg").to_lowercase();
+    if orig_ext == "gif" {
+        return Err("GIFs can't be edited — this would flatten the animation to a single frame".into());
+    }
     let is_heic = orig_ext == "heic" || orig_ext == "heif";
 
     // The image crate has no HEIC decoder — convert to a temp JPEG first.
@@ -148,9 +159,8 @@ pub fn transform_image(
             "rotate90"  => img.rotate90(),
             "rotate180" => img.rotate180(),
             "rotate270" => img.rotate270(),
-            // image crate's fliph/flipv names are inverted relative to intuition
-            "flip_h"    => img.flipv(),
-            "flip_v"    => img.fliph(),
+            "flip_h"    => img.fliph(),
+            "flip_v"    => img.flipv(),
             other => {
                 cleanup(&heic_tmp);
                 return Err(format!("Unknown operation: {other}"));
@@ -486,10 +496,12 @@ pb's writeObjects_({{theImage}})"#
 // ── Video trim ────────────────────────────────────────────────────────────────
 
 /// Trim `file_path` to `[start, end]` (seconds) via the Swift helper
-/// (AVFoundation — no ffmpeg). It tries a passthrough (re-mux only, no
-/// re-encode — fast, lossless, and sample-accurate) export first, falling
-/// back to a re-encoding preset if the source/preset combo can't produce MP4
-/// via passthrough. `save_mode`: "copy" writes a new library item;
+/// (AVFoundation — no ffmpeg). When `max_height` is omitted or the source is
+/// already at or below it, it tries a passthrough (re-mux only, no re-encode
+/// — fast, lossless, and sample-accurate) export first, falling back to a
+/// re-encoding preset if the source/preset combo can't produce MP4 via
+/// passthrough. When `max_height` requires downscaling, it always re-encodes
+/// (passthrough can't resize). `save_mode`: "copy" writes a new library item;
 /// "overwrite" replaces the original — like `transform_image`'s HEIC path,
 /// this always lands on a new sibling filename and repoints the DB row
 /// rather than literally overwriting the same path, so the webview never
@@ -503,12 +515,17 @@ pub fn trim_video(
     start: f64,
     end: f64,
     save_mode: String,
+    max_height: Option<u32>,
 ) -> Result<Option<MediaItem>, String> {
-    if end <= start {
-        return Err("End must be after start".into());
+    if end - start < MIN_TRIM_DURATION_SECS {
+        return Err("Trim range must be at least a tenth of a second".into());
     }
 
     let src_path = Path::new(&file_path);
+    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if orig_ext == "gif" {
+        return Err("GIFs can't be trimmed".into());
+    }
     let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -517,14 +534,16 @@ pub fn trim_video(
     let tmp_out = std::env::temp_dir().join(format!("vivid_trim_{ts}.mp4"));
 
     let helper = super::helper_path(&app);
-    let out = std::process::Command::new(&helper)
-        .arg("trim")
+    let mut cmd = std::process::Command::new(&helper);
+    cmd.arg("trim")
         .arg(&file_path)
         .arg(&tmp_out)
         .arg(start.to_string())
-        .arg(end.to_string())
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
+        .arg(end.to_string());
+    if let Some(h) = max_height {
+        cmd.arg(h.to_string());
+    }
+    let out = cmd.output().map_err(|e| format!("failed to run vivid-helper: {e}"))?;
     if !out.status.success() || !tmp_out.exists() {
         let _ = fs::remove_file(&tmp_out);
         return Err(format!(
@@ -566,8 +585,10 @@ pub fn trim_video(
 /// (never overwrites the source video), reading straight from the source file
 /// (never from decoded/canvas frames — same as the trim command above), via
 /// the Swift helper (AVFoundation frame sampling + ImageIO GIF assembly — no
-/// ffmpeg). Samples at 12fps and only downscales if the source is wider than
-/// 720px (never upscales a smaller clip).
+/// ffmpeg). Samples at 12fps and only downscales if the source is taller than
+/// `max_height` (never upscales a smaller clip). `max_height` follows the
+/// conventional "Xp" video resolution naming (e.g. 1080 → 1080p, which for a
+/// 16:9 source is 1920×1080) and defaults to 720px when not given.
 #[tauri::command]
 pub fn export_video_gif(
     app: tauri::AppHandle,
@@ -575,12 +596,17 @@ pub fn export_video_gif(
     file_path: String,
     start: f64,
     end: f64,
+    max_height: Option<u32>,
 ) -> Result<MediaItem, String> {
-    if end <= start {
-        return Err("End must be after start".into());
+    if end - start < MIN_TRIM_DURATION_SECS {
+        return Err("Trim range must be at least a tenth of a second".into());
     }
 
     let src_path = Path::new(&file_path);
+    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if orig_ext == "gif" {
+        return Err("GIFs can't be trimmed".into());
+    }
     let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
@@ -591,6 +617,7 @@ pub fn export_video_gif(
         .arg(&dest)
         .arg(start.to_string())
         .arg(end.to_string())
+        .arg(max_height.unwrap_or(720).to_string())
         .output()
         .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
     if !out.status.success() || !dest.exists() {

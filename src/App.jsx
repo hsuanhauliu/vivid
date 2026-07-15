@@ -90,7 +90,7 @@ import './App.css';
 // The "no filters applied" shape — shared by the initial state, the clear
 // action, and navigation resets so the filter icon never lingers highlighted.
 const EMPTY_FILTERS = {
-  colorLabel: null,
+  colorLabel: [],
   dateRange: null,
   exactDay: null,
   dateFrom: null,
@@ -103,7 +103,7 @@ const EMPTY_FILTERS = {
   hasText: false,
   orientation: null,
   fileSize: null,
-  collection: null,
+  collection: false,
   cameras: [],
 };
 
@@ -144,6 +144,7 @@ export default function App() {
   const [screensaverItems, setScreensaverItems] = useState(null); // screensaver mode items
   const [playerItem, setPlayerItem] = useState(null); // bottom audio player
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
+  const [mapFocusId, setMapFocusId] = useState(null); // item to center the World Map on
   const [view, setView] = useState(() => {
     const home = localStorage.getItem('vivid-home-page') || 'all';
     // Folders is a panel (file tree) rather than a page — open it via
@@ -441,6 +442,11 @@ export default function App() {
 
     // Backfill missing grid thumbnails in the background (one-time per library).
     invoke('generate_thumbnails_all').catch(console.error);
+
+    // Same backfill for OCR text-scan coverage — otherwise images imported
+    // via bulk import (drag-drop, watched folders) never get scanned unless
+    // the user manually clicks "Scan for text" in Settings.
+    invoke('run_ocr_all').catch(console.error);
   }, []);
 
   // mood names are static — load them immediately, no model needed
@@ -628,10 +634,9 @@ export default function App() {
   const handleRemove = useCallback((id) => {
     setContextMenu(null);
     setConfirm({
-      title: 'Move to Trash',
-      message:
-        'The file will be moved to Trash and automatically deleted after the configured retention period.',
-      confirmLabel: 'Move to Trash',
+      title: t('trash.moveTitle'),
+      message: t('trash.moveMsg'),
+      confirmLabel: t('trash.moveConfirmBtn'),
       onConfirm: async () => {
         await invoke('trash_media', { id });
         setAllItems((prev) => prev.filter((it) => it.id !== id));
@@ -645,16 +650,16 @@ export default function App() {
         setConfirm(null);
       },
     });
-  }, []);
+  }, [t]);
 
   // ── Multi-select mutations ────────────────────────────────────────────────
 
   const handleMassDelete = useCallback(() => {
     const ids = [...checkedIds];
     setConfirm({
-      title: `Move ${ids.length} files to Trash`,
-      message: `Move ${ids.length} files to Trash? They will be permanently deleted after the configured retention period.`,
-      confirmLabel: `Move to Trash`,
+      title: t('trash.moveManyTitle', { count: ids.length }),
+      message: t('trash.moveManyMsg', { count: ids.length }),
+      confirmLabel: t('trash.moveConfirmBtn'),
       onConfirm: async () => {
         await Promise.all(ids.map((id) => invoke('trash_media', { id })));
         setAllItems((prev) => prev.filter((it) => !checkedIds.has(it.id)));
@@ -662,7 +667,7 @@ export default function App() {
         setConfirm(null);
       },
     });
-  }, [checkedIds, clearChecked]);
+  }, [checkedIds, clearChecked, t]);
 
   const handleMassTag = useCallback(
     async (tagsToAdd) => {
@@ -1075,13 +1080,14 @@ export default function App() {
   );
 
   const handleViewChange = useCallback(
-    (v) => {
+    (v, { mapFocusId: focusId = null } = {}) => {
       guardedNav(() => {
         setView(v);
         setActiveFolder(null);
         clearChecked();
         clearSearchAndFilters();
         setShowDuplicates(false);
+        setMapFocusId(focusId);
         pushNav({ filter, activeTag, activeCollection, activeFolder: null, search: '', view: v });
       });
     },
@@ -1096,6 +1102,25 @@ export default function App() {
       guardedNav,
     ],
   );
+
+  // "View on Map" from the detail panel — jumps to the World Map centered on
+  // this specific item instead of the usual fit-to-all-pins behavior.
+  const handleViewOnMap = useCallback(
+    (item) => {
+      setViewerItem(null);
+      setViewerDetails(false);
+      setSelected(null);
+      handleViewChange('worldmap', { mapFocusId: item.id });
+    },
+    [handleViewChange],
+  );
+
+  const handleSetLocation = useCallback(async (id, lat, lng) => {
+    const updated = await invoke('set_media_location', { id, lat, lng });
+    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+    setSelected((prev) => (prev?.id === id ? updated : prev));
+    setViewerItem((prev) => (prev?.id === id ? updated : prev));
+  }, []);
 
   const handleCardOpen = useCallback(
     (item) => {
@@ -1376,8 +1401,7 @@ export default function App() {
       if (filters.starred && !i.starred) return false;
       if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
       if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
-      if (filters.collection === 'any' && !i.collection_id) return false;
-      if (filters.collection === 'none' && i.collection_id) return false;
+      if (filters.collection && !i.collection_id) return false;
       if (
         filters.cameras?.length &&
         !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
@@ -1621,7 +1645,7 @@ export default function App() {
           {/* Filter toggle — right of search bar, visually separated from view buttons */}
           {view === 'library' && (
             <button
-              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
+              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel?.length > 0 || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
               title={t('toolbar.filters')}
             >
@@ -1770,7 +1794,7 @@ export default function App() {
               (() => {
                 const hasActiveSearch = search.trim().length > 0;
                 const hasActiveFilters = !!(
-                  filters.colorLabel ||
+                  filters.colorLabel?.length > 0 ||
                   filters.dateRange ||
                   filters.exactDay ||
                   filters.dateFrom ||
@@ -1922,11 +1946,6 @@ export default function App() {
                       allItems={allItems}
                       onClose={() => setViewerDetails(false)}
                       onSave={handleSave}
-                      onRemove={(id) => {
-                        setViewerItem(null);
-                        setViewerDetails(false);
-                        handleRemove(id);
-                      }}
                       onStarToggle={handleStarToggle}
                       onSetCollection={handleSetCollection}
                       onRemoveAutoTag={handleRemoveAutoTag}
@@ -1936,6 +1955,8 @@ export default function App() {
                         setViewerDetails(false);
                         handleFolderClick(id);
                       }}
+                      onViewOnMap={handleViewOnMap}
+                      onSetLocation={handleSetLocation}
                       freshSrc={freshUrls[viewerItem.id] || null}
                     />
                   )}
@@ -2002,6 +2023,7 @@ export default function App() {
                   onOpenCluster={(clItems) => {
                     setViewerItem(clItems[0]);
                   }}
+                  focusItemId={mapFocusId}
                 />
               ) : view === 'trash' ? (
                 <TrashView
@@ -2116,7 +2138,7 @@ export default function App() {
                       !activeCollection &&
                       !activeTag && (
                         <button
-                          className="icon-btn"
+                          className="icon-btn toolbar-dupes-btn"
                           title={t('toolbar.findDuplicates')}
                           onClick={() =>
                             handleFindDuplicates(
@@ -2219,7 +2241,7 @@ export default function App() {
                     isFiltered={
                       !!(
                         search.trim() ||
-                        filters.colorLabel ||
+                        filters.colorLabel?.length > 0 ||
                         filters.dateRange ||
                         filters.exactDay ||
                         filters.dateFrom ||
@@ -2282,12 +2304,13 @@ export default function App() {
                   allItems={allItems}
                   onClose={() => setSelected(null)}
                   onSave={handleSave}
-                  onRemove={handleRemove}
                   onStarToggle={handleStarToggle}
                   onSetCollection={handleSetCollection}
                   onRemoveAutoTag={handleRemoveAutoTag}
                   onRetagImage={handleRetagImage}
                   onNavigateToFolder={handleFolderClick}
+                  onViewOnMap={handleViewOnMap}
+                  onSetLocation={handleSetLocation}
                   freshSrc={selected ? freshUrls[selected.id] || null : null}
                 />
               )}
