@@ -730,7 +730,8 @@
     "importFailed": "{{count}} 个文件导入失败",
     "duplicateCollection": "已存在名为“{{name}}”的合集",
     "duplicateFolder": "此处已存在名为“{{name}}”的文件夹",
-    "addedToCollection": "已将 {{count}} 个项目添加到“{{name}}”"
+    "addedToCollection": "已将 {{count}} 个项目添加到“{{name}}”",
+    "moveToCollectionFailed": "{{count}} 个文件无法移动（与合集类型不兼容）"
   },
   "results": {
     "count": "{{count}} 个结果",
@@ -1131,7 +1132,8 @@
     "findMore": "查找更多…（{{count}}）",
     "albums": "相册",
     "playlists": "播放列表",
-    "deleteCount": "删除 {{count}} 项"
+    "deleteCount": "删除 {{count}} 项",
+    "noCompatibleCollections": "没有与当前所选内容兼容的合集"
   },
   "massTag": {
     "title": "为 {{count}} 个文件添加标签",

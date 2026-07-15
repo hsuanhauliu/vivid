@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import useWindowFullscreen from '../../hooks/useWindowFullscreen';
 import { transformOrigin, panForZoomAtPoint, clampPan } from '../../utils/zoomPan';
 import {
   ArrowLeft,
@@ -14,6 +15,8 @@ import {
   Pencil,
   ZoomIn,
   ZoomOut,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import VideoPlayer from '../common/VideoPlayer';
 import AudioViewer from '../common/AudioViewer';
@@ -41,6 +44,10 @@ export default function FileViewer({
 }) {
   const { t } = useTranslation();
   const [videoFullscreen, setVideoFullscreen] = useState(false);
+  // Native OS window fullscreen for images/GIFs (video manages its own,
+  // internally, via the same hook + its onFullscreenChange prop).
+  const { fullscreen: imageFullscreen, toggleFullscreen: toggleImageFullscreen } =
+    useWindowFullscreen();
   const viewerRef = useRef(null);
   const filmWrapRef = useRef(null);
   const FILM_THUMB = 72; // 68px thumb + 4px gap, keep in sync with FileViewer.css
@@ -58,6 +65,20 @@ export default function FileViewer({
   // screen are ever rendered — an album with hundreds of images doesn't load
   // hundreds of thumbnails, just however many fit the strip's width.
   const [filmVisible, setFilmVisible] = useState(10);
+
+  // Auto-hide the prev/next nav arrows after a few seconds of no mouse
+  // movement over the media body — mirrors VideoPlayer's chrome auto-hide.
+  const [navVisible, setNavVisible] = useState(true);
+  const navHideTimer = useRef(null);
+  const revealNav = useCallback(() => {
+    setNavVisible(true);
+    clearTimeout(navHideTimer.current);
+    navHideTimer.current = setTimeout(() => setNavVisible(false), 3000);
+  }, []);
+  useEffect(() => {
+    revealNav();
+    return () => clearTimeout(navHideTimer.current);
+  }, [revealNav, item.id]);
 
   const idx = items.findIndex((i) => i.id === item.id);
   const prev = idx > 0 ? items[idx - 1] : null;
@@ -116,6 +137,10 @@ export default function FileViewer({
 
       if (e.key === 'Escape') {
         if (videoFullscreen) return;
+        if (imageFullscreen) {
+          toggleImageFullscreen();
+          return;
+        }
         if (scale !== 1) {
           setScale(1);
           setPan({ x: 0, y: 0 });
@@ -139,14 +164,23 @@ export default function FileViewer({
       }
       if (item.media_type !== 'video') {
         if (e.key === 'f' || e.key === 'F') {
-          if (document.fullscreenElement) document.exitFullscreen?.();
-          else viewerRef.current?.requestFullscreen?.();
+          toggleImageFullscreen();
         }
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [item, prev, next, onClose, onNavigate, scale, videoFullscreen]);
+  }, [
+    item,
+    prev,
+    next,
+    onClose,
+    onNavigate,
+    scale,
+    videoFullscreen,
+    imageFullscreen,
+    toggleImageFullscreen,
+  ]);
 
   function handleWheel(e) {
     if (item.media_type !== 'image') return;
@@ -234,7 +268,7 @@ export default function FileViewer({
   return (
     <div
       ref={viewerRef}
-      className="viewer-page"
+      className={`viewer-page${imageFullscreen ? ' viewer-page-fullscreen' : ''}`}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
@@ -281,6 +315,13 @@ export default function FileViewer({
                 title={t('viewer.zoomIn')}
               >
                 <ZoomIn size={15} />
+              </button>
+              <button
+                className="viewer-btn"
+                onClick={toggleImageFullscreen}
+                title={imageFullscreen ? t('viewer.exitFullScreen') : t('viewer.fullScreen')}
+              >
+                {imageFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
               <div className="viewer-btn-sep" />
             </>
@@ -331,6 +372,7 @@ export default function FileViewer({
         className={`viewer-body${['video', 'audio'].includes(item.media_type) ? ' viewer-body-player' : ''}`}
         style={{ overflow: scale > 1 ? 'hidden' : undefined, position: 'relative' }}
         onWheel={handleWheel}
+        onMouseMove={revealNav}
       >
         {item.media_type === 'image' && (
           <img
@@ -368,7 +410,7 @@ export default function FileViewer({
         {/* ── Navigation ── */}
         {prev && (
           <button
-            className="viewer-nav viewer-nav-prev"
+            className={`viewer-nav viewer-nav-prev${navVisible ? '' : ' viewer-nav-hidden'}`}
             onClick={() => onNavigate(prev)}
             title={t('viewer.prev')}
           >
@@ -377,7 +419,7 @@ export default function FileViewer({
         )}
         {next && (
           <button
-            className="viewer-nav viewer-nav-next"
+            className={`viewer-nav viewer-nav-next${navVisible ? '' : ' viewer-nav-hidden'}`}
             onClick={() => onNavigate(next)}
             title={t('viewer.next')}
           >

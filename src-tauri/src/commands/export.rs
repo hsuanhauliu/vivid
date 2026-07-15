@@ -12,6 +12,32 @@ use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 /// truncated to whole seconds) always is.
 const MIN_TRIM_DURATION_SECS: f64 = 1.0;
 
+/// Runs the Swift `vivid-helper` binary with `args`, verifying `out_path`
+/// exists afterward and cleaning it up on failure. Shared by `trim_video` and
+/// `export_video_gif`, which differ only in the subcommand/args and the error
+/// message prefix. Blocking (spawns a subprocess and waits for it) — callers
+/// run it via `spawn_blocking` so a multi-second encode doesn't stall the
+/// async runtime.
+fn run_video_helper(
+    helper: &Path,
+    args: &[String],
+    out_path: &Path,
+    err_context: &str,
+) -> Result<(), String> {
+    let out = std::process::Command::new(helper)
+        .args(args)
+        .output()
+        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
+    if !out.status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!(
+            "{err_context}: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
 // ── Basic export ──────────────────────────────────────────────────────────────
 
 /// Reveal a file in Finder (macOS `open -R`).
@@ -507,9 +533,9 @@ pb's writeObjects_({{theImage}})"#
 /// rather than literally overwriting the same path, so the webview never
 /// serves a stale cached copy of a file whose path didn't change.
 #[tauri::command]
-pub fn trim_video(
+pub async fn trim_video(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
     id: String,
     start: f64,
@@ -526,7 +552,7 @@ pub fn trim_video(
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -534,23 +560,24 @@ pub fn trim_video(
     let tmp_out = std::env::temp_dir().join(format!("vivid_trim_{ts}.mp4"));
 
     let helper = super::helper_path(&app);
-    let mut cmd = std::process::Command::new(&helper);
-    cmd.arg("trim")
-        .arg(&file_path)
-        .arg(&tmp_out)
-        .arg(start.to_string())
-        .arg(end.to_string());
+    let mut args = vec![
+        "trim".to_string(),
+        file_path.clone(),
+        tmp_out.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+    ];
     if let Some(h) = max_height {
-        cmd.arg(h.to_string());
+        args.push(h.to_string());
     }
-    let out = cmd.output().map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !tmp_out.exists() {
-        let _ = fs::remove_file(&tmp_out);
-        return Err(format!(
-            "could not trim the video: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let tmp_out_c = tmp_out.clone();
+    // The helper's video re-encode can take real time — run it off the main
+    // thread so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        run_video_helper(&helper, &args, &tmp_out_c, "could not trim the video")
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     if save_mode == "copy" {
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_trimmed.mp4"));
@@ -590,9 +617,9 @@ pub fn trim_video(
 /// conventional "Xp" video resolution naming (e.g. 1080 → 1080p, which for a
 /// 16:9 source is 1920×1080) and defaults to 720px when not given.
 #[tauri::command]
-pub fn export_video_gif(
+pub async fn export_video_gif(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
     start: f64,
     end: f64,
@@ -607,26 +634,26 @@ pub fn export_video_gif(
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
     let helper = super::helper_path(&app);
-    let out = std::process::Command::new(&helper)
-        .arg("gif")
-        .arg(&file_path)
-        .arg(&dest)
-        .arg(start.to_string())
-        .arg(end.to_string())
-        .arg(max_height.unwrap_or(720).to_string())
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !dest.exists() {
-        let _ = fs::remove_file(&dest);
-        return Err(format!(
-            "could not export the GIF: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let args = vec![
+        "gif".to_string(),
+        file_path.clone(),
+        dest.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+        max_height.unwrap_or(720).to_string(),
+    ];
+    let dest_c = dest.clone();
+    // GIF sampling/encoding can take real time — run it off the main thread
+    // so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        run_video_helper(&helper, &args, &dest_c, "could not export the GIF")
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest, None)?;

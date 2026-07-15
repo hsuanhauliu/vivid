@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Play,
   Pause,
@@ -32,9 +31,14 @@ import {
 import { formatClock } from '../../utils/format';
 import { useVideoSrc } from '../../hooks/useVideoSrc';
 import useDismiss from '../../hooks/useDismiss';
+import useWindowFullscreen from '../../hooks/useWindowFullscreen';
 import './VideoPlayer.css';
 
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+const RESOLUTIONS = [240, 360, 480, 720, 1080, 4096];
+// 4096 stands in for "original" (never upscaled, so any real source height
+// passes through it as a no-op cap) — the one entry that isn't an "Xp" label.
+const resolutionLabel = (r, t) => (r === 4096 ? t('viewer.resolutionOriginal') : `${r}p`);
 
 // Shortest trim range the drag handles allow and the save actions accept —
 // mirrors the backend's MIN_TRIM_DURATION_SECS in export.rs. 1 full second,
@@ -90,8 +94,6 @@ export default function VideoPlayer({
   const lastPreviewSeek = useRef(-1); // throttle redundant preview seeks
   const lastLeftRef = useRef(0); // cached tooltip x, so it fades out in place
   const hideTimer = useRef(null);
-  // Ref so keyboard handler always sees current fullscreen value without re-registering
-  const fullscreenRef = useRef(false);
   const hasPlayedRef = useRef(false);
 
   const [playing, setPlaying] = useState(false);
@@ -104,7 +106,8 @@ export default function VideoPlayer({
   const [looped, setLooped] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [chrome, setChrome] = useState(true);
-  const [fullscreen, setFullscreen] = useState(false);
+  const { fullscreen, fullscreenRef, toggleFullscreen, exitFullscreen } =
+    useWindowFullscreen(onFullscreenChange);
   const [speedMenu, setSpeedMenu] = useState(false);
   const [hover, setHover] = useState(null); // { left, time } preview tooltip, or null
   const [fineLevel, setFineLevel] = useState(0); // 0=normal … 3=finest, during drag
@@ -126,6 +129,8 @@ export default function VideoPlayer({
   const [trimMaxHeight, setTrimMaxHeight] = useState(720);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const saveMenuRef = useRef(null);
+  const [resMenuOpen, setResMenuOpen] = useState(false);
+  const resMenuRef = useRef(null);
   const trimTooShort = trimEnd - trimStart < MIN_TRIM_DURATION;
   // While trimming, every seek path (arrows, frame-step, scrubbing) is
   // confined to the selected range — otherwise "preview the trim" and
@@ -145,17 +150,6 @@ export default function VideoPlayer({
     zoomRef.current = zoom;
     panPosRef.current = pan;
   }, [zoom, pan]);
-
-  // Keep ref and notify parent in sync with fullscreen state
-  const applyFullscreen = useCallback(
-    (isFs) => {
-      fullscreenRef.current = isFs;
-      setFullscreen(isFs);
-      onFullscreenChange?.(isFs);
-      invoke('set_native_traffic_lights_visible', { visible: isFs }).catch(() => {});
-    },
-    [onFullscreenChange],
-  );
 
   // ── Reveal/auto-hide the control chrome ────────────────────────────────────
   // Auto-hides after idle mouse time regardless of play state or fullscreen —
@@ -484,6 +478,7 @@ export default function VideoPlayer({
   }, [onRequestConfirm, doTrim, t]);
 
   useDismiss(saveMenuRef, () => setSaveMenuOpen(false), { enabled: saveMenuOpen, escape: false });
+  useDismiss(resMenuRef, () => setResMenuOpen(false), { enabled: resMenuOpen, escape: false });
 
   const clampPan = useCallback((x, y) => {
     const wrap = wrapRef.current;
@@ -573,18 +568,6 @@ export default function VideoPlayer({
     [clampToTrim],
   );
 
-  const toggleFullscreen = useCallback(async () => {
-    const win = getCurrentWindow();
-    const isFs = await win.isFullscreen();
-    await win.setFullscreen(!isFs);
-    applyFullscreen(!isFs);
-  }, [applyFullscreen]);
-
-  const exitFullscreen = useCallback(async () => {
-    await getCurrentWindow().setFullscreen(false);
-    applyFullscreen(false);
-  }, [applyFullscreen]);
-
   const togglePip = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -626,21 +609,6 @@ export default function VideoPlayer({
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
-
-  // ── Sync fullscreen state when user exits via OS (green button / Mission Control) ──
-  useEffect(() => {
-    const win = getCurrentWindow();
-    let unlisten;
-    win
-      .onResized(async () => {
-        const isFs = await win.isFullscreen();
-        applyFullscreen(isFs);
-      })
-      .then((fn) => {
-        unlisten = fn;
-      });
-    return () => unlisten?.();
-  }, [applyFullscreen]);
 
   // ── Frame preview ─────────────────────────────────────────────────────────────
   // Seek the hidden preview <video> to show the frame at `time`. Throttled so
@@ -998,20 +966,33 @@ export default function VideoPlayer({
             </span>
             <span className="vp-trim-hint">{t('viewer.trimDragHint')}</span>
             <div className="vp-trim-spacer" />
-            <select
-              className="vp-trim-gif-size"
-              value={trimMaxHeight}
-              onChange={(e) => setTrimMaxHeight(Number(e.target.value))}
-              disabled={trimBusy}
-              title={t('viewer.resolutionTitle')}
-            >
-              <option value={240}>240p</option>
-              <option value={360}>360p</option>
-              <option value={480}>480p</option>
-              <option value={720}>720p</option>
-              <option value={1080}>1080p</option>
-              <option value={4096}>{t('viewer.resolutionOriginal')}</option>
-            </select>
+            <div className="vp-trim-res-wrap" ref={resMenuRef}>
+              <button
+                className="vp-trim-btn vp-trim-res-btn"
+                onClick={() => setResMenuOpen((v) => !v)}
+                disabled={trimBusy}
+                title={t('viewer.resolutionTitle')}
+              >
+                {resolutionLabel(trimMaxHeight, t)}
+                <ChevronDown size={12} />
+              </button>
+              {resMenuOpen && (
+                <div className="vp-trim-res-menu">
+                  {RESOLUTIONS.map((r) => (
+                    <button
+                      key={r}
+                      className={`vp-trim-res-item${r === trimMaxHeight ? ' selected' : ''}`}
+                      onClick={() => {
+                        setTrimMaxHeight(r);
+                        setResMenuOpen(false);
+                      }}
+                    >
+                      {resolutionLabel(r, t)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="vp-trim-save-wrap" ref={saveMenuRef}>
               <button
                 className="vp-trim-btn vp-trim-save-btn"

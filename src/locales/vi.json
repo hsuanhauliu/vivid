@@ -734,7 +734,8 @@
     "importFailed": "{{count}} tệp thất bại",
     "duplicateCollection": "Đã tồn tại bộ sưu tập tên “{{name}}”",
     "duplicateFolder": "Đã tồn tại thư mục tên “{{name}}” ở đây",
-    "addedToCollection": "Đã thêm {{count}} mục vào {{name}}"
+    "addedToCollection": "Đã thêm {{count}} mục vào {{name}}",
+    "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)"
   },
   "results": {
     "count": "{{count}} kết quả",
@@ -1136,7 +1137,8 @@
     "findMore": "Tìm thêm… ({{count}})",
     "albums": "Album",
     "playlists": "Danh sách phát",
-    "deleteCount": "Xóa {{count}}"
+    "deleteCount": "Xóa {{count}}",
+    "noCompatibleCollections": "Không có bộ sưu tập nào tương thích với lựa chọn này"
   },
   "massTag": {
     "title": "Thêm thẻ cho {{count}} tệp",

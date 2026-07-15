@@ -260,11 +260,34 @@
   opacity: 0.5;
   cursor: default;
 }
-.vp-trim-gif-size {
+.vp-trim-res-wrap {
+  position: relative;
   flex-shrink: 0;
-  height: 26px;
-  padding: 0 6px;
-  background: rgba(255, 255, 255, 0.1);
+}
+.vp-trim-res-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.vp-trim-res-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  min-width: 110px;
+  background: #26262a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 5;
+}
+.vp-trim-res-item {
+  text-align: left;
+  padding: 6px 8px;
+  background: transparent;
   border: none;
   border-radius: var(--radius-sm);
   color: #fff;
@@ -272,13 +295,13 @@
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
+  white-space: nowrap;
 }
-.vp-trim-gif-size:disabled {
-  opacity: 0.5;
-  cursor: default;
+.vp-trim-res-item:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
-.vp-trim-gif-size option {
-  color: #000;
+.vp-trim-res-item.selected {
+  background: rgba(255, 255, 255, 0.18);
 }
 .vp-trim-save-wrap {
   position: relative;

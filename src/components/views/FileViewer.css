@@ -30,6 +30,21 @@
   overflow: hidden;
 }
 
+/* Native OS window fullscreen for images/GIFs — edge-to-edge, chrome hidden. */
+.viewer-page-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+}
+.viewer-page-fullscreen .viewer-header,
+.viewer-page-fullscreen .viewer-filmstrip-bar {
+  display: none;
+}
+.viewer-page-fullscreen .viewer-body {
+  height: 100%;
+}
+
 .viewer-header {
   display: flex;
   align-items: center;
@@ -211,8 +226,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.15s, opacity 0.25s;
   z-index: 1;
+  opacity: 1;
 }
 .viewer-nav:hover {
   background: rgba(255, 255, 255, 0.18);
@@ -226,6 +242,10 @@
 }
 .viewer-nav-next {
   right: 16px;
+}
+.viewer-nav-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .viewer-key-hint {

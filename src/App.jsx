@@ -697,15 +697,25 @@ export default function App() {
     async (collectionId) => {
       const ids = [...checkedIds];
       const gid = collectionId === '__none__' ? null : collectionId;
-      const updated = await Promise.all(
+      // allSettled (not all): one incompatible item must not abort the whole
+      // batch mid-flight or skip applying the state update for the others
+      // that already succeeded in the DB.
+      const results = await Promise.allSettled(
         ids.map((id) => invoke('set_collection', { id, collectionId: gid })),
       );
-      setAllItems((prev) => {
-        const map = Object.fromEntries(updated.map((it) => [it.id, it]));
-        return prev.map((it) => map[it.id] ?? it);
-      });
+      const updated = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (updated.length > 0) {
+        setAllItems((prev) => {
+          const map = Object.fromEntries(updated.map((it) => [it.id, it]));
+          return prev.map((it) => map[it.id] ?? it);
+        });
+      }
+      if (failed.length > 0) {
+        showToast('error', t('notif.moveToCollectionFailed', { count: failed.length }));
+      }
     },
-    [checkedIds],
+    [checkedIds, showToast, t],
   );
 
   const handleMassMoveFolder = useCallback(
@@ -2352,6 +2362,7 @@ export default function App() {
                 collections={collections}
                 folders={folders}
                 allItems={allItems}
+                selectedItems={allItems.filter((i) => checkedIds.has(i.id))}
                 hasPlayer={!!playerItem}
               />
             )}

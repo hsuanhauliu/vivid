@@ -49,13 +49,24 @@ export default function ScreensaverOverlay({ items, onClose }) {
     uiTimer.current = setTimeout(() => setShowUi(false), 3000);
   }, []);
 
+  // idx tracked via ref so the listener effect below doesn't depend on it —
+  // otherwise it would re-run (and call revealUi) on every auto-advance
+  // transition, un-hiding the overlay even without any mouse movement.
+  const idxRef = useRef(idx);
+  useEffect(() => {
+    idxRef.current = idx;
+  }, [idx]);
+
   useEffect(() => {
     revealUi();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     const handler = (e) => {
       revealUi();
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') go((idx + 1) % items.length);
-      if (e.key === 'ArrowLeft') go((idx - 1 + items.length) % items.length);
+      if (e.key === 'ArrowRight') go((idxRef.current + 1) % items.length);
+      if (e.key === 'ArrowLeft') go((idxRef.current - 1 + items.length) % items.length);
       if (e.key === ' ') setPaused((v) => !v);
     };
     document.addEventListener('keydown', handler);
@@ -65,7 +76,7 @@ export default function ScreensaverOverlay({ items, onClose }) {
       document.removeEventListener('mousemove', revealUi);
       clearTimeout(uiTimer.current);
     };
-  }, [idx, items.length, onClose, go, revealUi]);
+  }, [items.length, onClose, go, revealUi]);
 
   const item = items[idx];
   const src = item ? convertFileSrc(item.file_path) : null;

@@ -747,7 +747,8 @@
     "importFailed": "{{count}} 個檔案失敗",
     "duplicateCollection": "已存在名為「{{name}}」的收藏",
     "duplicateFolder": "此處已存在名為「{{name}}」的資料夾",
-    "addedToCollection": "已將 {{count}} 個項目加入「{{name}}」"
+    "addedToCollection": "已將 {{count}} 個項目加入「{{name}}」",
+    "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）"
   },
   "results": {
     "count_one": "{{count}} 個結果",
@@ -1145,7 +1146,8 @@
     "findMore": "尋找更多…（{{count}}）",
     "albums": "相簿",
     "playlists": "播放清單",
-    "deleteCount": "刪除 {{count}} 項"
+    "deleteCount": "刪除 {{count}} 項",
+    "noCompatibleCollections": "沒有與目前所選內容相容的收藏"
   },
   "massTag": {
     "title": "為 {{count}} 個檔案新增標籤",

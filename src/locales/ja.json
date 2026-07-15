@@ -747,7 +747,8 @@
     "importFailed": "{{count}} ファイルが失敗",
     "duplicateCollection": "「{{name}}」という名前のコレクションは既に存在します",
     "duplicateFolder": "ここには「{{name}}」という名前のフォルダが既に存在します",
-    "addedToCollection": "{{count}} 件を「{{name}}」に追加しました"
+    "addedToCollection": "{{count}} 件を「{{name}}」に追加しました",
+    "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）"
   },
   "results": {
     "count_one": "{{count}} 件",
@@ -1145,7 +1146,8 @@
     "findMore": "さらに検索…（{{count}}）",
     "albums": "アルバム",
     "playlists": "プレイリスト",
-    "deleteCount": "{{count}} 件を削除"
+    "deleteCount": "{{count}} 件を削除",
+    "noCompatibleCollections": "この選択と互換性のあるコレクションがありません"
   },
   "massTag": {
     "title": "{{count}} 件のファイルにタグを追加",

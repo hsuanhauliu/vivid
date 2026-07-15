@@ -756,7 +756,9 @@
     "duplicateCollection": "Une collection nommée « {{name}} » existe déjà",
     "duplicateFolder": "Un dossier nommé « {{name}} » existe déjà ici",
     "addedToCollection": "{{count}} élément ajouté à {{name}}",
-    "addedToCollection_other": "{{count}} éléments ajoutés à {{name}}"
+    "addedToCollection_other": "{{count}} éléments ajoutés à {{name}}",
+    "moveToCollectionFailed_one": "{{count}} fichier n'a pas pu être déplacé (incompatible avec la collection)",
+    "moveToCollectionFailed_other": "{{count}} fichiers n'ont pas pu être déplacés (incompatibles avec la collection)"
   },
   "results": {
     "count_one": "{{count}} résultat",
@@ -1162,7 +1164,8 @@
     "albums": "Albums",
     "playlists": "Listes de lecture",
     "deleteCount_one": "Supprimer {{count}}",
-    "deleteCount_other": "Supprimer {{count}}"
+    "deleteCount_other": "Supprimer {{count}}",
+    "noCompatibleCollections": "Aucune collection compatible avec cette sélection"
   },
   "massTag": {
     "title_one": "Ajouter des tags à {{count}} fichier",

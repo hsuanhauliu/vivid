@@ -756,7 +756,9 @@
     "duplicateCollection": "Já existe uma coleção chamada “{{name}}”",
     "duplicateFolder": "Já existe uma pasta chamada “{{name}}” aqui",
     "addedToCollection": "{{count}} item adicionado a {{name}}",
-    "addedToCollection_other": "{{count}} itens adicionados a {{name}}"
+    "addedToCollection_other": "{{count}} itens adicionados a {{name}}",
+    "moveToCollectionFailed_one": "{{count}} arquivo não pôde ser movido (incompatível com a coleção)",
+    "moveToCollectionFailed_other": "{{count}} arquivos não puderam ser movidos (incompatíveis com a coleção)"
   },
   "results": {
     "count_one": "{{count}} resultado",
@@ -1162,7 +1164,8 @@
     "albums": "Álbuns",
     "playlists": "Playlists",
     "deleteCount_one": "Excluir {{count}}",
-    "deleteCount_other": "Excluir {{count}}"
+    "deleteCount_other": "Excluir {{count}}",
+    "noCompatibleCollections": "Nenhuma coleção compatível com esta seleção"
   },
   "massTag": {
     "title_one": "Adicionar tags a {{count}} arquivo",

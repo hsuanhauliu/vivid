@@ -756,7 +756,9 @@
     "duplicateCollection": "“{{name}}” नाम का संग्रह पहले से मौजूद है",
     "duplicateFolder": "यहाँ “{{name}}” नाम का फ़ोल्डर पहले से मौजूद है",
     "addedToCollection_one": "{{name}} में {{count}} आइटम जोड़ा गया",
-    "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए"
+    "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए",
+    "moveToCollectionFailed_one": "{{count}} फ़ाइल नहीं ले जाई जा सकी (संग्रह के साथ असंगत)",
+    "moveToCollectionFailed_other": "{{count}} फ़ाइलें नहीं ले जाई जा सकीं (संग्रह के साथ असंगत)"
   },
   "results": {
     "count_one": "{{count}} परिणाम",
@@ -1162,7 +1164,8 @@
     "albums": "एल्बम",
     "playlists": "प्लेलिस्ट",
     "deleteCount_one": "{{count}} हटाएं",
-    "deleteCount_other": "{{count}} हटाएं"
+    "deleteCount_other": "{{count}} हटाएं",
+    "noCompatibleCollections": "इस चुनाव के लिए कोई संगत संग्रह नहीं है"
   },
   "massTag": {
     "title_one": "{{count}} फ़ाइल में टैग जोड़ें",
