@@ -765,7 +765,8 @@
     "addedToCollection": "{{count}} Element zu {{name}} hinzugefügt",
     "addedToCollection_other": "{{count}} Elemente zu {{name}} hinzugefügt",
     "moveToCollectionFailed_one": "{{count}} Datei konnte nicht verschoben werden (nicht kompatibel mit der Sammlung)",
-    "moveToCollectionFailed_other": "{{count}} Dateien konnten nicht verschoben werden (nicht kompatibel mit der Sammlung)"
+    "moveToCollectionFailed_other": "{{count}} Dateien konnten nicht verschoben werden (nicht kompatibel mit der Sammlung)",
+    "noGeotaggedInAlbum": "Dieses Album enthält keine geotaggten Bilder, die auf der Karte angezeigt werden können."
   },
   "results": {
     "count_one": "{{count}} Ergebnis",

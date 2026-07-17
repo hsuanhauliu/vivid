@@ -765,7 +765,8 @@
     "addedToCollection": "{{count}} élément ajouté à {{name}}",
     "addedToCollection_other": "{{count}} éléments ajoutés à {{name}}",
     "moveToCollectionFailed_one": "{{count}} fichier n'a pas pu être déplacé (incompatible avec la collection)",
-    "moveToCollectionFailed_other": "{{count}} fichiers n'ont pas pu être déplacés (incompatibles avec la collection)"
+    "moveToCollectionFailed_other": "{{count}} fichiers n'ont pas pu être déplacés (incompatibles avec la collection)",
+    "noGeotaggedInAlbum": "Cet album ne contient aucune image géolocalisée à afficher sur la carte."
   },
   "results": {
     "count_one": "{{count}} résultat",

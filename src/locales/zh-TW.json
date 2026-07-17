@@ -755,7 +755,8 @@
     "duplicateCollection": "已存在名為「{{name}}」的收藏",
     "duplicateFolder": "此處已存在名為「{{name}}」的資料夾",
     "addedToCollection": "已將 {{count}} 個項目加入「{{name}}」",
-    "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）"
+    "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）",
+    "noGeotaggedInAlbum": "此相簿中沒有含地理位置資訊的圖片可在地圖上顯示。"
   },
   "results": {
     "count_one": "{{count}} 個結果",

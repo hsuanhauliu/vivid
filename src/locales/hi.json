@@ -765,7 +765,8 @@
     "addedToCollection_one": "{{name}} में {{count}} आइटम जोड़ा गया",
     "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए",
     "moveToCollectionFailed_one": "{{count}} फ़ाइल नहीं ले जाई जा सकी (संग्रह के साथ असंगत)",
-    "moveToCollectionFailed_other": "{{count}} फ़ाइलें नहीं ले जाई जा सकीं (संग्रह के साथ असंगत)"
+    "moveToCollectionFailed_other": "{{count}} फ़ाइलें नहीं ले जाई जा सकीं (संग्रह के साथ असंगत)",
+    "noGeotaggedInAlbum": "इस एल्बम में मैप पर दिखाने के लिए कोई लोकेशन वाली इमेज नहीं है।"
   },
   "results": {
     "count_one": "{{count}} परिणाम",

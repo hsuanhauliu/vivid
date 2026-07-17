@@ -742,7 +742,8 @@
     "duplicateCollection": "Đã tồn tại bộ sưu tập tên “{{name}}”",
     "duplicateFolder": "Đã tồn tại thư mục tên “{{name}}” ở đây",
     "addedToCollection": "Đã thêm {{count}} mục vào {{name}}",
-    "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)"
+    "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)",
+    "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ."
   },
   "results": {
     "count": "{{count}} kết quả",

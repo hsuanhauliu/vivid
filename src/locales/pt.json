@@ -765,7 +765,8 @@
     "addedToCollection": "{{count}} item adicionado a {{name}}",
     "addedToCollection_other": "{{count}} itens adicionados a {{name}}",
     "moveToCollectionFailed_one": "{{count}} arquivo não pôde ser movido (incompatível com a coleção)",
-    "moveToCollectionFailed_other": "{{count}} arquivos não puderam ser movidos (incompatíveis com a coleção)"
+    "moveToCollectionFailed_other": "{{count}} arquivos não puderam ser movidos (incompatíveis com a coleção)",
+    "noGeotaggedInAlbum": "Este álbum não tem imagens com geolocalização para mostrar no mapa."
   },
   "results": {
     "count_one": "{{count}} resultado",

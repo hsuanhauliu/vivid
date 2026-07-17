@@ -6,6 +6,7 @@ import {
   Repeat,
   Repeat1,
   MonitorPlay,
+  Map as MapIcon,
   Pin,
   PinOff,
   MoreVertical,
@@ -100,6 +101,7 @@ export default function CollectionBanner({
   playerLoop,
   onCyclePlayerLoop,
   onSlideshow,
+  onViewAlbumOnMap,
   onSidebarPin,
   onRename,
   onSetCover,
@@ -268,12 +270,20 @@ export default function CollectionBanner({
           </>
         )}
         {group.kind === 'album' && albumImages.length > 0 && (
-          <button
-            className="btn btn-secondary collection-banner-btn"
-            onClick={() => onSlideshow(albumImages)}
-          >
-            <MonitorPlay size={13} /> {t('common.slideshow')}
-          </button>
+          <>
+            <button
+              className="btn btn-secondary collection-banner-btn"
+              onClick={() => onSlideshow(albumImages)}
+            >
+              <MonitorPlay size={13} /> {t('common.slideshow')}
+            </button>
+            <button
+              className="btn btn-secondary collection-banner-btn"
+              onClick={() => onViewAlbumOnMap(albumImages)}
+            >
+              <MapIcon size={13} /> {t('detail.viewOnMap')}
+            </button>
+          </>
         )}
         <div className="collection-banner-menu-wrap" ref={menuRef}>
           <button

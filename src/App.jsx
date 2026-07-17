@@ -155,6 +155,12 @@ export default function App() {
   // round trip through the viewer.
   const [mapViewState, setMapViewState] = useState(null);
   const [mapSelectedId, setMapSelectedId] = useState(null);
+  // Restricts the World Map to a specific set of items (e.g. "View on Map"
+  // from an album) instead of the whole library — null means no restriction.
+  // Reset to null by default on every handleViewChange call, so navigating
+  // to the map any other way (sidebar, etc.) always goes back to the full
+  // library.
+  const [mapScopeItems, setMapScopeItems] = useState(null);
   const [view, setView] = useState(() => {
     const home = localStorage.getItem('vivid-home-page') || 'all';
     // Folders is a panel (file tree) rather than a page — open it via
@@ -1103,7 +1109,7 @@ export default function App() {
   );
 
   const handleViewChange = useCallback(
-    (v, { mapFocusId: focusId = null } = {}) => {
+    (v, { mapFocusId: focusId = null, mapScope = null } = {}) => {
       guardedNav(() => {
         setView(v);
         setActiveFolder(null);
@@ -1111,6 +1117,7 @@ export default function App() {
         clearSearchAndFilters();
         setShowDuplicates(false);
         setMapFocusId(focusId);
+        setMapScopeItems(mapScope);
         pushNav({ filter, activeTag, activeCollection, activeFolder: null, search: '', view: v });
       });
     },
@@ -1138,6 +1145,25 @@ export default function App() {
       handleViewChange('worldmap', { mapFocusId: item.id });
     },
     [handleViewChange],
+  );
+
+  // "View on Map" from an album's title bar — restricts the World Map to
+  // just that album's images instead of the whole library. Geotagging is
+  // per-item, so an album can have zero geotagged images even with photos
+  // in it; that's not a nav-worthy error, just a toast.
+  const handleViewAlbumOnMap = useCallback(
+    (albumImages) => {
+      const hasGeo = albumImages.some((i) => i.gps_lat != null && i.gps_lng != null);
+      if (!hasGeo) {
+        showToast('error', t('notif.noGeotaggedInAlbum'));
+        return;
+      }
+      setMapViewerItems(null);
+      setMapSelectedId(null);
+      setSelected(null);
+      handleViewChange('worldmap', { mapScope: albumImages });
+    },
+    [handleViewChange, showToast, t],
   );
 
   const handleSetLocation = useCallback(async (id, lat, lng) => {
@@ -1448,8 +1474,13 @@ export default function App() {
   // with the library view, but skips the library-only scoping (sidebar
   // type/folder/collection/tag, search, AI ranking modes) — the map always
   // shows every geotagged item that passes the filter bar, regardless of
-  // which folder/collection/search the library happens to be on.
-  const mapVisible = useMemo(() => applyAllFilters(allItems, filters), [allItems, filters]);
+  // which folder/collection/search the library happens to be on. Restricted
+  // to mapScopeItems instead of the whole library when set (e.g. "View on
+  // Map" from an album) — filters still apply on top of that scope.
+  const mapVisible = useMemo(
+    () => applyAllFilters(mapScopeItems ?? allItems, filters),
+    [mapScopeItems, allItems, filters],
+  );
 
   // Opening an image from inside an album gets a filmstrip of the album's
   // other images (image-only, matching the album's own scope) instead of the
@@ -1920,6 +1951,7 @@ export default function App() {
                       setPlayerLoop((l) => (l === 'none' ? 'all' : l === 'all' ? 'one' : 'none'))
                     }
                     onSlideshow={setScreensaverItems}
+                    onViewAlbumOnMap={handleViewAlbumOnMap}
                     onSidebarPin={handleSidebarPin}
                     onRename={handleRenameCollection}
                     onSetCover={(group) => setCollectionCoverTarget(group)}

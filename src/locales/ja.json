@@ -755,7 +755,8 @@
     "duplicateCollection": "「{{name}}」という名前のコレクションは既に存在します",
     "duplicateFolder": "ここには「{{name}}」という名前のフォルダが既に存在します",
     "addedToCollection": "{{count}} 件を「{{name}}」に追加しました",
-    "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）"
+    "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）",
+    "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。"
   },
   "results": {
     "count_one": "{{count}} 件",

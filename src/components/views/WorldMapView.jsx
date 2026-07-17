@@ -257,7 +257,13 @@ export default function WorldMapView({
 }) {
   const { t } = useTranslation();
   const mapRef = useRef(null);
-  const prevGeoRef = useRef(null);
+  // Fit the camera to the data only once, ever, per mount — see the effect
+  // below. Not re-checked on every geoItems change: geoItems gets a new
+  // array whenever a filter narrows the set (or any unrelated background
+  // update touches the library), and re-fitting the camera every time that
+  // happens was yanking the view around while the user was just filtering,
+  // not asking to be recentered.
+  const hasFitRef = useRef(false);
 
   const [mapConfig, setMapConfig] = useState(DEFAULT_MAP_CONFIG);
   useEffect(() => {
@@ -333,21 +339,24 @@ export default function WorldMapView({
     onSelectedChange?.(null);
   }, [onSelectedChange]);
 
-  // Fit bounds when the item set changes (but not on every zoom/pan) — skipped
-  // when a single item is being focused on (see handleMapLoad) so the two
-  // don't fight over the camera, and skipped on the very first run when a
-  // persisted view is being restored (e.g. coming back from FileViewer) so
-  // that doesn't fight with the restore either.
+  // Fit bounds once, the first time real geo data is available — whether
+  // that's right away or, if items are still loading, whenever they arrive.
+  // Never again automatically after that (see hasFitRef above). Skipped
+  // when a specific item is being focused, a persisted view is being
+  // restored, or an initialCenter was given — those own the camera instead,
+  // but still count as "handled" so this doesn't try to fit later too.
   useEffect(() => {
-    if (geoItems === prevGeoRef.current) return;
-    const isInitialMount = prevGeoRef.current === null;
-    prevGeoRef.current = geoItems;
-    if (focusItemId) return;
-    if (isInitialMount && persistedViewState) return;
+    if (hasFitRef.current || geoItems.length === 0) return;
+    if (focusItemId) return; // handleMapLoad owns this (or a later run once unfocused)
+    if (persistedViewState || initialCenter) {
+      hasFitRef.current = true;
+      return;
+    }
+    hasFitRef.current = true;
     const map = mapRef.current?.getMap();
     if (map) setClusterZoom(getTargetZoom(map, geoItems, mapConfig));
     fitGeoItems(map, geoItems, true, mapConfig);
-  }, [geoItems, focusItemId, persistedViewState, mapConfig]);
+  }, [geoItems, focusItemId, persistedViewState, initialCenter, mapConfig]);
 
   const handleMapLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
@@ -359,13 +368,17 @@ export default function WorldMapView({
       });
       setClusterZoom(mapConfig.focus_zoom);
       selectMarker(focusTarget, [focusTarget]);
+      hasFitRef.current = true;
     } else if (persistedViewState) {
       setClusterZoom(persistedViewState.zoom);
-    } else if (!initialCenter) {
+      hasFitRef.current = true;
+    } else if (initialCenter) {
+      hasFitRef.current = true;
+    } else if (geoItems.length > 0) {
       setClusterZoom(getTargetZoom(map, geoItems, mapConfig));
       fitGeoItems(map, geoItems, false, mapConfig);
+      hasFitRef.current = true;
     }
-    prevGeoRef.current = geoItems;
 
     // MapLibre's compact attribution starts expanded (it only *toggles*
     // between expanded/collapsed on click, it doesn't default to collapsed)

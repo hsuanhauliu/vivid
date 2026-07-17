@@ -765,7 +765,8 @@
     "addedToCollection": "Added {{count}} item to {{name}}",
     "addedToCollection_other": "Added {{count}} items to {{name}}",
     "moveToCollectionFailed_one": "{{count}} file couldn't be moved (incompatible with collection)",
-    "moveToCollectionFailed_other": "{{count}} files couldn't be moved (incompatible with collection)"
+    "moveToCollectionFailed_other": "{{count}} files couldn't be moved (incompatible with collection)",
+    "noGeotaggedInAlbum": "No geotagged images in this album to show on the map."
   },
   "results": {
     "count_one": "{{count}} result",
