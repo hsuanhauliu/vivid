@@ -26,6 +26,56 @@
   isolation: isolate;
 }
 
+.map-left-menus {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 800;
+  display: flex;
+  gap: 8px;
+}
+
+.map-feature-menu {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.map-feature-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.map-feature-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.map-feature-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.map-feature-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.map-feature-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-dim);
+}
+
 .map-style-toggle {
   position: absolute;
   top: 10px;
@@ -123,6 +173,9 @@
   width: 48px;
   height: 48px;
   isolation: isolate;
+  /* Otherwise inherits the map canvas container's drag-pan "grab" cursor —
+     these are clickable thumbnails, not part of the draggable map surface. */
+  cursor: pointer;
 }
 .map-thumb-wrap {
   width: 48px;
@@ -166,7 +219,10 @@
   pointer-events: none;
 }
 
-/* Map selected item card */
+/* Map selected item card — the card itself isn't clickable (only the "Click
+   to open" text/button and any per-item action buttons inside it are), so
+   there's room to add more buttons without the whole card fighting them for
+   the click. */
 .map-item-card {
   position: absolute;
   bottom: 20px;
@@ -182,11 +238,6 @@
   align-items: center;
   gap: 10px;
   min-width: 240px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.map-item-card:hover {
-  border-color: var(--accent);
 }
 .map-item-thumb {
   width: 56px;
@@ -211,10 +262,25 @@
   color: var(--text-muted);
   margin-top: 2px;
 }
-.map-item-hint {
+.map-item-count {
   font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.map-item-open {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--accent);
   margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.map-item-open:hover {
+  text-decoration: underline;
 }
 .map-item-close {
   background: none;

@@ -42,7 +42,7 @@ import SettingsPage from './components/pages/SettingsPage';
 import AudioPlayer from './components/common/AudioPlayer';
 import KeyboardHelpModal from './components/modals/KeyboardHelpModal';
 import ExportModal from './components/modals/ExportModal';
-import FilterBar, { applyFilters } from './components/common/FilterBar';
+import FilterBar, { applyAllFilters } from './components/common/FilterBar';
 import WorldMapView from './components/views/WorldMapView';
 import MusicView from './components/views/MusicView';
 import CommandPalette from './components/common/CommandPalette';
@@ -145,6 +145,16 @@ export default function App() {
   const [playerItem, setPlayerItem] = useState(null); // bottom audio player
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
   const [mapFocusId, setMapFocusId] = useState(null); // item to center the World Map on
+  // Scopes FileViewer's nav (prev/next + filmstrip) to a map pin/cluster
+  // instead of the full library — set by handleCardOpen, cleared by passing
+  // navItems=null (the default for every other caller).
+  const [mapViewerItems, setMapViewerItems] = useState(null);
+  // World Map's pan/zoom and selected pin, lifted up here because
+  // WorldMapView unmounts while FileViewer is open (it's one branch of the
+  // same view-switch ternary), so its own internal state can't survive a
+  // round trip through the viewer.
+  const [mapViewState, setMapViewState] = useState(null);
+  const [mapSelectedId, setMapSelectedId] = useState(null);
   const [view, setView] = useState(() => {
     const home = localStorage.getItem('vivid-home-page') || 'all';
     // Folders is a panel (file tree) rather than a page — open it via
@@ -631,26 +641,29 @@ export default function App() {
     setSelected((prev) => (prev?.id === id ? updated : prev));
   }, []);
 
-  const handleRemove = useCallback((id) => {
-    setContextMenu(null);
-    setConfirm({
-      title: t('trash.moveTitle'),
-      message: t('trash.moveMsg'),
-      confirmLabel: t('trash.moveConfirmBtn'),
-      onConfirm: async () => {
-        await invoke('trash_media', { id });
-        setAllItems((prev) => prev.filter((it) => it.id !== id));
-        setSelected((prev) => (prev?.id === id ? null : prev));
-        setViewerItem((prev) => (prev?.id === id ? null : prev));
-        setCheckedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-        setConfirm(null);
-      },
-    });
-  }, [t]);
+  const handleRemove = useCallback(
+    (id) => {
+      setContextMenu(null);
+      setConfirm({
+        title: t('trash.moveTitle'),
+        message: t('trash.moveMsg'),
+        confirmLabel: t('trash.moveConfirmBtn'),
+        onConfirm: async () => {
+          await invoke('trash_media', { id });
+          setAllItems((prev) => prev.filter((it) => it.id !== id));
+          setSelected((prev) => (prev?.id === id ? null : prev));
+          setViewerItem((prev) => (prev?.id === id ? null : prev));
+          setCheckedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setConfirm(null);
+        },
+      });
+    },
+    [t],
+  );
 
   // ── Multi-select mutations ────────────────────────────────────────────────
 
@@ -1119,6 +1132,8 @@ export default function App() {
     (item) => {
       setViewerItem(null);
       setViewerDetails(false);
+      setMapViewerItems(null);
+      setMapSelectedId(null);
       setSelected(null);
       handleViewChange('worldmap', { mapFocusId: item.id });
     },
@@ -1132,8 +1147,12 @@ export default function App() {
     setViewerItem((prev) => (prev?.id === id ? updated : prev));
   }, []);
 
+  // `navItems` scopes FileViewer's prev/next navigation to something other
+  // than the default `visible` set — e.g. the World Map passes just the
+  // cluster that was clicked, so navigating away from a map pin doesn't leak
+  // into the full library. null means "use the default scope".
   const handleCardOpen = useCallback(
-    (item) => {
+    (item, navItems = null) => {
       if (isSelecting) return;
       if (item.media_type === 'audio') {
         // Single-track click — no playlist mode, no auto-advance
@@ -1141,6 +1160,7 @@ export default function App() {
         setPlayerExplicitQueue(null);
         setPlayerItem(item);
       } else {
+        setMapViewerItems(navItems);
         setViewerItem(item);
       }
     },
@@ -1349,7 +1369,6 @@ export default function App() {
     const q = debouncedSearch.trim().toLowerCase();
     const grp = activeCollection ? collections.find((g) => g.id === activeCollection) : null;
     const albumScope = grp?.kind === 'album';
-    const exts = (filters.extension || []).map((e) => '.' + e.toLowerCase());
     const isSemantic = semanticMode && semanticResults !== null;
 
     // AI modes (semantic search / find-similar / vibe) supply results already
@@ -1398,31 +1417,13 @@ export default function App() {
       )
         return false;
 
-      // Filter-bar predicates
-      if (filters.exactDay && (i.date_taken || i.created_at)?.slice(0, 10) !== filters.exactDay)
-        return false;
-      if (
-        filters.tags?.length &&
-        !filters.tags.every((t) => i.tags?.includes(t) || i.auto_tags?.includes(t))
-      )
-        return false;
-      if (filters.mediaType?.length && !filters.mediaType.includes(i.media_type)) return false;
-      if (exts.length && !exts.some((e) => i.file_name.toLowerCase().endsWith(e))) return false;
-      if (filters.starred && !i.starred) return false;
-      if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
-      if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
-      if (filters.collection && !i.collection_id) return false;
-      if (
-        filters.cameras?.length &&
-        !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
-      )
-        return false;
-
       return true;
     });
 
-    // applyFilters covers colorLabel, dateRange, orientation, fileSize
-    items = applyFilters(items, filters);
+    // Remaining predicates (exactDay/tags/mediaType/extension/starred/hasGps/
+    // hasText/collection/cameras, plus applyFilters' colorLabel/dateRange/
+    // orientation/fileSize) — shared with the world map view's own filter bar.
+    items = applyAllFilters(items, filters);
 
     // Preserve similarity/vibe/semantic ranking; sorting would destroy the score order
     if (isSemantic || similarTo || moodFilter) return items;
@@ -1443,11 +1444,23 @@ export default function App() {
     folderScope,
   ]);
 
+  // World Map's own item pool: shares the top-bar FilterBar/`filters` state
+  // with the library view, but skips the library-only scoping (sidebar
+  // type/folder/collection/tag, search, AI ranking modes) — the map always
+  // shows every geotagged item that passes the filter bar, regardless of
+  // which folder/collection/search the library happens to be on.
+  const mapVisible = useMemo(() => applyAllFilters(allItems, filters), [allItems, filters]);
+
   // Opening an image from inside an album gets a filmstrip of the album's
   // other images (image-only, matching the album's own scope) instead of the
   // full mixed-media `visible` set FileViewer otherwise navigates through.
+  // Opening from the World Map gets the same filmstrip treatment, scoped to
+  // just the pin/cluster that was clicked (mapViewerItems).
   const isAlbumImageView = !!activeCollection && viewerItem?.media_type === 'image';
-  const viewerItems = isAlbumImageView ? visible.filter((i) => i.media_type === 'image') : visible;
+  const viewerItems = isAlbumImageView
+    ? visible.filter((i) => i.media_type === 'image')
+    : (mapViewerItems ?? visible);
+  const viewerFilmstrip = isAlbumImageView || !!mapViewerItems;
 
   // Freeze the current (filtered + sorted) order as the playlist's manual order:
   // persist each item's sort_order, then switch the sort to manual so it sticks.
@@ -1652,8 +1665,9 @@ export default function App() {
             </button>
           )}
 
-          {/* Filter toggle — right of search bar, visually separated from view buttons */}
-          {view === 'library' && (
+          {/* Filter toggle — right of search bar, visually separated from view buttons.
+              Shared as-is by the World Map view: same button, same filters state. */}
+          {(view === 'library' || view === 'worldmap') && (
             <button
               className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel?.length > 0 || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
@@ -1777,25 +1791,26 @@ export default function App() {
             )}
 
             {/* Filter bar */}
-            {view === 'library' && (showFilterBar || filters.exactDay || moodFilter) && (
-              <FilterBar
-                filters={filters}
-                onChange={setFilters}
-                allItems={allItems}
-                moods={multilingualLoaded && showMoodBar ? moods : []}
-                moodFilter={moodFilter?.mood ?? null}
-                onMoodFilter={(mood) => {
-                  if (!mood) {
-                    setMoodFilter(null);
-                    return;
-                  }
-                  handleMoodFilter(mood);
-                  setSimilarTo(null);
-                  setSemanticMode(false);
-                  setSemanticResults(null);
-                }}
-              />
-            )}
+            {(view === 'library' || view === 'worldmap') &&
+              (showFilterBar || filters.exactDay || moodFilter) && (
+                <FilterBar
+                  filters={filters}
+                  onChange={setFilters}
+                  allItems={allItems}
+                  moods={multilingualLoaded && showMoodBar ? moods : []}
+                  moodFilter={moodFilter?.mood ?? null}
+                  onMoodFilter={(mood) => {
+                    if (!mood) {
+                      setMoodFilter(null);
+                      return;
+                    }
+                    handleMoodFilter(mood);
+                    setSimilarTo(null);
+                    setSemanticMode(false);
+                    setSemanticResults(null);
+                  }}
+                />
+              )}
 
             {/* Results bar — shown when search or filters narrow the visible set */}
             {view === 'library' &&
@@ -1928,10 +1943,11 @@ export default function App() {
                   <FileViewer
                     item={viewerItem}
                     items={viewerItems}
-                    filmstrip={isAlbumImageView}
+                    filmstrip={viewerFilmstrip}
                     onClose={() => {
                       setViewerItem(null);
                       setViewerDetails(false);
+                      setMapViewerItems(null);
                     }}
                     onNavigate={setViewerItem}
                     onToggleDetails={() => setViewerDetails((v) => !v)}
@@ -2028,12 +2044,14 @@ export default function App() {
                 />
               ) : view === 'worldmap' ? (
                 <WorldMapView
-                  items={allItems}
-                  onOpen={handleCardOpen}
-                  onOpenCluster={(clItems) => {
-                    setViewerItem(clItems[0]);
-                  }}
+                  items={mapVisible}
+                  onOpen={(item) => handleCardOpen(item, [item])}
+                  onOpenCluster={(clItems) => handleCardOpen(clItems[0], clItems)}
                   focusItemId={mapFocusId}
+                  persistedViewState={mapViewState}
+                  onViewStateChange={setMapViewState}
+                  persistedSelectedId={mapSelectedId}
+                  onSelectedChange={setMapSelectedId}
                 />
               ) : view === 'trash' ? (
                 <TrashView

@@ -135,7 +135,13 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
             </a>
           </div>
           <div className="map-view">
-            <WorldMapView items={mapPin} onOpen={() => {}} showStyleToggle={false} simplePins />
+            <WorldMapView
+              items={mapPin}
+              onOpen={() => {}}
+              showStyleToggle={false}
+              showMapTools={false}
+              simplePins
+            />
           </div>
           <button className="btn btn-secondary btn-sm detail-view-on-map-btn" onClick={onViewOnMap}>
             <MapIcon size={12} /> {t('detail.viewOnMap')}

@@ -544,7 +544,14 @@
     "empty": "ジオタグ付きの写真やビデオが見つかりません。",
     "emptyHint": "GPS EXIFデータを含む画像をインポートすると、地図上に表示されます。",
     "clickToOpen": "クリックして開く",
-    "clusterHint": "ここに {{count}} 件 · クリックして開く"
+    "clusterCount": "ここに {{count}} 件",
+    "resetView": "表示をリセット",
+    "worldView": "世界地図表示にズーム",
+    "travelPath": "移動経路を表示",
+    "stepFirst": "最初の地点",
+    "stepBack": "前の地点",
+    "stepForward": "次の地点",
+    "stepLast": "最後の地点"
   },
   "stats": {
     "empty": "ライブラリ統計を表示するにはファイルをインポートしてください。",

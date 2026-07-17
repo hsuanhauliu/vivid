@@ -536,7 +536,14 @@
     "empty": "위치 정보가 있는 사진이나 동영상을 찾을 수 없습니다.",
     "emptyHint": "GPS EXIF 정보가 있는 이미지를 가져오면 지도에서 볼 수 있습니다.",
     "clickToOpen": "클릭하여 열기",
-    "clusterHint": "여기에 {{count}}개 항목 중 1개 · 클릭하여 열기"
+    "clusterCount": "여기 {{count}}개 항목",
+    "resetView": "보기 재설정",
+    "worldView": "세계 지도 보기로 축소",
+    "travelPath": "이동 경로 표시",
+    "stepFirst": "첫 번째 지점",
+    "stepBack": "이전 지점",
+    "stepForward": "다음 지점",
+    "stepLast": "마지막 지점"
   },
   "stats": {
     "empty": "파일을 가져오면 라이브러리 통계를 볼 수 있습니다.",

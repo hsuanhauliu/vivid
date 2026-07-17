@@ -536,7 +536,14 @@
     "empty": "Không tìm thấy ảnh hoặc video có gắn vị trí.",
     "emptyHint": "Nhập ảnh có dữ liệu GPS EXIF để hiển thị trên bản đồ.",
     "clickToOpen": "Nhấp để mở",
-    "clusterHint": "1 trong {{count}} mục ở đây · Nhấp để mở"
+    "clusterCount": "{{count}} mục ở đây",
+    "resetView": "Đặt lại chế độ xem",
+    "worldView": "Thu phóng ra toàn thế giới",
+    "travelPath": "Hiển thị hành trình di chuyển",
+    "stepFirst": "Điểm dừng đầu tiên",
+    "stepBack": "Điểm dừng trước",
+    "stepForward": "Điểm dừng tiếp theo",
+    "stepLast": "Điểm dừng cuối cùng"
   },
   "stats": {
     "empty": "Nhập một số tệp để xem thống kê thư viện.",

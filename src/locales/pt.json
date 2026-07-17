@@ -552,7 +552,14 @@
     "empty": "Nenhuma foto ou vídeo com geolocalização encontrado.",
     "emptyHint": "Importe imagens com dados GPS/EXIF para vê-las no mapa.",
     "clickToOpen": "Clique para abrir",
-    "clusterHint": "1 de {{count}} itens aqui · Clique para abrir"
+    "clusterCount": "{{count}} itens aqui",
+    "resetView": "Redefinir visualização",
+    "worldView": "Ver o mundo todo",
+    "travelPath": "Mostrar trajeto de viagem",
+    "stepFirst": "Primeira parada",
+    "stepBack": "Parada anterior",
+    "stepForward": "Próxima parada",
+    "stepLast": "Última parada"
   },
   "stats": {
     "empty": "Importe alguns arquivos para ver as estatísticas da biblioteca.",

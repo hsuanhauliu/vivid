@@ -552,7 +552,14 @@
     "empty": "Keine geotaggten Fotos oder Videos gefunden.",
     "emptyHint": "Importieren Sie Bilder mit GPS-EXIF-Daten, um sie auf der Karte zu sehen.",
     "clickToOpen": "Zum Öffnen klicken",
-    "clusterHint": "1 von {{count}} Elementen hier · Zum Öffnen klicken"
+    "clusterCount": "{{count}} Elemente hier",
+    "resetView": "Ansicht zurücksetzen",
+    "worldView": "Weltansicht",
+    "travelPath": "Reiseroute anzeigen",
+    "stepFirst": "Erster Halt",
+    "stepBack": "Vorheriger Halt",
+    "stepForward": "Nächster Halt",
+    "stepLast": "Letzter Halt"
   },
   "stats": {
     "empty": "Importieren Sie Dateien, um Mediathek-Statistiken zu sehen.",

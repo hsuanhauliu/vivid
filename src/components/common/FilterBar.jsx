@@ -744,3 +744,37 @@ export function applyFilters(items, filters) {
   }
   return out;
 }
+
+/**
+ * Apply every FilterBar predicate to an array of MediaItem — the
+ * exactDay/tags/mediaType/extension/starred/hasGps/hasText/collection/cameras
+ * checks that live outside `applyFilters` (they're plain equality/membership
+ * checks with no shared setup, unlike color/date/orientation/size), plus
+ * `applyFilters` itself. One entry point so callers (the library view, the
+ * world map view) don't each re-implement the same predicate list.
+ */
+export function applyAllFilters(items, filters) {
+  const exts = (filters.extension || []).map((e) => '.' + e.toLowerCase());
+  let out = items.filter((i) => {
+    if (filters.exactDay && (i.date_taken || i.created_at)?.slice(0, 10) !== filters.exactDay)
+      return false;
+    if (
+      filters.tags?.length &&
+      !filters.tags.every((t) => i.tags?.includes(t) || i.auto_tags?.includes(t))
+    )
+      return false;
+    if (filters.mediaType?.length && !filters.mediaType.includes(i.media_type)) return false;
+    if (exts.length && !exts.some((e) => i.file_name.toLowerCase().endsWith(e))) return false;
+    if (filters.starred && !i.starred) return false;
+    if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
+    if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
+    if (filters.collection && !i.collection_id) return false;
+    if (
+      filters.cameras?.length &&
+      !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
+    )
+      return false;
+    return true;
+  });
+  return applyFilters(out, filters);
+}

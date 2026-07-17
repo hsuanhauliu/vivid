@@ -408,6 +408,43 @@ fn file_sha256(path: &Path) -> Option<String> {
     Some(hex::encode(hasher.finalize()))
 }
 
+// ── Frontend config ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct MapConfig {
+    pub cluster_px: f64,
+    pub fit_padding_px: f64,
+    pub fit_max_zoom: f64,
+    pub single_item_zoom: f64,
+    pub focus_zoom: f64,
+    pub world_view_zoom: f64,
+    pub travel_path_reveal_base_ms: f64,
+    pub travel_path_reveal_per_stop_ms: f64,
+    pub travel_path_reveal_max_ms: f64,
+    pub travel_path_dash: f64,
+    pub travel_path_gap: f64,
+}
+
+/// World Map tunables (src-tauri/src/config.rs), exposed to the frontend —
+/// the map itself renders entirely in JS (MapLibre GL / react-map-gl), which
+/// has no other way to read these Rust constants. Fetched once on mount.
+#[tauri::command]
+pub fn get_map_config() -> MapConfig {
+    MapConfig {
+        cluster_px: crate::config::MAP_CLUSTER_PX,
+        fit_padding_px: crate::config::MAP_FIT_PADDING_PX,
+        fit_max_zoom: crate::config::MAP_FIT_MAX_ZOOM,
+        single_item_zoom: crate::config::MAP_SINGLE_ITEM_ZOOM,
+        focus_zoom: crate::config::MAP_FOCUS_ZOOM,
+        world_view_zoom: crate::config::MAP_WORLD_VIEW_ZOOM,
+        travel_path_reveal_base_ms: crate::config::TRAVEL_PATH_REVEAL_BASE_MS,
+        travel_path_reveal_per_stop_ms: crate::config::TRAVEL_PATH_REVEAL_PER_STOP_MS,
+        travel_path_reveal_max_ms: crate::config::TRAVEL_PATH_REVEAL_MAX_MS,
+        travel_path_dash: crate::config::TRAVEL_PATH_DASH,
+        travel_path_gap: crate::config::TRAVEL_PATH_GAP,
+    }
+}
+
 // ── Media CRUD ────────────────────────────────────────────────────────────────
 
 #[tauri::command]

@@ -31,6 +31,7 @@ export default function LocationPickerModal({ item, onSave, onClose }) {
           items={[]}
           onOpen={() => {}}
           pickable
+          showMapTools={false}
           pickedLocation={picked}
           onPick={(lat, lng) => setPicked({ lat, lng })}
           initialCenter={hasInitial ? { lat: item.gps_lat, lng: item.gps_lng } : null}

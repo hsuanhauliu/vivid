@@ -536,7 +536,14 @@
     "empty": "未找到带地理位置信息的照片或视频。",
     "emptyHint": "导入含 GPS EXIF 信息的图片，即可在地图上查看。",
     "clickToOpen": "点击打开",
-    "clusterHint": "此处共 {{count}} 个项目 · 点击打开"
+    "clusterCount": "此处共 {{count}} 个项目",
+    "resetView": "重置视图",
+    "worldView": "缩小至世界视图",
+    "travelPath": "显示旅行路线",
+    "stepFirst": "第一站",
+    "stepBack": "上一站",
+    "stepForward": "下一站",
+    "stepLast": "最后一站"
   },
   "stats": {
     "empty": "导入一些文件即可查看媒体库统计信息。",

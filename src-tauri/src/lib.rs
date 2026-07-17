@@ -131,6 +131,7 @@ pub fn run() {
             let _ = (window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_map_config,
             commands::get_all_media,
             commands::import_paths,
             commands::preview_import,

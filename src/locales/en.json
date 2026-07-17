@@ -552,7 +552,14 @@
     "empty": "No geotagged photos or videos found.",
     "emptyHint": "Import images with GPS EXIF data to see them on the map.",
     "clickToOpen": "Click to open",
-    "clusterHint": "1 of {{count}} items here · Click to open"
+    "clusterCount": "{{count}} items here",
+    "resetView": "Reset view",
+    "worldView": "Zoom to world view",
+    "travelPath": "Show travel path",
+    "stepFirst": "First stop",
+    "stepBack": "Previous stop",
+    "stepForward": "Next stop",
+    "stepLast": "Last stop"
   },
   "stats": {
     "empty": "Import some files to see library stats.",
