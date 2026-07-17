@@ -15,6 +15,7 @@ import {
   Share2,
   ScanSearch,
   Pencil,
+  FileCog,
   Columns2,
   ShieldOff,
   FolderInput,
@@ -63,6 +64,7 @@ export default function ContextMenu({
   activeCollection,
   onSetCover,
   onEdit,
+  onRenameFile,
   onError,
 }) {
   const { t } = useTranslation();
@@ -484,6 +486,17 @@ export default function ContextMenu({
       >
         <FolderOpen size={14} /> {t('contextMenu.showInFinder')}
       </button>
+      {onRenameFile && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onRenameFile(item);
+            onClose();
+          }}
+        >
+          <FileCog size={14} /> {t('contextMenu.renameFile')}
+        </button>
+      )}
       {isImage && activeCollection && onSetCover && (
         <button
           className="context-item"

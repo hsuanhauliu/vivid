@@ -132,7 +132,8 @@
     "deleteCollectionMsg": "“{{name}}”을(를) 삭제할까요? 이 컬렉션의 미디어는 연결만 해제되고 삭제되지는 않습니다.",
     "deleteCollectionConfirm": "삭제",
     "deleteFolderTitle": "폴더 삭제",
-    "deleteFolderMsg": "“{{name}}”을(를) 삭제할까요? 이 폴더의 파일은 삭제되지 않고 미분류로 이동됩니다."
+    "deleteFolderMsg": "“{{name}}”을(를) 삭제할까요? 이 폴더의 파일은 삭제되지 않고 미분류로 이동됩니다.",
+    "renameFile": "파일 이름 변경"
   },
   "settings": {
     "title": "설정",
@@ -412,7 +413,9 @@
     "noFilesDesc": "사진, 동영상, 오디오를 가져와 시작해 보세요",
     "noResults": "결과 없음",
     "noResultsDesc": "현재 검색 또는 필터와 일치하는 파일이 없습니다",
-    "clearFilters": "검색 및 필터 지우기"
+    "clearFilters": "검색 및 필터 지우기",
+    "selectGroup": "이 그룹 모두 선택",
+    "deselectGroup": "이 그룹 선택 해제"
   },
   "filterBar": {
     "filters": "필터",
@@ -739,7 +742,8 @@
     "duplicateFolder": "여기에 “{{name}}”이라는 폴더가 이미 있습니다",
     "addedToCollection": "{{name}}에 {{count}}개 항목을 추가했습니다",
     "moveToCollectionFailed": "{{count}}개 파일을 이동할 수 없습니다 (컬렉션과 호환되지 않음)",
-    "noGeotaggedInAlbum": "이 앨범에는 지도에 표시할 위치 정보가 있는 이미지가 없습니다."
+    "noGeotaggedInAlbum": "이 앨범에는 지도에 표시할 위치 정보가 있는 이미지가 없습니다.",
+    "renameFilesFailed": "{{count}}개 파일의 이름을 변경하지 못했습니다"
   },
   "results": {
     "count": "결과 {{count}}개",
@@ -1141,7 +1145,8 @@
     "albums": "앨범",
     "playlists": "플레이리스트",
     "deleteCount": "{{count}}개 삭제",
-    "noCompatibleCollections": "이 선택과 호환되는 컬렉션이 없습니다"
+    "noCompatibleCollections": "이 선택과 호환되는 컬렉션이 없습니다",
+    "renameFiles": "디스크의 파일 이름 변경"
   },
   "massTag": {
     "title": "{{count}}개 파일에 태그 추가",
@@ -1178,5 +1183,12 @@
     "exportAsZipDesc": "모든 파일을 하나의 ZIP 압축 파일로 묶습니다",
     "close": "닫기",
     "errorPrefix": "오류:"
+  },
+  "renameFile": {
+    "title": "{{count}}개 파일 이름 변경",
+    "conflictHint": "{{count}}개 파일 이름이 충돌합니다. 수정 후 이름을 변경하세요.",
+    "newName": "새 이름",
+    "titleSingle": "디스크의 파일 이름 변경",
+    "rename": "이름 변경"
   }
 }

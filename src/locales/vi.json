@@ -132,7 +132,8 @@
     "deleteCollectionMsg": "Xóa “{{name}}”? Các mục media trong bộ sưu tập này sẽ không còn thuộc bộ sưu tập nào, nhưng không bị xóa.",
     "deleteCollectionConfirm": "Xóa",
     "deleteFolderTitle": "Xóa thư mục",
-    "deleteFolderMsg": "Xóa “{{name}}”? Các tệp trong đó sẽ được chuyển vào mục Chưa phân loại, không bị xóa."
+    "deleteFolderMsg": "Xóa “{{name}}”? Các tệp trong đó sẽ được chuyển vào mục Chưa phân loại, không bị xóa.",
+    "renameFile": "Đổi tên tệp"
   },
   "settings": {
     "title": "Cài đặt",
@@ -412,7 +413,9 @@
     "noFilesDesc": "Nhập ảnh, video hoặc âm thanh để bắt đầu",
     "noResults": "Không có kết quả",
     "noResultsDesc": "Không có tệp nào khớp với tìm kiếm hoặc bộ lọc hiện tại",
-    "clearFilters": "Xóa tìm kiếm & bộ lọc"
+    "clearFilters": "Xóa tìm kiếm & bộ lọc",
+    "selectGroup": "Chọn tất cả trong nhóm này",
+    "deselectGroup": "Bỏ chọn tất cả trong nhóm này"
   },
   "filterBar": {
     "filters": "Bộ lọc",
@@ -743,7 +746,8 @@
     "duplicateFolder": "Đã tồn tại thư mục tên “{{name}}” ở đây",
     "addedToCollection": "Đã thêm {{count}} mục vào {{name}}",
     "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)",
-    "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ."
+    "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ.",
+    "renameFilesFailed": "Không thể đổi tên {{count}} tệp"
   },
   "results": {
     "count": "{{count}} kết quả",
@@ -1146,7 +1150,8 @@
     "albums": "Album",
     "playlists": "Danh sách phát",
     "deleteCount": "Xóa {{count}}",
-    "noCompatibleCollections": "Không có bộ sưu tập nào tương thích với lựa chọn này"
+    "noCompatibleCollections": "Không có bộ sưu tập nào tương thích với lựa chọn này",
+    "renameFiles": "Đổi tên tệp trên đĩa"
   },
   "massTag": {
     "title": "Thêm thẻ cho {{count}} tệp",
@@ -1183,5 +1188,12 @@
     "exportAsZipDesc": "Gộp tất cả tệp vào một tệp ZIP duy nhất",
     "close": "Đóng",
     "errorPrefix": "Lỗi:"
+  },
+  "renameFile": {
+    "title": "Đổi tên {{count}} tệp",
+    "conflictHint": "{{count}} tên tệp sẽ xung đột — hãy sửa trước khi đổi tên.",
+    "newName": "Tên mới",
+    "titleSingle": "Đổi tên tệp trên đĩa",
+    "rename": "Đổi tên"
   }
 }

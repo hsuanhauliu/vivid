@@ -571,10 +571,20 @@
   border-color: var(--accent);
   color: var(--text);
 }
+/* Tri-state: off (default, above) → include → exclude → off. "active" kept
+   as an alias of "include" for any other code still checking that class. */
+.fb-toggle-include,
 .fb-toggle.active {
   border-color: var(--accent);
   background: var(--accent-dim);
   color: var(--accent);
+}
+.fb-toggle-exclude {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 /* Active tag pills */

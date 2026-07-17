@@ -686,6 +686,18 @@ export default function MediaGrid({
     [items, onCheckToggle, onCheckRange],
   );
 
+  // Timeline group header's select-all button: additive (onCheckRange) when
+  // the group isn't fully selected yet, otherwise flips each one off —
+  // there's no batch-uncheck action, so that direction just toggles each id.
+  const handleGroupSelectToggle = useCallback(
+    (group) => {
+      const allChecked = group.every((it) => checkedIds.has(it.id));
+      if (allChecked) group.forEach((it) => onCheckToggle?.(it.id));
+      else onCheckRange?.(group.map((it) => it.id));
+    },
+    [checkedIds, onCheckToggle, onCheckRange],
+  );
+
   const handleQuickLook = useCallback((item, rect) => {
     setQlItem(item);
     setQlRect(rect);
@@ -1006,17 +1018,31 @@ export default function MediaGrid({
           {timelineGrouping ? (
             <div className="timeline-with-scrubber">
               <div className="timeline-scroll-area" ref={scrollAreaRef}>
-                {monthGroups.map(({ month, items: group }) => (
-                  <div key={month} id={`tl-${month}`} className="timeline-section">
-                    <div className="timeline-section-header">
-                      <h3 className="timeline-month">{monthLabel(month, i18n.language)}</h3>
-                      <span className="timeline-month-count">
-                        {t('common.item', { count: group.length })}
-                      </span>
+                {monthGroups.map(({ month, items: group }) => {
+                  const groupAllChecked = group.every((it) => checkedIds.has(it.id));
+                  return (
+                    <div key={month} id={`tl-${month}`} className="timeline-section">
+                      <div className="timeline-section-header">
+                        <button
+                          className={`timeline-select-btn ${groupAllChecked ? 'checked' : ''}`}
+                          onClick={() => handleGroupSelectToggle(group)}
+                          title={
+                            groupAllChecked
+                              ? t('mediaGrid.deselectGroup')
+                              : t('mediaGrid.selectGroup')
+                          }
+                        >
+                          {groupAllChecked && <Check size={11} strokeWidth={3} />}
+                        </button>
+                        <h3 className="timeline-month">{monthLabel(month, i18n.language)}</h3>
+                        <span className="timeline-month-count">
+                          {t('common.item', { count: group.length })}
+                        </span>
+                      </div>
+                      {renderGroup(group)}
                     </div>
-                    {renderGroup(group)}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <TimelineScrubber
                 monthKeys={monthKeys}

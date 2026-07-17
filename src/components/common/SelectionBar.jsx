@@ -5,6 +5,7 @@ import {
   Trash2,
   Tag,
   Pencil,
+  FileCog,
   Download,
   FolderInput,
   FolderTree,
@@ -242,6 +243,7 @@ export default function SelectionBar({
   onMassCollection,
   onMassMoveFolder,
   onBatchRename,
+  onRenameFiles,
   onExport,
   collections,
   folders,
@@ -269,7 +271,11 @@ export default function SelectionBar({
       </div>
 
       <div className="selection-bar-actions">
-        <button className="btn btn-secondary selection-action" onClick={onExport} title={t('selection.export')}>
+        <button
+          className="btn btn-secondary selection-action"
+          onClick={onExport}
+          title={t('selection.export')}
+        >
           <Download size={16} />
         </button>
         <button
@@ -278,6 +284,13 @@ export default function SelectionBar({
           title={t('selection.rename')}
         >
           <Pencil size={16} />
+        </button>
+        <button
+          className="btn btn-secondary selection-action"
+          onClick={onRenameFiles}
+          title={t('selection.renameFiles')}
+        >
+          <FileCog size={16} />
         </button>
         <button
           className="btn btn-secondary selection-action"

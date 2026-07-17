@@ -246,6 +246,20 @@ pub fn repoint_file(
     fetch_one(conn, id)
 }
 
+/// Rename an item's on-disk file (path + file_name only — `display_name`,
+/// the library-facing title, is untouched). Distinct from `repoint_file`,
+/// which updates `display_name` instead: that's for the file being silently
+/// re-encoded to a new location as a side effect of some other edit, not a
+/// deliberate rename of the visible filename.
+pub fn rename_file(conn: &Connection, id: &str, new_path: &str, new_name: &str) -> Result<MediaItem> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET file_path=?1, file_name=?2, updated_at=?3 WHERE id=?4",
+        params![new_path, new_name, now, id],
+    )?;
+    fetch_one(conn, id)
+}
+
 pub fn toggle_star(conn: &Connection, id: &str) -> Result<MediaItem> {
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(

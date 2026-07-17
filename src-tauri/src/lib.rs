@@ -157,6 +157,7 @@ pub fn run() {
             commands::transform_image,
             commands::get_media_metadata,
             commands::set_color_label,
+            commands::rename_file,
             commands::set_media_location,
             commands::export_files_to_folder,
             commands::export_files_as_zip,

@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "“{{name}}” हटाएं? इस संग्रह का मीडिया अलग हो जाएगा, लेकिन हटेगा नहीं।",
     "deleteCollectionConfirm": "हटाएं",
     "deleteFolderTitle": "फ़ोल्डर हटाएं",
-    "deleteFolderMsg": "“{{name}}” हटाएं? इसकी फ़ाइलें “अवर्गीकृत” में ले जाई जाएंगी, हटेंगी नहीं।"
+    "deleteFolderMsg": "“{{name}}” हटाएं? इसकी फ़ाइलें “अवर्गीकृत” में ले जाई जाएंगी, हटेंगी नहीं।",
+    "renameFile": "फ़ाइल का नाम बदलें"
   },
   "settings": {
     "title": "सेटिंग्स",
@@ -422,7 +423,9 @@
     "noFilesDesc": "शुरू करने के लिए फ़ोटो, वीडियो या ऑडियो इम्पोर्ट करें",
     "noResults": "कोई परिणाम नहीं",
     "noResultsDesc": "आपकी मौजूदा सर्च या फ़िल्टर से कोई फ़ाइल मेल नहीं खाती",
-    "clearFilters": "सर्च और फ़िल्टर साफ़ करें"
+    "clearFilters": "सर्च और फ़िल्टर साफ़ करें",
+    "selectGroup": "इस समूह में सभी चुनें",
+    "deselectGroup": "इस समूह से चयन हटाएं"
   },
   "filterBar": {
     "filters": "फ़िल्टर",
@@ -766,7 +769,9 @@
     "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए",
     "moveToCollectionFailed_one": "{{count}} फ़ाइल नहीं ले जाई जा सकी (संग्रह के साथ असंगत)",
     "moveToCollectionFailed_other": "{{count}} फ़ाइलें नहीं ले जाई जा सकीं (संग्रह के साथ असंगत)",
-    "noGeotaggedInAlbum": "इस एल्बम में मैप पर दिखाने के लिए कोई लोकेशन वाली इमेज नहीं है।"
+    "noGeotaggedInAlbum": "इस एल्बम में मैप पर दिखाने के लिए कोई लोकेशन वाली इमेज नहीं है।",
+    "renameFilesFailed_one": "{{count}} फ़ाइल का नाम नहीं बदला जा सका",
+    "renameFilesFailed_other": "{{count}} फ़ाइलों का नाम नहीं बदला जा सका"
   },
   "results": {
     "count_one": "{{count}} परिणाम",
@@ -1173,7 +1178,8 @@
     "playlists": "प्लेलिस्ट",
     "deleteCount_one": "{{count}} हटाएं",
     "deleteCount_other": "{{count}} हटाएं",
-    "noCompatibleCollections": "इस चुनाव के लिए कोई संगत संग्रह नहीं है"
+    "noCompatibleCollections": "इस चुनाव के लिए कोई संगत संग्रह नहीं है",
+    "renameFiles": "डिस्क पर फ़ाइलों का नाम बदलें"
   },
   "massTag": {
     "title_one": "{{count}} फ़ाइल में टैग जोड़ें",
@@ -1217,5 +1223,14 @@
     "exportAsZipDesc": "सभी फ़ाइलों को एक ZIP आर्काइव में बंडल करें",
     "close": "बंद करें",
     "errorPrefix": "त्रुटि:"
+  },
+  "renameFile": {
+    "title_one": "{{count}} फ़ाइल का नाम बदलें",
+    "title_other": "{{count}} फ़ाइलों का नाम बदलें",
+    "conflictHint_one": "{{count}} फ़ाइल नाम टकराएगा — नाम बदलने से पहले इसे ठीक करें।",
+    "conflictHint_other": "{{count}} फ़ाइल नाम टकराएंगे — नाम बदलने से पहले इन्हें ठीक करें।",
+    "newName": "नया नाम",
+    "titleSingle": "डिस्क पर फ़ाइल का नाम बदलें",
+    "rename": "नाम बदलें"
   }
 }

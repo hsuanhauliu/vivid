@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "Excluir “{{name}}”? A mídia desta coleção ficará sem coleção atribuída, mas não será excluída.",
     "deleteCollectionConfirm": "Excluir",
     "deleteFolderTitle": "Excluir pasta",
-    "deleteFolderMsg": "Excluir “{{name}}”? Seus arquivos serão movidos para Não categorizado, não excluídos."
+    "deleteFolderMsg": "Excluir “{{name}}”? Seus arquivos serão movidos para Não categorizado, não excluídos.",
+    "renameFile": "Renomear arquivo"
   },
   "settings": {
     "title": "Configurações",
@@ -422,7 +423,9 @@
     "noFilesDesc": "Importe fotos, vídeos ou áudios para começar",
     "noResults": "Nenhum resultado",
     "noResultsDesc": "Nenhum arquivo corresponde à sua pesquisa ou filtros atuais",
-    "clearFilters": "Limpar pesquisa e filtros"
+    "clearFilters": "Limpar pesquisa e filtros",
+    "selectGroup": "Selecionar tudo neste grupo",
+    "deselectGroup": "Desmarcar tudo neste grupo"
   },
   "filterBar": {
     "filters": "Filtros",
@@ -766,7 +769,9 @@
     "addedToCollection_other": "{{count}} itens adicionados a {{name}}",
     "moveToCollectionFailed_one": "{{count}} arquivo não pôde ser movido (incompatível com a coleção)",
     "moveToCollectionFailed_other": "{{count}} arquivos não puderam ser movidos (incompatíveis com a coleção)",
-    "noGeotaggedInAlbum": "Este álbum não tem imagens com geolocalização para mostrar no mapa."
+    "noGeotaggedInAlbum": "Este álbum não tem imagens com geolocalização para mostrar no mapa.",
+    "renameFilesFailed_one": "Não foi possível renomear {{count}} arquivo",
+    "renameFilesFailed_other": "Não foi possível renomear {{count}} arquivos"
   },
   "results": {
     "count_one": "{{count}} resultado",
@@ -1173,7 +1178,8 @@
     "playlists": "Playlists",
     "deleteCount_one": "Excluir {{count}}",
     "deleteCount_other": "Excluir {{count}}",
-    "noCompatibleCollections": "Nenhuma coleção compatível com esta seleção"
+    "noCompatibleCollections": "Nenhuma coleção compatível com esta seleção",
+    "renameFiles": "Renomear arquivos no disco"
   },
   "massTag": {
     "title_one": "Adicionar tags a {{count}} arquivo",
@@ -1217,5 +1223,14 @@
     "exportAsZipDesc": "Agrupar todos os arquivos em um único arquivo ZIP",
     "close": "Fechar",
     "errorPrefix": "Erro:"
+  },
+  "renameFile": {
+    "title_one": "Renomear {{count}} arquivo",
+    "title_other": "Renomear {{count}} arquivos",
+    "conflictHint_one": "{{count}} nome de arquivo entraria em conflito — corrija antes de renomear.",
+    "conflictHint_other": "{{count}} nomes de arquivo entrariam em conflito — corrija-os antes de renomear.",
+    "newName": "Novo nome",
+    "titleSingle": "Renomear arquivo no disco",
+    "rename": "Renomear"
   }
 }

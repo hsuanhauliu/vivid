@@ -1232,6 +1232,45 @@ pub fn set_color_label(
     db::set_color_label(&conn, &id, label.as_deref()).map_err(|e| e.to_string())
 }
 
+/// Rename the on-disk file's name — just the stem, no extension or
+/// directory, matching what the frontend collects — keeping its extension
+/// and location unchanged. Distinct from `update_media`'s `display_name`
+/// (library metadata shown in the UI): this renames the actual file on
+/// disk. Fails if the resulting filename would collide with a file already
+/// at that path, so callers renaming several items at once should
+/// pre-validate the whole batch doesn't collide with itself first — this
+/// only catches collisions against what's already on disk when it runs.
+#[tauri::command]
+pub fn rename_file(id: String, new_stem: String, state: State<DbState>) -> Result<MediaItem, String> {
+    let stem = new_stem.trim();
+    if stem.is_empty() {
+        return Err("File name can't be empty".into());
+    }
+    if stem.contains('/') || stem.contains('\\') || stem.contains('\0') {
+        return Err("File name can't contain a path separator".into());
+    }
+
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let item = db::fetch_one(&conn, &id).map_err(|e| e.to_string())?;
+    let src = Path::new(&item.file_path);
+    let new_file_name = match src.extension().and_then(|e| e.to_str()) {
+        Some(ext) => format!("{stem}.{ext}"),
+        None => stem.to_string(),
+    };
+    let parent = src.parent().unwrap_or_else(|| Path::new("."));
+    let dest = parent.join(&new_file_name);
+
+    if dest == src {
+        return Ok(item); // unchanged
+    }
+    if dest.exists() {
+        return Err(format!("A file named \"{new_file_name}\" already exists"));
+    }
+
+    fs::rename(src, &dest).map_err(|e| e.to_string())?;
+    db::rename_file(&conn, &id, &dest.to_string_lossy(), &new_file_name).map_err(|e| e.to_string())
+}
+
 /// Manually set (or, passing both as null, clear) an item's location — used
 /// by the "adjust location" map picker in the detail panel.
 #[tauri::command]

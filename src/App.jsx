@@ -34,6 +34,7 @@ import ContextMenu from './components/common/ContextMenu';
 import SelectionBar from './components/common/SelectionBar';
 import MassTagModal from './components/modals/MassTagModal';
 import BatchRenameModal from './components/modals/BatchRenameModal';
+import RenameFileModal from './components/modals/RenameFileModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import DownloadModal from './components/modals/DownloadModal';
 import UploadServerModal from './components/modals/UploadServerModal';
@@ -176,6 +177,7 @@ export default function App() {
   const [showICloud, setShowICloud] = useState(false);
   const [showMassTag, setShowMassTag] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
+  const [renameFileTargets, setRenameFileTargets] = useState(null); // items whose on-disk filename is being renamed
   const [showHelp, setShowHelp] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showCmdPalette, setShowCmdPalette] = useState(false);
@@ -862,6 +864,37 @@ export default function App() {
       });
     },
     [allItems],
+  );
+
+  // Renames the actual on-disk filename — distinct from handleBatchRename
+  // above, which only touches display_name/library metadata. RenameFileModal
+  // already validated the batch against conflicts before calling this, but
+  // the backend re-checks per file (a race, or a file outside the DB), so
+  // partial failure is a real possibility here — allSettled + toast for
+  // whichever ones didn't make it, same pattern as handleMassCollection.
+  const handleRenameFiles = useCallback(
+    async (renames) => {
+      const results = await Promise.allSettled(
+        renames.map(({ id, newStem }) => invoke('rename_file', { id, newStem })),
+      );
+      const updated = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (updated.length > 0) {
+        setAllItems((prev) => {
+          const map = Object.fromEntries(updated.map((it) => [it.id, it]));
+          return prev.map((it) => map[it.id] ?? it);
+        });
+      }
+      if (failed.length > 0) {
+        showToast(
+          'error',
+          failed.length === 1
+            ? failed[0].reason?.toString()
+            : t('notif.renameFilesFailed', { count: failed.length }),
+        );
+      }
+    },
+    [showToast, t],
   );
 
   const handleColorLabel = useCallback(async (id, label) => {
@@ -2408,6 +2441,9 @@ export default function App() {
                 onMassCollection={handleMassCollection}
                 onMassMoveFolder={handleMassMoveFolder}
                 onBatchRename={() => setShowBatchRename(true)}
+                onRenameFiles={() =>
+                  setRenameFileTargets(allItems.filter((i) => checkedIds.has(i.id)))
+                }
                 onExport={() => setShowExport(true)}
                 collections={collections}
                 folders={folders}
@@ -2438,6 +2474,7 @@ export default function App() {
           onRemoveAudioCover={handleRemoveAudioCover}
           onColorLabel={handleColorLabel}
           onEdit={handleEditImage}
+          onRenameFile={(item) => setRenameFileTargets([item])}
           onShare={handleShare}
           onFindSimilar={multilingualLoaded ? handleFindSimilar : null}
           onCompare={handleCompare}
@@ -2526,6 +2563,15 @@ export default function App() {
           items={allItems.filter((i) => checkedIds.has(i.id))}
           onRename={handleBatchRename}
           onClose={() => setShowBatchRename(false)}
+        />
+      )}
+
+      {renameFileTargets && (
+        <RenameFileModal
+          items={renameFileTargets}
+          allItems={allItems}
+          onRename={handleRenameFiles}
+          onClose={() => setRenameFileTargets(null)}
         />
       )}
 

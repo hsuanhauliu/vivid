@@ -143,7 +143,36 @@ function MenuItem({
   );
 }
 
-// Collapsed popover holding the binary (on/off) quick filters — starred,
+// Quick filters cycle through three states instead of just on/off: unset →
+// include (must match) → exclude (must NOT match) → back to unset. `true` is
+// accepted alongside 'include' so filter objects saved before this existed
+// (plain booleans) still cycle and match sensibly.
+function cycleTri(value) {
+  if (value === 'include' || value === true) return 'exclude';
+  if (value === 'exclude') return null;
+  return 'include';
+}
+
+function matchesTri(value, isTrue) {
+  if (value === 'include' || value === true) return isTrue;
+  if (value === 'exclude') return !isTrue;
+  return true;
+}
+
+// A quick-filter toggle button reflecting cycleTri's three states — plain
+// `active` styling for "include", a distinct "exclude" styling (dimmed +
+// strikethrough) so the two are never confused at a glance.
+function TriToggle({ value, onClick, icon: Icon, children }) {
+  const state =
+    value === 'exclude' ? 'exclude' : value === 'include' || value === true ? 'include' : 'off';
+  return (
+    <button className={`fb-toggle fb-toggle-${state}`} onClick={onClick}>
+      {Icon && <Icon size={12} />} {children}
+    </button>
+  );
+}
+
+// Collapsed popover holding the tri-state quick filters — starred,
 // in-collection, has-GPS, has-text — so they don't take up permanent space
 // in the controls row. Unlike `Dropdown`'s menu, clicking a toggle inside
 // doesn't close the popover, so several can be flipped in one visit.
@@ -304,12 +333,12 @@ export default function FilterBar({
       tags: [],
       mediaType: [],
       extension: [],
-      starred: false,
-      hasGps: false,
-      hasText: false,
+      starred: null,
+      hasGps: null,
+      hasText: null,
       orientation: null,
       fileSize: null,
-      collection: false,
+      collection: null,
       cameras: [],
     });
     onMoodFilter?.(null);
@@ -619,7 +648,7 @@ export default function FilterBar({
           )}
         </div>
 
-        {/* ── Right: clear-all + collapsed quick (binary) filters, kept
+        {/* ── Right: clear-all + collapsed quick (tri-state) filters, kept
             together so Clear never needs a row of its own ── */}
         <div className="fb-controls-right">
           {hasAny && (
@@ -631,30 +660,34 @@ export default function FilterBar({
             active={!!(starred || collection || hasGps || hasText)}
             title={t('filterBar.quickFilters')}
           >
-            <button
-              className={`fb-toggle ${starred ? 'active' : ''}`}
-              onClick={() => set({ starred: !starred })}
+            <TriToggle
+              value={starred}
+              onClick={() => set({ starred: cycleTri(starred) })}
+              icon={Star}
             >
-              <Star size={12} /> {t('filterBar.starred')}
-            </button>
-            <button
-              className={`fb-toggle ${collection ? 'active' : ''}`}
-              onClick={() => set({ collection: !collection })}
+              {t('filterBar.starred')}
+            </TriToggle>
+            <TriToggle
+              value={collection}
+              onClick={() => set({ collection: cycleTri(collection) })}
+              icon={Layers}
             >
-              <Layers size={12} /> {t('filterBar.inCollection')}
-            </button>
-            <button
-              className={`fb-toggle ${hasGps ? 'active' : ''}`}
-              onClick={() => set({ hasGps: !hasGps })}
+              {t('filterBar.inCollection')}
+            </TriToggle>
+            <TriToggle
+              value={hasGps}
+              onClick={() => set({ hasGps: cycleTri(hasGps) })}
+              icon={MapPin}
             >
-              <MapPin size={12} /> {t('filterBar.hasGps')}
-            </button>
-            <button
-              className={`fb-toggle ${hasText ? 'active' : ''}`}
-              onClick={() => set({ hasText: !hasText })}
+              {t('filterBar.hasGps')}
+            </TriToggle>
+            <TriToggle
+              value={hasText}
+              onClick={() => set({ hasText: cycleTri(hasText) })}
+              icon={ScanText}
             >
-              <ScanText size={12} /> {t('filterBar.hasText')}
-            </button>
+              {t('filterBar.hasText')}
+            </TriToggle>
           </TogglesMenu>
         </div>
       </div>
@@ -765,10 +798,10 @@ export function applyAllFilters(items, filters) {
       return false;
     if (filters.mediaType?.length && !filters.mediaType.includes(i.media_type)) return false;
     if (exts.length && !exts.some((e) => i.file_name.toLowerCase().endsWith(e))) return false;
-    if (filters.starred && !i.starred) return false;
-    if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
-    if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
-    if (filters.collection && !i.collection_id) return false;
+    if (!matchesTri(filters.starred, !!i.starred)) return false;
+    if (!matchesTri(filters.hasGps, i.gps_lat != null && i.gps_lng != null)) return false;
+    if (!matchesTri(filters.hasText, !!(i.ocr_text && i.ocr_text.trim()))) return false;
+    if (!matchesTri(filters.collection, !!i.collection_id)) return false;
     if (
       filters.cameras?.length &&
       !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)

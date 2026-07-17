@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "刪除「{{name}}」？此收藏中的媒體將會取消關聯，但不會被刪除。",
     "deleteCollectionConfirm": "刪除",
     "deleteFolderTitle": "刪除資料夾",
-    "deleteFolderMsg": "刪除「{{name}}」？其中的檔案將移至「未分類」，不會被刪除。"
+    "deleteFolderMsg": "刪除「{{name}}」？其中的檔案將移至「未分類」，不會被刪除。",
+    "renameFile": "重新命名檔案"
   },
   "settings": {
     "title": "設定",
@@ -420,7 +421,9 @@
     "noFilesDesc": "匯入照片、影片或音訊以開始使用",
     "noResults": "無結果",
     "noResultsDesc": "沒有符合目前搜尋或篩選條件的檔案",
-    "clearFilters": "清除搜尋與篩選"
+    "clearFilters": "清除搜尋與篩選",
+    "selectGroup": "全選此群組",
+    "deselectGroup": "取消全選此群組"
   },
   "filterBar": {
     "filters": "篩選",
@@ -756,7 +759,8 @@
     "duplicateFolder": "此處已存在名為「{{name}}」的資料夾",
     "addedToCollection": "已將 {{count}} 個項目加入「{{name}}」",
     "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）",
-    "noGeotaggedInAlbum": "此相簿中沒有含地理位置資訊的圖片可在地圖上顯示。"
+    "noGeotaggedInAlbum": "此相簿中沒有含地理位置資訊的圖片可在地圖上顯示。",
+    "renameFilesFailed": "{{count}} 個檔案重新命名失敗"
   },
   "results": {
     "count_one": "{{count}} 個結果",
@@ -1155,7 +1159,8 @@
     "albums": "相簿",
     "playlists": "播放清單",
     "deleteCount": "刪除 {{count}} 項",
-    "noCompatibleCollections": "沒有與目前所選內容相容的收藏"
+    "noCompatibleCollections": "沒有與目前所選內容相容的收藏",
+    "renameFiles": "重新命名磁碟上的檔案"
   },
   "massTag": {
     "title": "為 {{count}} 個檔案新增標籤",
@@ -1192,5 +1197,12 @@
     "exportAsZipDesc": "將所有檔案打包成單一 ZIP 壓縮檔",
     "close": "關閉",
     "errorPrefix": "錯誤："
+  },
+  "renameFile": {
+    "title": "重新命名 {{count}} 個檔案",
+    "conflictHint": "{{count}} 個檔名會發生衝突，請先修改後再重新命名。",
+    "newName": "新名稱",
+    "titleSingle": "重新命名磁碟上的檔案",
+    "rename": "重新命名"
   }
 }

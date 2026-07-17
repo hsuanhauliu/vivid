@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "Supprimer « {{name}} » ? Les médias de cette collection seront dissociés, mais pas supprimés.",
     "deleteCollectionConfirm": "Supprimer",
     "deleteFolderTitle": "Supprimer le dossier",
-    "deleteFolderMsg": "Supprimer « {{name}} » ? Ses fichiers seront déplacés vers Non classés, pas supprimés."
+    "deleteFolderMsg": "Supprimer « {{name}} » ? Ses fichiers seront déplacés vers Non classés, pas supprimés.",
+    "renameFile": "Renommer le fichier"
   },
   "settings": {
     "title": "Réglages",
@@ -422,7 +423,9 @@
     "noFilesDesc": "Importez des photos, vidéos ou fichiers audio pour commencer",
     "noResults": "Aucun résultat",
     "noResultsDesc": "Aucun fichier ne correspond à votre recherche ou vos filtres actuels",
-    "clearFilters": "Effacer la recherche et les filtres"
+    "clearFilters": "Effacer la recherche et les filtres",
+    "selectGroup": "Tout sélectionner dans ce groupe",
+    "deselectGroup": "Tout désélectionner dans ce groupe"
   },
   "filterBar": {
     "filters": "Filtres",
@@ -766,7 +769,9 @@
     "addedToCollection_other": "{{count}} éléments ajoutés à {{name}}",
     "moveToCollectionFailed_one": "{{count}} fichier n'a pas pu être déplacé (incompatible avec la collection)",
     "moveToCollectionFailed_other": "{{count}} fichiers n'ont pas pu être déplacés (incompatibles avec la collection)",
-    "noGeotaggedInAlbum": "Cet album ne contient aucune image géolocalisée à afficher sur la carte."
+    "noGeotaggedInAlbum": "Cet album ne contient aucune image géolocalisée à afficher sur la carte.",
+    "renameFilesFailed_one": "{{count}} fichier n'a pas pu être renommé",
+    "renameFilesFailed_other": "{{count}} fichiers n'ont pas pu être renommés"
   },
   "results": {
     "count_one": "{{count}} résultat",
@@ -1173,7 +1178,8 @@
     "playlists": "Listes de lecture",
     "deleteCount_one": "Supprimer {{count}}",
     "deleteCount_other": "Supprimer {{count}}",
-    "noCompatibleCollections": "Aucune collection compatible avec cette sélection"
+    "noCompatibleCollections": "Aucune collection compatible avec cette sélection",
+    "renameFiles": "Renommer les fichiers sur le disque"
   },
   "massTag": {
     "title_one": "Ajouter des tags à {{count}} fichier",
@@ -1217,5 +1223,14 @@
     "exportAsZipDesc": "Regrouper tous les fichiers dans une seule archive ZIP",
     "close": "Fermer",
     "errorPrefix": "Erreur :"
+  },
+  "renameFile": {
+    "title_one": "Renommer {{count}} fichier",
+    "title_other": "Renommer {{count}} fichiers",
+    "conflictHint_one": "{{count}} nom de fichier serait en conflit — corrigez-le avant de renommer.",
+    "conflictHint_other": "{{count}} noms de fichiers seraient en conflit — corrigez-les avant de renommer.",
+    "newName": "Nouveau nom",
+    "titleSingle": "Renommer le fichier sur le disque",
+    "rename": "Renommer"
   }
 }

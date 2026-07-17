@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "「{{name}}」を削除しますか？このコレクション内のメディアの関連付けは解除されますが、削除はされません。",
     "deleteCollectionConfirm": "削除",
     "deleteFolderTitle": "フォルダを削除",
-    "deleteFolderMsg": "「{{name}}」を削除しますか？中のファイルは未分類に移動され、削除はされません。"
+    "deleteFolderMsg": "「{{name}}」を削除しますか？中のファイルは未分類に移動され、削除はされません。",
+    "renameFile": "ファイル名を変更"
   },
   "settings": {
     "title": "設定",
@@ -420,7 +421,9 @@
     "noFilesDesc": "写真、ビデオ、またはオーディオをインポートして始めてください",
     "noResults": "結果なし",
     "noResultsDesc": "現在の検索またはフィルターに一致するファイルがありません",
-    "clearFilters": "検索とフィルターをクリア"
+    "clearFilters": "検索とフィルターをクリア",
+    "selectGroup": "このグループをすべて選択",
+    "deselectGroup": "このグループの選択を解除"
   },
   "filterBar": {
     "filters": "フィルター",
@@ -756,7 +759,8 @@
     "duplicateFolder": "ここには「{{name}}」という名前のフォルダが既に存在します",
     "addedToCollection": "{{count}} 件を「{{name}}」に追加しました",
     "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）",
-    "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。"
+    "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。",
+    "renameFilesFailed": "{{count}} 件のファイル名を変更できませんでした"
   },
   "results": {
     "count_one": "{{count}} 件",
@@ -1155,7 +1159,8 @@
     "albums": "アルバム",
     "playlists": "プレイリスト",
     "deleteCount": "{{count}} 件を削除",
-    "noCompatibleCollections": "この選択と互換性のあるコレクションがありません"
+    "noCompatibleCollections": "この選択と互換性のあるコレクションがありません",
+    "renameFiles": "ディスク上のファイル名を変更"
   },
   "massTag": {
     "title": "{{count}} 件のファイルにタグを追加",
@@ -1192,5 +1197,12 @@
     "exportAsZipDesc": "すべてのファイルを1つのZIPアーカイブにまとめます",
     "close": "閉じる",
     "errorPrefix": "エラー："
+  },
+  "renameFile": {
+    "title": "{{count}} 件のファイル名を変更",
+    "conflictHint": "{{count}} 件のファイル名が競合します。修正してから変更してください。",
+    "newName": "新しい名前",
+    "titleSingle": "ディスク上のファイル名を変更",
+    "rename": "変更"
   }
 }

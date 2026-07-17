@@ -355,6 +355,34 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border-subtle);
 }
+/* Select-all-in-group toggle — same checkbox-circle idea as the per-item
+   check buttons, just styled for sitting in a normal-background header
+   instead of overlaid on a thumbnail. */
+.timeline-select-btn {
+  align-self: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #fff;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.timeline-select-btn:hover {
+  border-color: var(--accent);
+}
+.timeline-select-btn.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
 .timeline-month {
   font-size: 14px;
   font-weight: 700;

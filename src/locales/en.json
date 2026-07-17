@@ -133,7 +133,8 @@
     "deleteCollectionMsg": "Delete \"{{name}}\"? Media in this collection will be unassigned but not deleted.",
     "deleteCollectionConfirm": "Delete",
     "deleteFolderTitle": "Delete Folder",
-    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Uncategorized, not deleted."
+    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Uncategorized, not deleted.",
+    "renameFile": "Rename File"
   },
   "settings": {
     "title": "Settings",
@@ -422,7 +423,9 @@
     "noFilesDesc": "Import photos, videos, or audio to get started",
     "noResults": "No results",
     "noResultsDesc": "No files match your current search or filters",
-    "clearFilters": "Clear search & filters"
+    "clearFilters": "Clear search & filters",
+    "selectGroup": "Select all in this group",
+    "deselectGroup": "Deselect all in this group"
   },
   "filterBar": {
     "filters": "Filters",
@@ -766,7 +769,9 @@
     "addedToCollection_other": "Added {{count}} items to {{name}}",
     "moveToCollectionFailed_one": "{{count}} file couldn't be moved (incompatible with collection)",
     "moveToCollectionFailed_other": "{{count}} files couldn't be moved (incompatible with collection)",
-    "noGeotaggedInAlbum": "No geotagged images in this album to show on the map."
+    "noGeotaggedInAlbum": "No geotagged images in this album to show on the map.",
+    "renameFilesFailed_one": "{{count}} file could not be renamed",
+    "renameFilesFailed_other": "{{count}} files could not be renamed"
   },
   "results": {
     "count_one": "{{count}} result",
@@ -1173,7 +1178,8 @@
     "playlists": "Playlists",
     "deleteCount_one": "Delete {{count}}",
     "deleteCount_other": "Delete {{count}}",
-    "noCompatibleCollections": "No compatible collections for this selection"
+    "noCompatibleCollections": "No compatible collections for this selection",
+    "renameFiles": "Rename files on disk"
   },
   "massTag": {
     "title_one": "Add Tags to {{count}} file",
@@ -1217,5 +1223,14 @@
     "exportAsZipDesc": "Bundle all files into a single ZIP archive",
     "close": "Close",
     "errorPrefix": "Error:"
+  },
+  "renameFile": {
+    "title_one": "Rename {{count}} File",
+    "title_other": "Rename {{count}} Files",
+    "conflictHint_one": "{{count}} file name would conflict — fix it before renaming.",
+    "conflictHint_other": "{{count}} file names would conflict — fix them before renaming.",
+    "newName": "New name",
+    "titleSingle": "Rename File on Disk",
+    "rename": "Rename"
   }
 }
