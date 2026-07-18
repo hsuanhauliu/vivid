@@ -1270,6 +1270,9 @@
     "title": "Welcher Arbeitsbereich?",
     "desc": "Du hast mehr als einen Arbeitsbereich eingerichtet. Wähle einen aus, um fortzufahren.",
     "continue": "Weiter",
-    "restarting": "Wird neu gestartet…"
+    "restarting": "Wird neu gestartet…",
+    "opening": "Wird geöffnet…",
+    "cancel": "Abbrechen",
+    "current": "Aktuell"
   }
 }

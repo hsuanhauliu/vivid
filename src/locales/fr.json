@@ -1270,6 +1270,9 @@
     "title": "Quel espace de travail ?",
     "desc": "Vous avez plusieurs espaces de travail configurés. Choisissez-en un pour continuer.",
     "continue": "Continuer",
-    "restarting": "Redémarrage…"
+    "restarting": "Redémarrage…",
+    "opening": "Ouverture…",
+    "cancel": "Annuler",
+    "current": "Actuel"
   }
 }

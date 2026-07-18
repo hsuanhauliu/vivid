@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import WorkspaceGate from './WorkspaceGate';
 import './i18n';
 
 // Apply stored theme before first paint to avoid flash
@@ -17,6 +17,6 @@ document.addEventListener('contextmenu', (e) => {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <WorkspaceGate />
   </React.StrictMode>,
 );

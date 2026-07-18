@@ -1228,6 +1228,9 @@
     "title": "使用哪个工作区？",
     "desc": "你已设置了多个工作区，请选择一个以继续。",
     "continue": "继续",
-    "restarting": "重启中…"
+    "restarting": "重启中…",
+    "opening": "打开中…",
+    "cancel": "取消",
+    "current": "当前"
   }
 }

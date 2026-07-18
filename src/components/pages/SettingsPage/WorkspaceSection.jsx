@@ -203,21 +203,32 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                       autoFocus
                     />
                   ) : (
-                    <span className="workspace-row-name">{w.name}</span>
+                    <span className="workspace-row-name-line">
+                      <span className="workspace-row-name">{w.name}</span>
+                      {isRunning && (
+                        <span className="workspace-badge workspace-badge-active">
+                          <CheckCircle2 size={12} /> {t('settings.workspace.active')}
+                        </span>
+                      )}
+                      {isPending && (
+                        <span className="workspace-badge workspace-badge-pending">
+                          <RotateCcw size={12} /> {t('settings.workspace.pendingRestart')}
+                        </span>
+                      )}
+                    </span>
                   )}
                   <span className="workspace-row-path">
                     {w.kind === 'default' ? t('settings.workspace.defaultPath') : w.path}
                   </span>
                 </div>
-                {isRunning && !isEditing && (
-                  <span className="workspace-badge workspace-badge-active">
-                    <CheckCircle2 size={12} /> {t('settings.workspace.active')}
-                  </span>
-                )}
-                {isPending && !isEditing && (
-                  <span className="workspace-badge workspace-badge-pending">
-                    <RotateCcw size={12} /> {t('settings.workspace.pendingRestart')}
-                  </span>
+                {!isRunning && !isPending && !isEditing && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => switchTo(w.id, w.name)}
+                    disabled={busy}
+                  >
+                    {t('settings.workspace.switch')}
+                  </button>
                 )}
                 {isEditing ? (
                   <button
@@ -234,15 +245,6 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                     onClick={() => startRename(w)}
                   >
                     <Pencil size={13} />
-                  </button>
-                )}
-                {!isRunning && !isPending && !isEditing && (
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => switchTo(w.id, w.name)}
-                    disabled={busy}
-                  >
-                    {t('settings.workspace.switch')}
                   </button>
                 )}
                 {w.kind !== 'default' && !isRunning && !isEditing && (

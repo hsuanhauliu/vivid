@@ -1233,6 +1233,9 @@
     "title": "Dùng không gian làm việc nào?",
     "desc": "Bạn đã thiết lập nhiều không gian làm việc. Chọn một để tiếp tục.",
     "continue": "Tiếp tục",
-    "restarting": "Đang khởi động lại…"
+    "restarting": "Đang khởi động lại…",
+    "opening": "Đang mở…",
+    "cancel": "Hủy",
+    "current": "Hiện tại"
   }
 }

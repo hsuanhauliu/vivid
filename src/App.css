@@ -1076,7 +1076,7 @@ body.collection-dragging {
 /* ── Search history dropdown ─────────────────────────────────────────────── */
 .search-history-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: 100%;
   left: 0;
   right: 0;
   background: var(--surface);

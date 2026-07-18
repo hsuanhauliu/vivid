@@ -20,6 +20,101 @@ use std::sync::{Arc, Mutex};
 
 pub struct DbState(pub Mutex<Connection>);
 
+/// Actually open a chosen workspace: resolve its paths, open its DB, and
+/// bring up every piece of managed state that depends on it (embedding
+/// index, mirror-sync watcher, an adoption scan for external folders).
+///
+/// Called either from `.setup()` directly when there's nothing to choose (0
+/// or 1 registered workspaces — the overwhelmingly common case), or from the
+/// `open_workspace` command once the user has picked one via the frontend's
+/// startup picker. In the picker case, `.setup()` deliberately manages none
+/// of `DbState`/`WorkspaceState`/`ClipState`/`SyncState` up front — the
+/// workspace is genuinely not loaded until the user chooses, not just
+/// hidden behind a confirmation dialog on top of an already-loaded one.
+fn initialize_workspace(
+    app: &tauri::AppHandle,
+    workspace: workspace::Workspace,
+    data_dir: &std::path::Path,
+) -> Result<(), String> {
+    use tauri::Manager;
+
+    let paths = workspace::WorkspacePaths::resolve(&workspace, data_dir);
+    paths.ensure_dirs().map_err(|e| e.to_string())?;
+    tracing::info!(
+        workspace = %workspace.name,
+        kind = ?workspace.kind,
+        db = %paths.db_path.display(),
+        "Active workspace"
+    );
+
+    // The default workspace's files live under `$APPDATA`, already covered
+    // by the static asset-protocol scope in tauri.conf.json. An external
+    // workspace's folder is picked by the user at runtime and can be
+    // anywhere, so it has to be granted dynamically — otherwise the webview
+    // gets a 403 trying to load its thumbnails (and originals) via
+    // `convertFileSrc`. `.vivid/` derived data living inside it is covered
+    // too since this grant is recursive.
+    if workspace.kind == workspace::WorkspaceKind::External {
+        if let Err(e) = app.asset_protocol_scope().allow_directory(&paths.media_dir, true) {
+            tracing::warn!(error = %e, "grant asset-protocol scope for workspace root");
+        }
+    }
+
+    let conn = Connection::open(&paths.db_path).map_err(|e| e.to_string())?;
+    db::init(&conn).map_err(|e| e.to_string())?;
+    conn.execute_batch(
+        "PRAGMA journal_mode=WAL;
+         PRAGMA synchronous=NORMAL;
+         PRAGMA cache_size=-65536;
+         PRAGMA temp_store=MEMORY;
+         PRAGMA mmap_size=1073741824;",
+    ).map_err(|e| e.to_string())?;
+    // Seed the default "Uncategorized" folder DB row for every workspace
+    // (import needs a fallback destination folder to point at). Only
+    // pre-create its on-disk directory for the Default workspace though —
+    // for an External workspace we don't want to clutter the user's own
+    // folder with an empty "Uncategorized" subfolder the moment they switch
+    // to it; `run_import` creates it lazily if it's ever actually used as an
+    // import destination.
+    match db::ensure_uncategorized(&conn) {
+        Ok(_) if workspace.kind == workspace::WorkspaceKind::Default => {
+            if let Err(e) = std::fs::create_dir_all(paths.media_dir.join(db::UNCATEGORIZED)) {
+                tracing::warn!(error = %e, "create Uncategorized dir");
+            }
+        }
+        Ok(_) => {}
+        Err(e) => tracing::warn!(error = %e, "ensure Uncategorized folder"),
+    }
+
+    tracing::info!(path = %paths.db_path.display(), "Database opened");
+    app.manage(DbState(Mutex::new(conn)));
+    let kind = workspace.kind;
+    app.manage(workspace::WorkspaceState { workspace, paths });
+
+    app.manage(ClipState(Arc::new(Mutex::new(ClipInner {
+        emb_index: Arc::new(std::sync::RwLock::new(crate::emb_index::EmbIndex::default())),
+        multilingual: None, multilingual_loading: false,
+    }))));
+
+    // An external workspace's files were never copied in by Vivid, so
+    // there's nothing to browse until they're adopted into the DB. Safe to
+    // run on every launch — already-tracked files are skipped, so this only
+    // ever picks up what's new since the last run. (Not a substitute for a
+    // live watcher: removals/edits made while Vivid isn't running aren't
+    // detected, only new files.)
+    if kind == workspace::WorkspaceKind::External {
+        if let Err(e) = commands::scan_workspace(app.clone()) {
+            tracing::warn!(error = %e, "workspace scan on launch failed to start");
+        }
+    }
+
+    // ── Mirror backup: watcher worker + state ──────────────────────────────
+    app.manage(commands::SyncState::new());
+    commands::sync_init(app);
+
+    Ok(())
+}
+
 /// Show or hide the native macOS traffic light buttons.
 /// Called from the frontend when entering/exiting video fullscreen so the
 /// native title bar (which auto-reveals at the top in fullscreen) has buttons.
@@ -64,87 +159,34 @@ pub fn run() {
             // active — none of those are workspace-portable data.
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let registry = workspace::load(&data_dir);
-            let active_workspace = workspace::resolve_startup_workspace(&registry);
-            let paths = workspace::WorkspacePaths::resolve(&active_workspace, &data_dir);
-            paths.ensure_dirs()?;
-            tracing::info!(
-                workspace = %active_workspace.name,
-                kind = ?active_workspace.kind,
-                db = %paths.db_path.display(),
-                "Active workspace"
-            );
 
-            // The default workspace's files live under `$APPDATA`, already
-            // covered by the static asset-protocol scope in tauri.conf.json.
-            // An external workspace's folder is picked by the user at runtime
-            // and can be anywhere, so it has to be granted dynamically —
-            // otherwise the webview gets a 403 trying to load its thumbnails
-            // (and originals) via `convertFileSrc`. `.vivid/` derived data
-            // living inside it is covered too since this grant is recursive.
-            if active_workspace.kind == workspace::WorkspaceKind::External {
-                if let Err(e) = app.asset_protocol_scope().allow_directory(&paths.media_dir, true) {
-                    tracing::warn!(error = %e, "grant asset-protocol scope for workspace root");
-                }
-            }
-
-            // ── Database ──────────────────────────────────────────────────────
-            let conn = Connection::open(&paths.db_path)?;
-            db::init(&conn)?;
-            conn.execute_batch(
-                "PRAGMA journal_mode=WAL;
-                 PRAGMA synchronous=NORMAL;
-                 PRAGMA cache_size=-65536;
-                 PRAGMA temp_store=MEMORY;
-                 PRAGMA mmap_size=1073741824;",
-            )?;
-            // Seed the default "Uncategorized" folder DB row for every workspace
-            // (import needs a fallback destination folder to point at). Only
-            // pre-create its on-disk directory for the Default workspace though —
-            // for an External workspace we don't want to clutter the user's own
-            // folder with an empty "Uncategorized" subfolder the moment they
-            // switch to it; `run_import` creates it lazily if it's ever actually
-            // used as an import destination.
-            match db::ensure_uncategorized(&conn) {
-                Ok(_) if active_workspace.kind == workspace::WorkspaceKind::Default => {
-                    if let Err(e) = std::fs::create_dir_all(paths.media_dir.join(db::UNCATEGORIZED)) {
-                        tracing::warn!(error = %e, "create Uncategorized dir");
-                    }
-                }
-                Ok(_) => {}
-                Err(e) => tracing::warn!(error = %e, "ensure Uncategorized folder"),
-            }
-
-            tracing::info!(path = %paths.db_path.display(), "Database opened");
-            app.manage(DbState(Mutex::new(conn)));
-            app.manage(workspace::WorkspaceState { workspace: active_workspace, paths });
-
-            // Managed external tools (yt-dlp) live here when downloaded.
+            // Managed external tools (yt-dlp) live here when downloaded — global,
+            // not workspace-specific, so this happens regardless of whether a
+            // workspace choice is still pending below.
             commands::init_bin_dir(data_dir.join("bin"));
 
-            app.manage(ClipState(Arc::new(Mutex::new(ClipInner {
-                emb_index: Arc::new(std::sync::RwLock::new(crate::emb_index::EmbIndex::default())),
-                multilingual: None, multilingual_loading: false,
-            }))));
-
-            // An external workspace's files were never copied in by Vivid, so
-            // there's nothing to browse until they're adopted into the DB.
-            // Safe to run on every launch — already-tracked files are skipped,
-            // so this only ever picks up what's new since the last run. (Not
-            // a substitute for a live watcher: removals/edits made while
-            // Vivid isn't running aren't detected, only new files.)
-            if app.state::<workspace::WorkspaceState>().workspace.kind == workspace::WorkspaceKind::External {
-                if let Err(e) = commands::scan_workspace(app.handle().clone()) {
-                    tracing::warn!(error = %e, "workspace scan on launch failed to start");
-                }
-            }
-
-            // ── Mirror backup: watcher worker + state ─────────────────────────
-            app.manage(commands::SyncState::new());
-            commands::sync_init(&app.handle());
-
-            // ── LAN upload server (off until the user starts it) ──────────────
+            // ── LAN upload server (off until the user starts it) ────────────────
             app.manage(commands::UploadState::new());
+
+            let registry = workspace::load(&data_dir);
+            if registry.workspaces.len() <= 1 {
+                // Nothing to choose between — load immediately, exactly as
+                // before this workspace-choice gate existed.
+                let active_workspace = workspace::resolve_startup_workspace(&registry);
+                initialize_workspace(&app.handle(), active_workspace, &data_dir)?;
+            } else {
+                // Multiple workspaces registered: deliberately don't load any
+                // of them yet. `DbState`/`WorkspaceState`/`ClipState`/
+                // `SyncState` simply aren't managed until the frontend's
+                // startup picker calls `open_workspace` with the user's
+                // choice — any command that needs them errors cleanly if
+                // invoked before that (which the frontend is responsible for
+                // not doing; see `WorkspaceGate.jsx`).
+                tracing::info!(
+                    count = registry.workspaces.len(),
+                    "Multiple workspaces registered — waiting for user choice before loading one"
+                );
+            }
 
             // ── Hide native traffic lights (we render custom ones in HTML) ─────
             #[cfg(target_os = "macos")]
@@ -177,8 +219,8 @@ pub fn run() {
                 let workspace_menu = SubmenuBuilder::new(app.handle(), "Workspace")
                     .text("switch-workspace", "Switch Workspace…")
                     .build()?;
-                // Position 2: after the app-name menu and File, before Edit.
-                menu.insert(&workspace_menu, 2)?;
+                // Position 1: right after the app-name menu, before File.
+                menu.insert(&workspace_menu, 1)?;
                 app.set_menu(menu)?;
             }
 
@@ -306,6 +348,7 @@ pub fn run() {
             commands::add_workspace,
             commands::rename_workspace,
             commands::switch_workspace,
+            commands::open_workspace,
             commands::remove_workspace,
             commands::scan_workspace,
             // Window chrome

@@ -105,6 +105,24 @@ pub fn switch_workspace(app: AppHandle, id: String) -> Result<(), String> {
     workspace::save(&data_dir, &registry).map_err(|e| e.to_string())
 }
 
+/// Actually load the workspace the user picked from the frontend's startup
+/// picker — shown when 2+ workspaces are registered, before `.setup()` has
+/// loaded any of them (see `initialize_workspace` in `lib.rs`). Also records
+/// the choice as `active_id` so it's what's pre-selected next launch.
+///
+/// Unlike `switch_workspace`, this never needs a relaunch: since nothing was
+/// loaded yet in this process, there's nothing to tear down first — the
+/// frontend calls this once, then proceeds to mount the real app.
+#[tauri::command]
+pub fn open_workspace(app: AppHandle, id: String) -> Result<(), String> {
+    let data_dir = app_data_dir(&app)?;
+    let mut registry = workspace::load(&data_dir);
+    let ws = registry.find(&id).cloned().ok_or("Unknown workspace")?;
+    registry.active_id = id;
+    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::initialize_workspace(&app, ws, &data_dir)
+}
+
 /// Pure rename logic, factored out so it's testable without an `AppHandle`.
 /// Trims and validates the new name, then updates `registry` in place and
 /// returns the updated workspace.

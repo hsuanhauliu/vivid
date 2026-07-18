@@ -50,7 +50,6 @@ import MusicView from './components/views/MusicView';
 import CommandPalette from './components/common/CommandPalette';
 import DuplicatesModal from './components/modals/DuplicatesModal';
 import TrashView from './components/views/TrashView';
-import StatsPage from './components/pages/StatsPage';
 import AiIndexProgress from './components/common/AiIndexProgress';
 import DownloadProgress from './components/common/DownloadProgress';
 import GoogleTakeoutModal from './components/modals/GoogleTakeoutModal';
@@ -414,34 +413,16 @@ export default function App() {
     };
   }, []);
 
-  // Startup workspace picker: only relevant once a second workspace exists
-  // (most users only ever have the default one and will never see this).
-  // Deliberately gated behind `!showWelcome` below so it can never appear
-  // mid-onboarding — welcome's own new workspace-choice step already covers
-  // that decision for a first-time user, and finishing it sets a one-shot
-  // flag (checked here) so this picker doesn't immediately re-ask about the
-  // very choice just made.
+  // Workspace picker while already running (e.g. from the macOS menu's
+  // "Switch Workspace…") — see the `menu-switch-workspace` listener below,
+  // which populates this. The *startup* check (shown before anything is
+  // loaded at all) now happens earlier, in `WorkspaceGate` — by the time
+  // `App` mounts, some workspace is always already loaded.
   const [workspaceChoices, setWorkspaceChoices] = useState(null); // { workspaces, runningId } | null
   // Which Settings tab to land on next time it opens — used by the
   // "Switch Workspace…" menu item to jump straight to the workspace list
   // when there's nothing to pick between yet (see the effect below).
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
-  useEffect(() => {
-    if (localStorage.getItem('vivid-skip-workspace-picker-once') === 'true') {
-      localStorage.removeItem('vivid-skip-workspace-picker-once');
-      return;
-    }
-    (async () => {
-      try {
-        const { registry, active } = await fetchWorkspaceRegistry();
-        if (registry.workspaces.length > 1) {
-          setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
-        }
-      } catch {
-        /* if this fails, the app just opens straight into whatever's active */
-      }
-    })();
-  }, []);
 
   // Intercept all external link clicks — open in system browser, not in-app
   useEffect(() => {
@@ -2174,8 +2155,6 @@ export default function App() {
                 />
               ) : view === 'tags' ? (
                 <TagsView allItems={allItems} onTagClick={handleTagNavigate} />
-              ) : view === 'stats' ? (
-                <StatsPage items={allItems} collections={collections} folders={folders} />
               ) : view === 'system-messages' ? (
                 <SystemMessagesPage
                   notifications={notifications}

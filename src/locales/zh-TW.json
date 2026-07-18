@@ -1242,6 +1242,9 @@
     "title": "使用哪個工作區？",
     "desc": "你已設定多個工作區，請選擇一個以繼續。",
     "continue": "繼續",
-    "restarting": "重新啟動中…"
+    "restarting": "重新啟動中…",
+    "opening": "開啟中…",
+    "cancel": "取消",
+    "current": "目前"
   }
 }

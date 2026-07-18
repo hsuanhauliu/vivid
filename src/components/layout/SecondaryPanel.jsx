@@ -796,6 +796,16 @@ export default function SecondaryPanel({
   const { t } = useTranslation();
   const Icon = PANEL_ICONS[type] || BarChart2;
 
+  // Only the Stats panel's header shows this — fetched here (not inside
+  // StatsPanel) since the header itself lives in this component.
+  const [workspace, setWorkspace] = useState(null);
+  useEffect(() => {
+    if (type !== 'stats') return;
+    invoke('get_active_workspace')
+      .then(setWorkspace)
+      .catch(() => {});
+  }, [type]);
+
   const albumCollections = useMemo(
     () => collections.filter((g) => g.kind === 'album'),
     [collections],
@@ -810,6 +820,15 @@ export default function SecondaryPanel({
       <div className="sp-header">
         <Icon size={14} className="sp-header-icon" />
         <span className="sp-header-title">{t(PANEL_TITLE_KEYS[type] ?? 'sidebar.folders')}</span>
+        {type === 'stats' && workspace && (
+          <span
+            className="sp-header-workspace"
+            title={workspace.kind === 'default' ? undefined : workspace.path}
+          >
+            {workspace.kind === 'default' ? <HardDrive size={11} /> : <FolderOpen size={11} />}
+            <span>{workspace.name}</span>
+          </span>
+        )}
         <button className="sp-collapse-btn" onClick={onClose} title={t('panel.collapsePanel')}>
           <ChevronsLeft size={13} />
         </button>

@@ -1270,6 +1270,9 @@
     "title": "¿Qué espacio de trabajo?",
     "desc": "Tienes más de un espacio de trabajo configurado. Elige uno para continuar.",
     "continue": "Continuar",
-    "restarting": "Reiniciando…"
+    "restarting": "Reiniciando…",
+    "opening": "Abriendo…",
+    "cancel": "Cancelar",
+    "current": "Actual"
   }
 }

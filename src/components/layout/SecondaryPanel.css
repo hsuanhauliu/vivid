@@ -597,6 +597,27 @@
   gap: 14px;
 }
 
+.sp-header-workspace {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 110px;
+  padding: 2px 8px;
+  background: var(--surface-active);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.sp-header-workspace span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sp-info-hero {
   background: linear-gradient(135deg, rgba(29, 122, 240, 0.12) 0%, rgba(56, 189, 248, 0.08) 100%);
   border: 1px solid rgba(29, 122, 240, 0.2);

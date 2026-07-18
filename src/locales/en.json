@@ -1270,6 +1270,9 @@
     "title": "Which workspace?",
     "desc": "You have more than one workspace set up. Pick one to continue.",
     "continue": "Continue",
-    "restarting": "Restarting…"
+    "restarting": "Restarting…",
+    "opening": "Opening…",
+    "cancel": "Cancel",
+    "current": "Current"
   }
 }
