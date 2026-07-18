@@ -278,6 +278,40 @@ pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<Med
     })
 }
 
+/// Fill in the metadata `build_item` alone doesn't set: EXIF GPS/date/camera
+/// for images, embedded tags for audio. `path` is wherever the file actually
+/// lives on disk right now (post-copy for a regular import, in place for
+/// workspace adoption). The one place every file-becomes-a-`MediaItem` path
+/// — `run_import`, workspace reconciliation/adoption, and the live external-
+/// workspace watcher — enriches an item, so the three can never drift out of
+/// sync on what metadata a newly indexed file ends up with.
+fn enrich_item_metadata(item: &mut MediaItem, path: &Path) {
+    if item.media_type == "image" {
+        if let Ok((lat, lng)) = extract_gps_coords(path) {
+            item.gps_lat = lat;
+            item.gps_lng = lng;
+        }
+        if let Ok(meta) = get_media_metadata(path.to_string_lossy().to_string()) {
+            item.date_taken = meta.date_taken;
+            item.camera_make = meta.camera_make;
+            item.camera_model = meta.camera_model;
+        }
+    }
+    if item.media_type == "audio" {
+        if let Ok(meta) = extract_audio_meta(path) {
+            if meta.title.is_some() {
+                item.display_name = meta.title.clone().unwrap_or(item.display_name.clone());
+            }
+            item.audio_title = meta.title;
+            item.audio_artist = meta.artist;
+            item.audio_album = meta.album;
+            item.audio_track = meta.track;
+            item.audio_duration = meta.duration_secs;
+            item.audio_year = meta.year;
+        }
+    }
+}
+
 pub(crate) fn extract_audio_meta(path: &Path) -> Result<AudioMeta, anyhow::Error> {
     use lofty::prelude::*;
     use lofty::probe::Probe;
@@ -747,30 +781,7 @@ pub(crate) fn run_import(
             }
         };
 
-        if item.media_type == "image" {
-            if let Ok((lat, lng)) = extract_gps_coords(&dest) {
-                item.gps_lat = lat;
-                item.gps_lng = lng;
-            }
-            if let Ok(meta) = get_media_metadata(dest.to_string_lossy().to_string()) {
-                item.date_taken = meta.date_taken;
-                item.camera_make = meta.camera_make;
-                item.camera_model = meta.camera_model;
-            }
-        }
-        if item.media_type == "audio" {
-            if let Ok(meta) = extract_audio_meta(&dest) {
-                if meta.title.is_some() {
-                    item.display_name = meta.title.clone().unwrap_or(item.display_name.clone());
-                }
-                item.audio_title    = meta.title;
-                item.audio_artist   = meta.artist;
-                item.audio_album    = meta.album;
-                item.audio_track    = meta.track;
-                item.audio_duration = meta.duration_secs;
-                item.audio_year     = meta.year;
-            }
-        }
+        enrich_item_metadata(&mut item, &dest);
         if let Some(ref gid) = collection_id {
             // Only assign if the collection kind is compatible with the item's media type.
             let conn = state.0.lock().map_err(|e| e.to_string())?;
@@ -1109,25 +1120,7 @@ fn adopt_files(
             }
         };
         let mtime = fs::metadata(&d.src).map(|m| unix_mtime(&m)).unwrap_or(0);
-        if item.media_type == "image" {
-            if let Ok((lat, lng)) = extract_gps_coords(&d.src) { item.gps_lat = lat; item.gps_lng = lng; }
-            if let Ok(meta) = get_media_metadata(d.src.to_string_lossy().to_string()) {
-                item.date_taken = meta.date_taken;
-                item.camera_make = meta.camera_make;
-                item.camera_model = meta.camera_model;
-            }
-        }
-        if item.media_type == "audio" {
-            if let Ok(meta) = extract_audio_meta(&d.src) {
-                if meta.title.is_some() { item.display_name = meta.title.clone().unwrap_or(item.display_name.clone()); }
-                item.audio_title    = meta.title;
-                item.audio_artist   = meta.artist;
-                item.audio_album    = meta.album;
-                item.audio_track    = meta.track;
-                item.audio_duration = meta.duration_secs;
-                item.audio_year     = meta.year;
-            }
-        }
+        enrich_item_metadata(&mut item, &d.src);
         item.folder_id = leaf_id.clone();
         chunk.push((item, mtime));
 

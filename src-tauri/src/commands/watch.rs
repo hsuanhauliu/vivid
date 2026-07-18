@@ -173,8 +173,13 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             None => {
                 // New file — adopt it exactly like reconciliation would, one
                 // at a time, reusing the same insert-and-kick-off-processing
-                // path as every other import.
+                // path as every other import, including the same shared
+                // EXIF/GPS/tag enrichment `run_import` and workspace
+                // reconciliation use — so a file dropped in while Vivid is
+                // already running ends up with identical metadata to one
+                // adopted any other way, not a cut-down version of it.
                 if let Ok(mut item) = super::build_item(&p, Some(path_str.clone())) {
+                    super::enrich_item_metadata(&mut item, &p);
                     let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
                     let dir_rel = normalize_abs(&p).parent().map(|d| rel_dir(d, mdir)).unwrap_or_default();
                     item.folder_id = if dir_rel.is_empty() {
