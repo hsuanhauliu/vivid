@@ -147,7 +147,7 @@
     "deleteCollectionMsg": "Delete \"{{name}}\"? Media in this collection will be unassigned but not deleted.",
     "deleteCollectionConfirm": "Delete",
     "deleteFolderTitle": "Delete Folder",
-    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Uncategorized, not deleted.",
+    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Other, not deleted.",
     "renameFile": "Rename File"
   },
   "settings": {
@@ -354,22 +354,28 @@
       "website": "Website"
     },
     "workspace": {
-      "desc": "Vivid stores your library in its own app data folder by default. You can instead point it at an existing folder — its own database and thumbnails will live inside that folder, so the whole thing is portable to another device.",
+      "desc": "Vivid stores your library in its own app data folder by default. You can instead point it at an existing folder — files are indexed in place, in a hidden .vivid folder inside it. Nothing is ever copied, converted, or duplicated: thumbnails and format-converted previews are cached in Vivid's own app data folder instead, never written near your files.",
       "defaultPath": "Vivid's default library",
       "active": "Active",
       "pendingRestart": "Restart to apply",
       "switch": "Switch",
-      "remove": "Remove",
       "add": "Add Workspace",
       "chooseTitle": "Choose a folder to use as a workspace",
       "switchTitle": "Switch workspace?",
       "switchConfirm": "Vivid needs to restart to switch to \"{{name}}\". Any unsaved changes in other views will be lost.",
       "switchAndRestart": "Switch & Restart",
-      "removeTitle": "Remove workspace?",
-      "removeConfirm": "This only forgets \"{{name}}\" in Vivid — its folder and everything inside it (including its database) is left untouched on disk.",
+      "unlink": "Unlink",
+      "unlinkTitle": "Unlink workspace?",
+      "unlinkConfirm": "This only forgets \"{{name}}\" in Vivid — its folder and everything inside it (including its database) is left untouched on disk.",
+      "unlinkActiveConfirm": "Vivid needs to restart to switch back to its default library after unlinking \"{{name}}\". Its folder and everything inside it (including its database) is left untouched on disk.",
       "rename": "Rename",
       "saveName": "Save name",
-      "devRestartNeeded": "Workspace switched. Restart the dev server (not just this window) to apply it — automatic restart doesn’t work in `tauri dev`."
+      "devRestartNeeded": "Workspace switched. Restart the dev server (not just this window) to apply it — automatic restart doesn’t work in `tauri dev`.",
+      "invalid": "Folder missing",
+      "fixPath": "Fix path…",
+      "fixPathTitle": "Locate \"{{name}}\"",
+      "fixPathDesc": "Vivid can't find this workspace's folder anymore. Choose its new location (or where you moved it to) to reconnect it.",
+      "fixPathConfirm": "Reconnect"
     }
   },
   "trash": {
@@ -914,7 +920,7 @@
     "createNew": "Create new playlist",
     "collectionPlaceholder": "e.g. My Liked Songs",
     "saveToFolder": "Save to folder",
-    "uncategorized": "Uncategorized",
+    "uncategorized": "Other",
     "ytdlpHint": "Supports YouTube, SoundCloud, Spotify, and 1000+ sites via yt-dlp. Requires yt-dlp (brew install yt-dlp).",
     "playlistHint": "Paste a playlist or album URL. yt-dlp will download every track. This may take a while.",
     "none": "None",
@@ -1273,6 +1279,11 @@
     "restarting": "Restarting…",
     "opening": "Opening…",
     "cancel": "Cancel",
-    "current": "Current"
+    "current": "Current",
+    "invalid": "Missing",
+    "pathMissing": "That workspace's folder can't be found — it may have been moved, renamed, or is on a drive that isn't connected. You can fix its path from Settings once you're in the app.",
+    "unavailableTitle": "Workspace folder unavailable",
+    "unavailableDesc": "\"{{name}}\"'s folder can no longer be found — it may have been removed, renamed, or unmounted. Vivid needs to restart to recover.",
+    "unavailableConfirm": "Restart Vivid"
   }
 }

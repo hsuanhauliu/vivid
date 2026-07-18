@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import CollectionAvatar from './CollectionAvatar';
 import useDismiss from '../../hooks/useDismiss';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './SelectionBar.css';
 
 const VISIBLE_LIMIT = 6;
@@ -172,8 +173,8 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
   const sorted = useMemo(
     () =>
       [...folders].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],

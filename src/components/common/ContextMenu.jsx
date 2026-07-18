@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
+import { folderIdOf, UNCATEGORIZED_ID } from '../../utils/folders';
 import {
   Info,
   Star,
@@ -243,8 +244,8 @@ export default function ContextMenu({
   // ── Move-to-folder mode (on-disk relocation) ──────────────────────────────
   if (mode === 'movefolder') {
     const sorted = [...(diskFolders ?? [])].sort((a, b) => {
-      if (a.rel_path === 'Uncategorized') return -1;
-      if (b.rel_path === 'Uncategorized') return 1;
+      if (a.id === UNCATEGORIZED_ID) return -1;
+      if (b.id === UNCATEGORIZED_ID) return 1;
       return a.rel_path.localeCompare(b.rel_path);
     });
     const q = folderSearch.trim().toLowerCase();
@@ -285,7 +286,7 @@ export default function ContextMenu({
         <div className="context-folder-list">
           {shown.map((f) => {
             const depth = (f.rel_path.match(/\//g) || []).length;
-            const isCurrent = item.folder_id === f.id;
+            const isCurrent = folderIdOf(item) === f.id;
             return (
               <button
                 key={f.id}

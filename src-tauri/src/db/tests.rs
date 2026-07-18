@@ -463,12 +463,15 @@ fn delete_collection_is_atomic() {
 // ── Folders (on-disk directory tree) ─────────────────────────────────────
 
 #[test]
-fn ensure_uncategorized_is_idempotent() {
+fn list_folders_always_includes_virtual_uncategorized() {
     let conn = open();
-    let id1 = ensure_uncategorized(&conn).unwrap();
-    let id2 = ensure_uncategorized(&conn).unwrap();
-    assert_eq!(id1, id2);
-    assert_eq!(list_folders(&conn).unwrap().len(), 1);
+    // No real folders exist yet — the virtual Uncategorized bucket is still
+    // present so root-level files always have somewhere to show up.
+    let folders = list_folders(&conn).unwrap();
+    assert_eq!(folders.len(), 1);
+    assert_eq!(folders[0].id, UNCATEGORIZED_ID);
+    assert_eq!(folders[0].rel_path, UNCATEGORIZED);
+    assert!(folders[0].parent_id.is_none());
 }
 
 #[test]
@@ -485,7 +488,8 @@ fn create_fetch_and_list_folders() {
     assert_eq!(folder_id_by_rel_path(&conn, "Trip").unwrap(), Some(f.id.clone()));
     assert_eq!(folder_id_by_rel_path(&conn, "Nope").unwrap(), None);
 
-    assert_eq!(list_folders(&conn).unwrap().len(), 1);
+    // Real folder + the always-present virtual Uncategorized entry.
+    assert_eq!(list_folders(&conn).unwrap().len(), 2);
 }
 
 #[test]
@@ -528,13 +532,27 @@ fn set_folder_parent_reparents() {
 fn set_item_folder_updates_folder_id_and_path() {
     let conn = open();
     let f = create_folder(&conn, "Trip", None, "Trip").unwrap();
-    insert(&conn, &item("id-1", "/lib/Uncategorized/a.jpg")).unwrap();
+    insert(&conn, &item("id-1", "/lib/a.jpg")).unwrap();
 
-    set_item_folder(&conn, "id-1", &f.id, "/lib/Trip/a.jpg").unwrap();
+    set_item_folder(&conn, "id-1", Some(&f.id), "/lib/Trip/a.jpg").unwrap();
 
     let fetched = fetch_one(&conn, "id-1").unwrap();
     assert_eq!(fetched.folder_id.as_deref(), Some(f.id.as_str()));
     assert_eq!(fetched.file_path, "/lib/Trip/a.jpg");
+}
+
+#[test]
+fn set_item_folder_to_none_moves_to_uncategorized() {
+    let conn = open();
+    let f = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    insert(&conn, &item("id-1", "/lib/Trip/a.jpg")).unwrap();
+    set_item_folder(&conn, "id-1", Some(&f.id), "/lib/Trip/a.jpg").unwrap();
+
+    set_item_folder(&conn, "id-1", None, "/lib/a.jpg").unwrap();
+
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert!(fetched.folder_id.is_none());
+    assert_eq!(fetched.file_path, "/lib/a.jpg");
 }
 
 #[test]
@@ -549,7 +567,8 @@ fn delete_folder_subtree_removes_descendants_but_not_siblings() {
     delete_folder_subtree(&conn, "Trip").unwrap();
 
     let remaining: Vec<String> = list_folders(&conn).unwrap().into_iter().map(|f| f.rel_path).collect();
-    assert_eq!(remaining, vec!["TripOther".to_string()]);
+    // The virtual Uncategorized entry is always present alongside real folders.
+    assert_eq!(remaining, vec![UNCATEGORIZED.to_string(), "TripOther".to_string()]);
 }
 
 #[test]

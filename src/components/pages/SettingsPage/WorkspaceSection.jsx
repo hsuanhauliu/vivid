@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
+import { relaunch } from '@tauri-apps/plugin-process';
 import {
   FolderPlus,
-  Trash2,
+  Unlink,
   FolderOpen,
   CheckCircle2,
   RotateCcw,
   Pencil,
   Check,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { SettingsSection } from './primitives';
 import { basenameOf } from '../../../utils/path';
@@ -20,12 +22,13 @@ import {
 } from '../../../utils/workspace';
 
 /**
- * Lets the user point Vivid at an external folder to use as a portable,
- * self-contained library (its own database + thumbnails live inside it,
- * media files are indexed in place rather than copied) instead of — or in
- * addition to — the default app-managed library. Switching requires a
- * restart since the DB connection and derived-data caches are only ever
- * opened once at process startup.
+ * Lets the user point Vivid at an external folder to use as a workspace
+ * instead of — or in addition to — the default app-managed library. Media
+ * files are indexed in place, never copied; Vivid's own index lives in a
+ * hidden `.vivid` folder inside it, but thumbnails and any format-converted
+ * previews are cached in Vivid's own app data folder, never written near the
+ * user's files. Switching requires a restart since the DB connection and
+ * derived-data caches are only ever opened once at process startup.
  */
 export default function WorkspaceSection({ onRequestConfirm }) {
   const { t } = useTranslation();
@@ -65,29 +68,23 @@ export default function WorkspaceSection({ onRequestConfirm }) {
     if (editingId) editingInputRef.current?.select();
   }, [editingId]);
 
+  // Switching is a deliberate, single-purpose action the user just clicked a
+  // "Switch" button to take — no confirmation dialog in between.
   const switchTo = useCallback(
-    (id, name) => {
-      onRequestConfirm?.({
-        title: t('settings.workspace.switchTitle'),
-        message: t('settings.workspace.switchConfirm', { name }),
-        confirmLabel: t('settings.workspace.switchAndRestart'),
-        onConfirm: async () => {
-          onRequestConfirm(null);
-          setError(null);
-          setNotice(null);
-          try {
-            const { relaunched } = await switchWorkspaceAndApply(id);
-            if (!relaunched) {
-              setNotice(t('settings.workspace.devRestartNeeded'));
-              await refresh();
-            }
-          } catch (e) {
-            setError(String(e));
-          }
-        },
-      });
+    async (id) => {
+      setError(null);
+      setNotice(null);
+      try {
+        const { relaunched } = await switchWorkspaceAndApply(id);
+        if (!relaunched) {
+          setNotice(t('settings.workspace.devRestartNeeded'));
+          await refresh();
+        }
+      } catch (e) {
+        setError(String(e));
+      }
     },
-    [onRequestConfirm, refresh, t],
+    [refresh, t],
   );
 
   async function pickWorkspaceFolder() {
@@ -108,11 +105,13 @@ export default function WorkspaceSection({ onRequestConfirm }) {
     setBusy(true);
     setError(null);
     try {
-      const ws = await invoke('add_workspace', { path: draftPath, name: draftName.trim() });
+      // Registers it but doesn't switch to it — the user can click "Switch"
+      // whenever they're ready; adding a workspace shouldn't itself jump the
+      // running app over to it.
+      await invoke('add_workspace', { path: draftPath, name: draftName.trim() });
       setDraftPath(null);
       setDraftName('');
       await refresh();
-      switchTo(ws.id, ws.name);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -151,20 +150,70 @@ export default function WorkspaceSection({ onRequestConfirm }) {
     }
   }
 
-  function removeWorkspace(id, name) {
+  async function fixPath(w) {
+    const picked = await pickWorkspaceFolderDialog(
+      t('settings.workspace.fixPathTitle', { name: w.name }),
+    );
+    if (!picked) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const ws = await invoke('update_workspace_path', { id: w.id, path: picked.path });
+      setRegistry(
+        (r) =>
+          r && {
+            ...r,
+            workspaces: r.workspaces.map((x) => (x.id === w.id ? { ...ws, valid: true } : x)),
+          },
+      );
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Forget a registered external workspace, leaving its folder (and
+  // everything inside it, including its own `.vivid/` database) untouched
+  // on disk — it can always be re-added later by picking the folder again.
+  // Unlike the plain "Remove" this used to be, unlinking the *active*
+  // workspace is allowed: it switches to the default workspace first (a
+  // registry-only write), forgets the old entry, then relaunches once so
+  // the running process actually picks up the default instead of the one
+  // that just got unlinked.
+  function unlinkWorkspace(id, name) {
+    const isActive = id === runningId;
     onRequestConfirm?.({
-      title: t('settings.workspace.removeTitle'),
-      message: t('settings.workspace.removeConfirm', { name }),
-      confirmLabel: t('settings.workspace.remove'),
+      title: t('settings.workspace.unlinkTitle'),
+      message: isActive
+        ? t('settings.workspace.unlinkActiveConfirm', { name })
+        : t('settings.workspace.unlinkConfirm', { name }),
+      confirmLabel: t('settings.workspace.unlink'),
       onConfirm: async () => {
+        onRequestConfirm(null);
         setError(null);
+        setNotice(null);
         try {
-          await invoke('remove_workspace', { id });
-          await refresh();
+          if (isActive) {
+            const defaultWs = workspaces.find((w) => w.kind === 'default');
+            if (defaultWs) await invoke('switch_workspace', { id: defaultWs.id });
+            await invoke('remove_workspace', { id });
+            if (import.meta.env.DEV) {
+              // Same dev-mode limitation as switchWorkspaceAndApply: the
+              // Tauri CLI supervises the dev binary, so a self-relaunch
+              // doesn't reconnect to the Vite dev server.
+              setNotice(t('settings.workspace.devRestartNeeded'));
+              await refresh();
+            } else {
+              await relaunch();
+            }
+          } else {
+            await invoke('remove_workspace', { id });
+            await refresh();
+          }
         } catch (e) {
           setError(String(e));
         }
-        onRequestConfirm(null);
       },
     });
   }
@@ -184,6 +233,7 @@ export default function WorkspaceSection({ onRequestConfirm }) {
             const isRunning = w.id === runningId;
             const isPending = !isRunning && w.id === pendingId;
             const isEditing = editingId === w.id;
+            const isInvalid = w.valid === false;
             return (
               <div key={w.id} className="workspace-row">
                 <FolderOpen size={15} className="settings-row-icon" />
@@ -215,16 +265,26 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                           <RotateCcw size={12} /> {t('settings.workspace.pendingRestart')}
                         </span>
                       )}
+                      {isInvalid && (
+                        <span className="workspace-badge workspace-badge-invalid">
+                          <AlertTriangle size={12} /> {t('settings.workspace.invalid')}
+                        </span>
+                      )}
                     </span>
                   )}
                   <span className="workspace-row-path">
                     {w.kind === 'default' ? t('settings.workspace.defaultPath') : w.path}
                   </span>
                 </div>
-                {!isRunning && !isPending && !isEditing && (
+                {isInvalid && !isEditing && (
+                  <button className="btn btn-secondary" onClick={() => fixPath(w)} disabled={busy}>
+                    {t('settings.workspace.fixPath')}
+                  </button>
+                )}
+                {!isRunning && !isPending && !isEditing && !isInvalid && (
                   <button
                     className="btn btn-secondary"
-                    onClick={() => switchTo(w.id, w.name)}
+                    onClick={() => switchTo(w.id)}
                     disabled={busy}
                   >
                     {t('settings.workspace.switch')}
@@ -247,13 +307,13 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                     <Pencil size={13} />
                   </button>
                 )}
-                {w.kind !== 'default' && !isRunning && !isEditing && (
+                {w.kind !== 'default' && !isEditing && (
                   <button
                     className="icon-btn"
-                    title={t('settings.workspace.remove')}
-                    onClick={() => removeWorkspace(w.id, w.name)}
+                    title={t('settings.workspace.unlink')}
+                    onClick={() => unlinkWorkspace(w.id, w.name)}
                   >
-                    <Trash2 size={13} />
+                    <Unlink size={13} />
                   </button>
                 )}
               </div>

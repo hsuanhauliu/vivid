@@ -7,10 +7,28 @@
 
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::commands::normalize_abs;
 use crate::workspace::{self, Workspace, WorkspaceKind, WorkspaceRegistry};
+
+/// A registered workspace plus whether its folder currently exists —
+/// computed fresh on every call rather than persisted, so a remounted drive
+/// or a path the user just fixed is picked up immediately without a stale
+/// flag anywhere in `workspaces.json`.
+#[derive(Clone, Serialize)]
+pub struct WorkspaceEntry {
+    #[serde(flatten)]
+    pub workspace: Workspace,
+    pub valid: bool,
+}
+
+#[derive(Clone, Serialize)]
+pub struct WorkspaceList {
+    pub workspaces: Vec<WorkspaceEntry>,
+    pub active_id: String,
+}
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path().app_data_dir().map_err(|e| e.to_string())
@@ -52,8 +70,14 @@ fn validate_new_workspace_path(
 /// (which only reflects what was active at *this* process's startup), so a
 /// pending switch (not yet applied by a restart) is visible in the UI.
 #[tauri::command]
-pub fn list_workspaces(app: AppHandle) -> Result<WorkspaceRegistry, String> {
-    Ok(workspace::load(&app_data_dir(&app)?))
+pub fn list_workspaces(app: AppHandle) -> Result<WorkspaceList, String> {
+    let registry = workspace::load(&app_data_dir(&app)?);
+    Ok(WorkspaceList {
+        workspaces: registry.workspaces.into_iter()
+            .map(|w| { let valid = w.path_exists(); WorkspaceEntry { workspace: w, valid } })
+            .collect(),
+        active_id: registry.active_id,
+    })
 }
 
 /// The workspace this running process actually started with — distinct from
@@ -89,6 +113,7 @@ pub fn add_workspace(app: AppHandle, path: String, name: String) -> Result<Works
     };
     registry.workspaces.push(ws.clone());
     workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::rebuild_workspace_menu(&app);
     Ok(ws)
 }
 
@@ -102,7 +127,12 @@ pub fn switch_workspace(app: AppHandle, id: String) -> Result<(), String> {
         return Err("Unknown workspace".into());
     }
     registry.active_id = id;
-    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())
+    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    // `running_id` in the rebuilt menu won't reflect this until the pending
+    // switch is actually applied (relaunch), but the checkmark aside, this
+    // still keeps the item list itself current.
+    crate::rebuild_workspace_menu(&app);
+    Ok(())
 }
 
 /// Actually load the workspace the user picked from the frontend's startup
@@ -113,14 +143,51 @@ pub fn switch_workspace(app: AppHandle, id: String) -> Result<(), String> {
 /// Unlike `switch_workspace`, this never needs a relaunch: since nothing was
 /// loaded yet in this process, there's nothing to tear down first — the
 /// frontend calls this once, then proceeds to mount the real app.
+/// Error message `open_workspace` returns for a workspace whose folder no
+/// longer exists — matched verbatim by the frontend (see `WorkspacePicker`)
+/// to show a "fix the path" affordance instead of a generic error toast.
+pub const ERR_WORKSPACE_PATH_MISSING: &str = "workspace-path-missing";
+
 #[tauri::command]
 pub fn open_workspace(app: AppHandle, id: String) -> Result<(), String> {
     let data_dir = app_data_dir(&app)?;
     let mut registry = workspace::load(&data_dir);
     let ws = registry.find(&id).cloned().ok_or("Unknown workspace")?;
+    // Never silently create a new workspace at a since-vanished path — tell
+    // the caller so it can point the user at Settings to fix or re-point it.
+    if !ws.path_exists() {
+        return Err(ERR_WORKSPACE_PATH_MISSING.into());
+    }
     registry.active_id = id;
     workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
-    crate::initialize_workspace(&app, ws, &data_dir)
+    crate::initialize_workspace(&app, ws, &data_dir)?;
+    crate::rebuild_workspace_menu(&app);
+    Ok(())
+}
+
+/// Re-point an existing external workspace at a new folder — used from
+/// Settings when the original folder was moved, renamed, or is on a drive
+/// that's since been reformatted. Same overlap/existence validation as
+/// registering a brand-new workspace. Doesn't touch the workspace's old
+/// `.vivid/` database (it's simply abandoned at the old location); the
+/// workspace effectively starts fresh at the new path and reconciliation
+/// (on next open) adopts whatever's there.
+#[tauri::command]
+pub fn update_workspace_path(app: AppHandle, id: String, path: String) -> Result<Workspace, String> {
+    let data_dir = app_data_dir(&app)?;
+    let mut registry = workspace::load(&data_dir);
+    let idx = registry.workspaces.iter().position(|w| w.id == id).ok_or("Unknown workspace")?;
+    if registry.workspaces[idx].kind != WorkspaceKind::External {
+        return Err("Only external workspaces have a folder path to update".into());
+    }
+    let others: Vec<Workspace> = registry.workspaces.iter().enumerate()
+        .filter(|(i, _)| *i != idx).map(|(_, w)| w.clone()).collect();
+    let clean_path = validate_new_workspace_path(Path::new(&path), &others, &data_dir)?;
+    registry.workspaces[idx].path = Some(clean_path.to_string_lossy().into_owned());
+    let updated = registry.workspaces[idx].clone();
+    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::rebuild_workspace_menu(&app);
+    Ok(updated)
 }
 
 /// Pure rename logic, factored out so it's testable without an `AppHandle`.
@@ -144,6 +211,7 @@ pub fn rename_workspace(app: AppHandle, id: String, name: String) -> Result<Work
     let mut registry = workspace::load(&data_dir);
     let updated = rename_in_registry(&mut registry, &id, &name)?.clone();
     workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::rebuild_workspace_menu(&app);
     Ok(updated)
 }
 
@@ -165,7 +233,9 @@ pub fn remove_workspace(app: AppHandle, id: String) -> Result<(), String> {
     if registry.workspaces.len() == before {
         return Err("Unknown workspace".into());
     }
-    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())
+    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::rebuild_workspace_menu(&app);
+    Ok(())
 }
 
 #[cfg(test)]

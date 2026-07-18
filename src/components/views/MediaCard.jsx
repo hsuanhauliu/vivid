@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { thumbSrcOf } from '../../utils/path';
 import { Music, Video, Image, Star, Check } from 'lucide-react';
 import { COLOR_LABELS } from '../common/FilterBar';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
@@ -306,7 +307,7 @@ function ImageThumb({ item, freshThumbSrc, disableHoverPlay }) {
   // like every other image — the full animated original only plays on hover
   // (via GifThumb) or in the single-item detail/viewer.
   const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
-  const thumbSrc = freshThumbSrc || (item.thumb_path ? convertFileSrc(item.thumb_path) : null);
+  const thumbSrc = freshThumbSrc || (item.thumb_path ? thumbSrcOf(item.thumb_path) : null);
 
   if (isGif && thumbSrc) {
     return (
@@ -334,7 +335,7 @@ function MediaThumbnail({ item, disableHoverPlay, freshThumbSrc }) {
     return (
       <VideoThumb
         src={convertFileSrc(item.file_path)}
-        poster={item.thumb_path ? convertFileSrc(item.thumb_path) : null}
+        poster={item.thumb_path ? thumbSrcOf(item.thumb_path) : null}
         alt={item.display_name}
         imgClassName="card-thumb-img"
         disableHoverPlay={disableHoverPlay}
@@ -347,7 +348,7 @@ function MediaThumbnail({ item, disableHoverPlay, freshThumbSrc }) {
   if (audioCover) {
     return (
       <img
-        src={convertFileSrc(audioCover)}
+        src={thumbSrcOf(audioCover)}
         alt={item.display_name}
         className="card-thumb-img"
         loading="lazy"

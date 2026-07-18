@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
+import { relaunch } from '@tauri-apps/plugin-process';
 import {
   Search,
   X,
@@ -61,7 +62,6 @@ import ImportConfirmModal from './components/modals/ImportConfirmModal';
 import ScreensaverOverlay from './components/common/ScreensaverOverlay';
 import NotificationsPanel from './components/common/NotificationsPanel';
 import WelcomeFlow from './components/pages/WelcomeFlow';
-import WorkspacePicker from './components/pages/WorkspacePicker';
 import ImageEditorPage from './components/pages/ImageEditorPage';
 import ImagePickerModal from './components/modals/ImagePickerModal';
 import useNotifications from './hooks/useNotifications';
@@ -83,7 +83,8 @@ import usePersistentState, {
   jsonParse,
 } from './hooks/usePersistentState';
 import { sortItems } from './utils/sort';
-import { fetchWorkspaceRegistry } from './utils/workspace';
+import { switchWorkspaceAndApply } from './utils/workspace';
+import { folderIdOf } from './utils/folders';
 import SortDropdown from './components/common/SortDropdown';
 import ResultsBar from './components/common/ResultsBar';
 import SystemMessagesPage from './components/pages/SystemMessagesPage';
@@ -418,7 +419,6 @@ export default function App() {
   // which populates this. The *startup* check (shown before anything is
   // loaded at all) now happens earlier, in `WorkspaceGate` — by the time
   // `App` mounts, some workspace is always already loaded.
-  const [workspaceChoices, setWorkspaceChoices] = useState(null); // { workspaces, runningId } | null
   // Which Settings tab to land on next time it opens — used by the
   // "Switch Workspace…" menu item to jump straight to the workspace list
   // when there's nothing to pick between yet (see the effect below).
@@ -1179,25 +1179,22 @@ export default function App() {
     ],
   );
 
-  // macOS menu bar: Workspace > Switch Workspace…. Reuses the same picker
-  // overlay as the startup check, so it doesn't matter which one populated
-  // it — but this is a deliberate user action, so unlike the startup check
-  // it ignores the one-shot skip-once flag. With only the default workspace
-  // registered there's nothing to pick between, so it opens Settings'
-  // workspace list (where one can be added) instead of an empty picker.
+  // macOS menu bar: Workspace > Switch Workspace > <one item per workspace>.
+  // The native submenu (rebuilt on the Rust side whenever the registry
+  // changes — see `rebuild_workspace_menu` in lib.rs) already shows every
+  // choice, so picking one here is a deliberate, specific action — no
+  // confirmation dialog, no intermediate picker UI, just switch.
   useEffect(() => {
     let unlisten;
-    listen('menu-switch-workspace', async () => {
+    listen('menu-switch-to-workspace', async (event) => {
+      const id = event.payload;
       try {
-        const { registry, active } = await fetchWorkspaceRegistry();
-        if (registry.workspaces.length > 1) {
-          setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
-        } else {
-          setSettingsInitialTab('library');
-          handleViewChange('settings');
+        const { relaunched } = await switchWorkspaceAndApply(id);
+        if (!relaunched) {
+          showToast('info', t('settings.workspace.devRestartNeeded'));
         }
       } catch (e) {
-        console.error(e);
+        showToast('error', String(e));
       }
     }).then((fn) => {
       unlisten = fn;
@@ -1205,7 +1202,52 @@ export default function App() {
     return () => {
       if (unlisten) unlisten();
     };
+  }, [showToast, t]);
+
+  // macOS menu bar: Workspace > New Workspace…. The actual "pick a folder"
+  // flow lives in Settings (WorkspaceSection), so this just navigates there
+  // rather than duplicating it at the top level.
+  useEffect(() => {
+    let unlisten;
+    listen('menu-add-workspace', () => {
+      setSettingsInitialTab('library');
+      handleViewChange('settings');
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, [handleViewChange]);
+
+  // The active external workspace's folder disappeared while Vivid was
+  // running (removed, renamed, or the drive it's on was unmounted) — the
+  // live watcher and a periodic health check both feed this. Nothing in the
+  // running process can recover cleanly (the DB connection, thumbnails, and
+  // in-memory index all point at that folder), so the only way back to a
+  // consistent state is a relaunch: `resolve_startup_workspace` then falls
+  // back to the Default workspace exactly as it would for any other
+  // unreachable external folder.
+  useEffect(() => {
+    let unlisten;
+    listen('workspace-unavailable', (event) => {
+      const name = event.payload?.name ?? '';
+      setConfirm({
+        title: t('workspacePicker.unavailableTitle'),
+        message: t('workspacePicker.unavailableDesc', { name }),
+        confirmLabel: t('workspacePicker.unavailableConfirm'),
+        onConfirm: async () => {
+          setConfirm(null);
+          await relaunch();
+        },
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [t]);
 
   // "View on Map" from the detail panel — jumps to the World Map centered on
   // this specific item instead of the usual fit-to-all-pins behavior.
@@ -1489,7 +1531,7 @@ export default function App() {
       } else if (filter !== 'all' && i.media_type !== filter) return false;
 
       // Folder filter (a folder and its descendants)
-      if (folderScope && !folderScope.has(i.folder_id)) return false;
+      if (folderScope && !folderScope.has(folderIdOf(i))) return false;
 
       // Group / album filter
       if (activeCollection) {
@@ -2666,14 +2708,6 @@ export default function App() {
           multilingualInstalled={multilingualInstalled}
           multilingualLoading={multilingualLoading}
           onDownloadModel={downloadMultilingual}
-        />
-      )}
-
-      {!showWelcome && workspaceChoices && (
-        <WorkspacePicker
-          workspaces={workspaceChoices.workspaces}
-          runningId={workspaceChoices.runningId}
-          onDismiss={() => setWorkspaceChoices(null)}
         />
       )}
     </div>

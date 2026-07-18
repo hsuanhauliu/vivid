@@ -613,7 +613,7 @@ impl TargetState {
 
     /// Import a file that appeared in the destination into the library folder
     /// matching its destination rel_path (parent dir → folder by rel_path, else
-    /// Uncategorized). On success the original destination file is removed: the
+    /// Other). On success the original destination file is removed: the
     /// library→dest mirror re-creates the canonical copy at the library's
     /// rel_path, so the file is adopted rather than duplicated.
     fn import_dropin(&mut self, app: &AppHandle, _mdir: &Path, skips: &mut HashSet<PathBuf>, path: &Path, rel: &str) -> bool {
@@ -744,17 +744,19 @@ fn prune_empty_dirs(root: &Path) {
     rec(root, true);
 }
 
-/// Find a library folder id whose rel_path matches `rel`, else Uncategorized.
+/// Find a library folder id whose rel_path matches `rel`, else the virtual
+/// Other bucket (which `run_import`/`insert_imported` already treat
+/// exactly like `None` — the library root).
 fn folder_id_for_rel(conn: &rusqlite::Connection, rel: &str) -> Option<String> {
     if rel.is_empty() {
-        return db::ensure_uncategorized(conn).ok();
+        return Some(db::UNCATEGORIZED_ID.to_string());
     }
     if let Ok(folders) = db::list_folders(conn) {
         if let Some(f) = folders.into_iter().find(|f| f.rel_path == rel) {
             return Some(f.id);
         }
     }
-    db::ensure_uncategorized(conn).ok()
+    Some(db::UNCATEGORIZED_ID.to_string())
 }
 
 // ── Config + manifest persistence ────────────────────────────────────────────

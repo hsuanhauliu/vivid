@@ -34,9 +34,17 @@ export default function WorkspaceGate() {
           return;
         }
         if (skipOnce) {
-          await invoke('open_workspace', { id: registry.active_id });
-          setState('ready');
-          return;
+          try {
+            await invoke('open_workspace', { id: registry.active_id });
+            setState('ready');
+            return;
+          } catch (e) {
+            // The just-picked workspace's folder vanished between the pick
+            // and this relaunch (e.g. an external drive ejected mid-setup)
+            // — fall back to the picker instead of getting stuck, so the
+            // user can choose something else.
+            console.error(e);
+          }
         }
         setState({ workspaces: registry.workspaces, activeId: registry.active_id });
       } catch (e) {
@@ -46,7 +54,12 @@ export default function WorkspaceGate() {
     })();
   }, []);
 
-  if (state === null) return null; // list_workspaces is a local file read — resolves near-instantly
+  // `list_workspaces` is a local file read, so this resolves near-instantly
+  // when there's nothing to choose. When a workspace *is* being opened
+  // (reconciliation runs synchronously as part of `open_workspace`), the
+  // picker's own busy/spinner state covers that wait — this blank frame is
+  // only ever visible for the sub-second before that decision is made.
+  if (state === null) return null;
   if (state === 'ready') return <App />;
 
   return (

@@ -80,7 +80,7 @@ pub fn init(conn: &Connection) -> Result<()> {
         -- Folders are a real on-disk tree under the managed library root, distinct
         -- from `collections` (albums/playlists, which are pure metadata collections).
         -- `rel_path` is the folder's path relative to the library root, e.g.
-        -- 'Uncategorized' or 'Trips/Japan'; it's the source of truth for where the
+        -- 'Other' or 'Trips/Japan'; it's the source of truth for where the
         -- files physically live. `parent_id` NULL means a top-level folder.
         CREATE TABLE IF NOT EXISTS folders (
             id          TEXT PRIMARY KEY,
@@ -102,6 +102,15 @@ pub fn init(conn: &Connection) -> Result<()> {
     // before the column existed pick it up.
     if !column_exists(conn, "collections", "description")? {
         conn.execute("ALTER TABLE collections ADD COLUMN description TEXT", [])?;
+    }
+
+    // Last-seen on-disk modification time (unix seconds), used by workspace
+    // reconciliation to detect files that changed outside Vivid without
+    // re-hashing/re-reading every file on every launch. NULL for rows written
+    // before this column existed — reconciliation backfills it the first time
+    // it sees them rather than treating the absence as "modified".
+    if !column_exists(conn, "media_items", "mtime")? {
+        conn.execute("ALTER TABLE media_items ADD COLUMN mtime INTEGER", [])?;
     }
 
     // Performance indexes

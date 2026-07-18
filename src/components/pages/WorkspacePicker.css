@@ -2,11 +2,90 @@
 
 /* Unlike the switch-mode picker (an overlay dimming a running app behind
    it), the startup picker IS the whole window — there's nothing behind it
-   to dim, so it just uses the normal app background instead of a dark
-   scrim. */
+   to dim, so instead of a dark scrim it gets its own soft animated gradient
+   mesh, built from the app's own accent color plus two complementary hues,
+   drifting slowly behind the modal. */
 .workspace-picker-backdrop-startup {
   background: var(--bg);
   backdrop-filter: none;
+  overflow: hidden;
+}
+
+.workspace-picker-mesh {
+  position: fixed;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+}
+.workspace-picker-mesh::before,
+.workspace-picker-mesh::after,
+.workspace-picker-mesh span {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  will-change: transform;
+}
+.workspace-picker-mesh::before {
+  width: 46vw;
+  height: 46vw;
+  left: -10%;
+  top: -8%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  animation: wpm-drift-a 22s ease-in-out infinite;
+}
+.workspace-picker-mesh::after {
+  width: 40vw;
+  height: 40vw;
+  right: -12%;
+  bottom: -10%;
+  background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+  animation: wpm-drift-b 26s ease-in-out infinite;
+}
+.workspace-picker-mesh span {
+  width: 34vw;
+  height: 34vw;
+  left: 32%;
+  top: 38%;
+  background: radial-gradient(circle, #22d3c5 0%, transparent 70%);
+  animation: wpm-drift-c 30s ease-in-out infinite;
+  opacity: 0.22;
+}
+@keyframes wpm-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(6vw, 4vh) scale(1.08); }
+}
+@keyframes wpm-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-5vw, -6vh) scale(1.1); }
+}
+@keyframes wpm-drift-c {
+  0%, 100% { transform: translate(-4vw, 3vh) scale(1); }
+  50% { transform: translate(4vw, -3vh) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-picker-mesh::before,
+  .workspace-picker-mesh::after,
+  .workspace-picker-mesh span {
+    animation: none;
+  }
+}
+
+/* A faint grain/vignette on top of the mesh keeps the modal readable and
+   grounds the whole thing instead of feeling like a floating gradient. */
+.workspace-picker-backdrop-startup::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 75%,
+    var(--bg) 100%
+  );
 }
 
 .workspace-picker-modal {
@@ -73,14 +152,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.workspace-picker-current-badge {
+.workspace-picker-row.invalid {
+  opacity: 0.6;
+}
+.workspace-picker-invalid-badge {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #34c759;
-  border: 1px solid color-mix(in srgb, #34c759 35%, transparent);
-  background: color-mix(in srgb, #34c759 12%, transparent);
+  color: #e0a03a;
+  border: 1px solid color-mix(in srgb, #e0a03a 35%, transparent);
+  background: color-mix(in srgb, #e0a03a 12%, transparent);
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -96,17 +181,7 @@
   color: var(--accent);
 }
 
-.workspace-notice {
-  font-size: 11.5px;
-  color: var(--accent);
-  margin: 0;
-}
-
-.workspace-picker-close {
-  z-index: 1;
-}
-
-/* ─── Floating background (startup mode only) ──────────────── */
+/* ─── Floating background ────────────────────────────────────── */
 
 .workspace-picker-float-bg {
   position: fixed;

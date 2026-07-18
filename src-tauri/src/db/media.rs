@@ -278,3 +278,68 @@ pub fn set_collection(conn: &Connection, id: &str, collection_id: Option<&str>) 
     fetch_one(conn, id)
 }
 
+// ── Workspace reconciliation ─────────────────────────────────────────────────
+//
+// A workspace's folder can change while Vivid isn't running (files added,
+// removed, or edited outside the app). These narrow, reconciliation-specific
+// queries stay off `MediaItem`/`SELECT_MEDIA`/`row_to_item` deliberately —
+// `mtime` is a backend-internal bookkeeping detail, not something the
+// frontend needs serialized on every item.
+
+/// Every non-deleted item's disk identity: `(id, file_path, file_size, mtime,
+/// thumb_path)`. Compared against a fresh directory walk to detect files that
+/// were added, removed, or modified since the last time Vivid ran.
+pub fn get_reconcile_snapshot(conn: &Connection) -> Result<Vec<(String, String, i64, Option<i64>, Option<String>)>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, file_path, file_size, mtime, thumb_path FROM media_items WHERE deleted_at IS NULL",
+    )?;
+    let rows = stmt
+        .query_map([], |r| Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, i64>(2)?,
+            r.get::<_, Option<i64>>(3)?,
+            r.get::<_, Option<String>>(4)?,
+        )))?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
+/// A file's size and/or mtime genuinely changed on disk since last seen —
+/// update the tracked values and drop everything derived from the old
+/// content (thumbnail, dimensions, embedding, OCR) so it's regenerated.
+pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) -> Result<()> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET file_size=?1, mtime=?2, thumb_path=NULL, width=NULL, height=NULL, \
+         embedding=NULL, ocr_scanned=0, ocr_text=NULL, updated_at=?3 WHERE id=?4",
+        params![file_size, mtime, now, id],
+    )?;
+    Ok(())
+}
+
+/// Backfill `mtime` on a row that predates the column, without treating it as
+/// a content change (no thumb/embedding invalidation) — only used the first
+/// reconciliation pass after upgrading, so existing libraries aren't blasted
+/// into a full reprocess just because their mtime baseline was unknown.
+pub fn set_mtime(conn: &Connection, id: &str, mtime: i64) -> Result<()> {
+    conn.execute("UPDATE media_items SET mtime=?1 WHERE id=?2", params![mtime, id])?;
+    Ok(())
+}
+
+/// Hard-delete every row in `ids` in one statement. Used when reconciliation
+/// or the live watcher finds a previously-tracked file genuinely gone from
+/// disk — unlike `trash::remove`, this isn't a user action and there's no
+/// file left to restore, so trash semantics don't apply.
+pub fn remove_missing(conn: &Connection, ids: &[String]) -> Result<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!("DELETE FROM media_items WHERE id IN ({placeholders})");
+    let params: Vec<&dyn rusqlite::ToSql> = ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+    conn.execute(&sql, params.as_slice())?;
+    Ok(())
+}
+

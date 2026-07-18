@@ -44,7 +44,7 @@ pub(crate) fn insert_imported(
 }
 
 /// Ensure `item` physically lives inside its target folder's on-disk directory
-/// (defaulting to Uncategorized), moving the file there if it's still in the flat
+/// (defaulting to Other), moving the file there if it's still in the flat
 /// root, and stamp the resolved folder_id + path back onto the item. Keeps every
 /// single-file import path (download, screenshot, export) consistent with the
 /// folder model without each one re-implementing the placement.
@@ -54,14 +54,16 @@ fn normalize_folder(
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
     let root = media_dir(app)?;
-    let folder = match &item.folder_id {
-        Some(fid) => db::fetch_folder(conn, fid).map_err(|e| e.to_string())?,
-        None => {
-            let id = db::ensure_uncategorized(conn).map_err(|e| e.to_string())?;
-            db::fetch_folder(conn, &id).map_err(|e| e.to_string())?
+    // `None` and the virtual Other sentinel both mean "the library
+    // root, no real folder row" — there's nothing to look up in either case.
+    let (folder_id, rel_path): (Option<String>, String) = match &item.folder_id {
+        Some(fid) if fid != db::UNCATEGORIZED_ID => {
+            let f = db::fetch_folder(conn, fid).map_err(|e| e.to_string())?;
+            (Some(f.id), f.rel_path)
         }
+        _ => (None, String::new()),
     };
-    let dest_dir = root.join(&folder.rel_path);
+    let dest_dir = root.join(&rel_path);
     let src = PathBuf::from(&item.file_path);
     if src.parent() != Some(dest_dir.as_path()) {
         fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
@@ -71,7 +73,7 @@ fn normalize_folder(
         }
         item.file_path = dest.to_string_lossy().to_string();
     }
-    item.folder_id = Some(folder.id);
+    item.folder_id = folder_id;
     Ok(())
 }
 
@@ -104,6 +106,9 @@ pub use upload::*;
 
 mod workspace_cmds;
 pub use workspace_cmds::*;
+
+mod watch;
+pub use watch::*;
 
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -392,30 +397,34 @@ fn collect_dir_preserving(dir: &Path, out: &mut Vec<Discovered>) {
 /// Ensure the nested folder chain `sub` exists under the destination folder
 /// (`base_id` / `base_rel`), creating any missing `folders` rows and on-disk
 /// directories. Reuses existing folders with the same `rel_path` so importing
-/// into a structure that already exists merges rather than duplicates. Returns
-/// the leaf folder's id and absolute directory.
+/// into a structure that already exists merges rather than duplicates. `None`
+/// / an empty `base_rel` means the destination is the library root (the
+/// virtual Other bucket) — a chain rooted there creates real
+/// top-level folders, never a nested "Other/…" directory. Returns
+/// the leaf folder's id (`None` only when `sub` is itself empty and the
+/// destination is the root) and absolute directory.
 fn ensure_subfolder(
     conn: &rusqlite::Connection,
     mdir: &Path,
-    base_id: &str,
+    base_id: Option<&str>,
     base_rel: &str,
     sub: &[String],
     any_created: &mut bool,
-) -> Result<(String, PathBuf), String> {
-    let mut parent_id = base_id.to_string();
+) -> Result<(Option<String>, PathBuf), String> {
+    let mut parent_id: Option<String> = base_id.map(|s| s.to_string());
     let mut rel = base_rel.to_string();
     for comp in sub {
-        rel = format!("{rel}/{comp}");
+        rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
         let id = match db::folder_id_by_rel_path(conn, &rel).map_err(|e| e.to_string())? {
             Some(id) => id,
             None => {
-                let f = db::create_folder(conn, comp, Some(&parent_id), &rel)
+                let f = db::create_folder(conn, comp, parent_id.as_deref(), &rel)
                     .map_err(|e| e.to_string())?;
                 *any_created = true;
                 f.id
             }
         };
-        parent_id = id;
+        parent_id = Some(id);
     }
     let dir = mdir.join(&rel);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -527,12 +536,15 @@ pub fn preview_import(
     let mdir = media_dir(&app)?;
     let state = app.state::<DbState>();
 
-    // Destination rel_path, resolved without side effects (no folder creation).
+    // Destination rel_path, resolved without side effects (no folder
+    // creation). Empty means the library root (the virtual Other
+    // bucket, which has no real rel_path to fetch).
     let dest_rel = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         match &folder_id {
-            Some(fid) => db::fetch_folder(&conn, fid).map_err(|e| e.to_string())?.rel_path,
-            None => db::UNCATEGORIZED.to_string(),
+            Some(fid) if fid != db::UNCATEGORIZED_ID =>
+                db::fetch_folder(&conn, fid).map_err(|e| e.to_string())?.rel_path,
+            _ => String::new(),
         }
     };
 
@@ -564,7 +576,7 @@ pub fn preview_import(
         // Sub-folders that don't exist yet would be created for this kept file.
         let mut rel = dest_rel.clone();
         for comp in &d.sub {
-            rel = format!("{rel}/{comp}");
+            rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
             if seen_rel.insert(rel.clone())
                 && db::folder_id_by_rel_path(&conn, &rel).map_err(|e| e.to_string())?.is_none()
             {
@@ -620,18 +632,18 @@ pub(crate) fn run_import(
     let mdir = media_dir(app)?;
     let state = app.state::<DbState>();
 
-    // Resolve the destination folder (chosen, or Uncategorized). Its rel_path is
-    // the root under which any preserved sub-folders get created.
-    let (dest_id, dest_rel) = {
+    // Resolve the destination folder (chosen, or the virtual Other
+    // bucket — the library root, no real folder row). `dest_rel` is the base
+    // under which any preserved sub-folders get created.
+    let (dest_id, dest_rel): (Option<String>, String) = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let folder = match &folder_id {
-            Some(fid) => db::fetch_folder(&conn, fid).map_err(|e| e.to_string())?,
-            None => {
-                let id = db::ensure_uncategorized(&conn).map_err(|e| e.to_string())?;
-                db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?
+        match &folder_id {
+            Some(fid) if fid != db::UNCATEGORIZED_ID => {
+                let f = db::fetch_folder(&conn, fid).map_err(|e| e.to_string())?;
+                (Some(f.id), f.rel_path)
             }
-        };
-        (folder.id, folder.rel_path)
+            _ => (None, String::new()),
+        }
     };
     fs::create_dir_all(mdir.join(&dest_rel)).map_err(|e| e.to_string())?;
 
@@ -673,14 +685,14 @@ pub(crate) fn run_import(
     // Pre-create every needed destination sub-folder once (DB rows + on-disk
     // dirs), caching the leaf folder id + directory per sub-path so the copy
     // loop below needs no DB lock for placement.
-    let mut folder_cache: std::collections::HashMap<Vec<String>, (String, PathBuf)> =
+    let mut folder_cache: std::collections::HashMap<Vec<String>, (Option<String>, PathBuf)> =
         std::collections::HashMap::new();
     let mut folders_created = false;
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         for d in &candidates {
             if folder_cache.contains_key(&d.sub) { continue; }
-            let resolved = ensure_subfolder(&conn, &mdir, &dest_id, &dest_rel, &d.sub, &mut folders_created)?;
+            let resolved = ensure_subfolder(&conn, &mdir, dest_id.as_deref(), &dest_rel, &d.sub, &mut folders_created)?;
             folder_cache.insert(d.sub.clone(), resolved);
         }
     }
@@ -771,7 +783,7 @@ pub(crate) fn run_import(
             drop(conn);
             if compatible { item.collection_id = Some(gid.clone()); }
         }
-        item.folder_id = Some(leaf_id.clone());
+        item.folder_id = leaf_id.clone();
         chunk.push(item);
 
         if chunk.len() >= CHUNK {
@@ -872,7 +884,7 @@ fn collect_workspace_root(root: &Path, out: &mut Vec<Discovered>) {
 /// `rel_path` directly (no prefix), matching its real on-disk location, and
 /// no directories are created since adoption never touches the filesystem.
 /// An empty `sub` (a file sitting loose at the root) intentionally resolves
-/// to no folder at all rather than an "Uncategorized" bucket — the folder
+/// to no folder at all rather than an "Other" bucket — the folder
 /// tree here should mirror the user's existing layout exactly, not impose
 /// one.
 fn ensure_subfolder_from_root(
@@ -901,39 +913,159 @@ fn ensure_subfolder_from_root(
     Ok((parent_id, mdir.join(&rel)))
 }
 
-/// Adopt every not-yet-tracked file under an external workspace's root into
-/// the DB, in place. Safe to call repeatedly (on every launch, or from a
-/// manual "Rescan" action): already-tracked paths are skipped via the same
-/// `source_path_exists` check `run_import` uses, so this only ever picks up
-/// files that are new since the last scan. It does not detect files that
-/// were removed or modified since the last scan — that reconciliation is a
-/// live filesystem watcher, not yet implemented (see workspace plan).
-pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
-    use std::time::Instant;
+/// File metadata (size + mtime) picked up in the same walk as discovery, so
+/// reconciliation never has to `stat` a path twice.
+struct DiscoveredMeta {
+    d: Discovered,
+    size: u64,
+    mtime: i64,
+}
+
+fn unix_mtime(meta: &std::fs::Metadata) -> i64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Like `collect_workspace_root`, but also stats each file so the caller has
+/// size+mtime without a second directory pass.
+fn collect_workspace_root_with_meta(root: &Path, out: &mut Vec<DiscoveredMeta>) {
+    let mut plain: Vec<Discovered> = Vec::new();
+    collect_workspace_root(root, &mut plain);
+    for d in plain {
+        let Ok(meta) = fs::metadata(&d.src) else { continue };
+        out.push(DiscoveredMeta { size: meta.len(), mtime: unix_mtime(&meta), d });
+    }
+}
+
+/// Result summary emitted to the frontend once a reconciliation pass finishes.
+#[derive(Clone, Serialize)]
+pub struct ReconcileResult {
+    pub added: usize,
+    pub removed: usize,
+    pub modified: usize,
+    pub skipped_type: usize,
+}
+
+/// Bring the DB in sync with what's actually on disk for an external
+/// workspace's root: adopt new files, hard-delete rows whose file is gone,
+/// and invalidate derived data (thumbnail/dims/embedding/OCR) for files
+/// whose size or mtime changed underneath Vivid. Runs as one directory walk
+/// + one DB query + an in-memory diff, so it stays fast even at 10k+ files —
+/// the actual DB writes (insert/delete/mark-modified) are the only blocking
+/// part; thumbnail and embedding regeneration for what changed happens in
+/// the background afterward, same as a regular import.
+///
+/// Meant to be called synchronously (not spawned) from `initialize_workspace`
+/// and after `add_workspace` — the frontend awaits it and shows a spinner
+/// until it resolves, deliberately not navigating into the library on a
+/// folder that might already be stale.
+pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileResult, String> {
+    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External {
+        return Ok(ReconcileResult { added: 0, removed: 0, modified: 0, skipped_type: 0 });
+    }
 
     let mdir = media_dir(app)?;
     let state = app.state::<DbState>();
 
-    let mut discovered: Vec<Discovered> = Vec::new();
-    collect_workspace_root(&mdir, &mut discovered);
+    let mut disk: Vec<DiscoveredMeta> = Vec::new();
+    collect_workspace_root_with_meta(&mdir, &mut disk);
 
-    let (mut candidates, skipped_type, skipped_dupe): (Vec<Discovered>, usize, usize) = {
+    // id -> (file_path, file_size, mtime, thumb_path), keyed by file_path for
+    // O(1) lookup against what's on disk. `seen` tracks which DB rows still
+    // have a matching file; whatever's left afterward is gone from disk.
+    let by_path: std::collections::HashMap<String, (String, i64, Option<i64>, Option<String>)> = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let mut st = 0usize;
-        let mut sd = 0usize;
-        let kept: Vec<Discovered> = discovered.into_iter().filter(|d| {
-            let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if extension_to_media_type(ext).is_none() { st += 1; return false; }
-            if db::source_path_exists(&conn, &d.src.to_string_lossy()).unwrap_or(true) { sd += 1; return false; }
-            true
-        }).collect();
-        (kept, st, sd)
+        db::get_reconcile_snapshot(&conn)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|(id, path, size, mtime, thumb)| (path, (id, size, mtime, thumb)))
+            .collect()
     };
+    let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    let mut new_candidates: Vec<Discovered> = Vec::new();
+    let mut skipped_type = 0usize;
+    let mut modified = 0usize;
+
+    {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        for dm in disk {
+            let path_str = dm.d.src.to_string_lossy().to_string();
+            match by_path.get(&path_str) {
+                Some((id, db_size, db_mtime, _thumb)) => {
+                    seen_paths.insert(path_str);
+                    match db_mtime {
+                        // Rows written before the mtime column existed: bootstrap
+                        // the baseline silently (no reprocess storm on upgrade),
+                        // unless the size already disagrees — that's a real change.
+                        None => {
+                            if *db_size != dm.size as i64 {
+                                if db::mark_modified(&conn, id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                            } else {
+                                let _ = db::set_mtime(&conn, id, dm.mtime);
+                            }
+                        }
+                        Some(m) if *m != dm.mtime || *db_size != dm.size as i64 => {
+                            if db::mark_modified(&conn, id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                        }
+                        Some(_) => {}
+                    }
+                }
+                None => {
+                    let ext = dm.d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if extension_to_media_type(ext).is_none() {
+                        skipped_type += 1;
+                    } else {
+                        new_candidates.push(dm.d);
+                    }
+                }
+            }
+        }
+    }
+
+    // Anything still untouched in the snapshot has no file on disk anymore.
+    let missing_ids: Vec<String> = by_path
+        .into_iter()
+        .filter(|(path, _)| !seen_paths.contains(path))
+        .map(|(_, (id, ..))| id)
+        .collect();
+    let removed = missing_ids.len();
+    if !missing_ids.is_empty() {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        db::remove_missing(&conn, &missing_ids).map_err(|e| e.to_string())?;
+    }
+
+    let added = adopt_files(app, &state, &mdir, new_candidates)?;
+
+    tracing::info!(added, removed, modified, skipped_type, "Workspace reconciliation complete");
+    if added > 0 || modified > 0 {
+        trigger_embed_if_ready(app);
+        let _ = generate_thumbnails_all(app.clone());
+        let _ = ocr::run_ocr_all(app.clone());
+    }
+    if removed > 0 || modified > 0 {
+        let _ = app.emit("media-changed", ());
+    }
+    Ok(ReconcileResult { added, removed, modified, skipped_type })
+}
+
+/// Adopt a batch of newly-discovered files in place (index where they already
+/// sit, no copy). Shared by reconciliation (bulk, on launch/add) and the live
+/// watcher (usually one file at a time).
+fn adopt_files(
+    app: &tauri::AppHandle,
+    state: &tauri::State<DbState>,
+    mdir: &Path,
+    mut candidates: Vec<Discovered>,
+) -> Result<usize, String> {
+    use std::time::Instant;
 
     let total = candidates.len();
     if total == 0 {
-        let _ = app.emit("import-done", ImportDone { imported: 0, skipped_type, skipped_dupe, failed: 0 });
-        return Ok(());
+        return Ok(0);
     }
 
     let mut folder_cache: std::collections::HashMap<Vec<String>, (Option<String>, PathBuf)> =
@@ -943,7 +1075,7 @@ pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         for d in &candidates {
             if folder_cache.contains_key(&d.sub) { continue; }
-            let resolved = ensure_subfolder_from_root(&conn, &mdir, &d.sub, &mut folders_created)?;
+            let resolved = ensure_subfolder_from_root(&conn, mdir, &d.sub, &mut folders_created)?;
             folder_cache.insert(d.sub.clone(), resolved);
         }
     }
@@ -953,7 +1085,10 @@ pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
 
     const CHUNK: usize = 24;
     let mut imported = 0usize;
-    let mut chunk: Vec<MediaItem> = Vec::with_capacity(CHUNK);
+    // (item, mtime) — mtime tracked alongside rather than added to
+    // `MediaItem` itself, since it's a reconciliation-internal detail every
+    // other import path has no real value for.
+    let mut chunk: Vec<(MediaItem, i64)> = Vec::with_capacity(CHUNK);
     let mut last_progress = Instant::now();
 
     for (i, d) in candidates.drain(..).enumerate() {
@@ -969,10 +1104,11 @@ pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
         let mut item = match build_item(&d.src, Some(source_str)) {
             Ok(it) => it,
             Err(e) => {
-                tracing::warn!(path = ?d.src, error = %e, "workspace scan: build_item failed, skipping");
+                tracing::warn!(path = ?d.src, error = %e, "workspace adopt: build_item failed, skipping");
                 continue;
             }
         };
+        let mtime = fs::metadata(&d.src).map(|m| unix_mtime(&m)).unwrap_or(0);
         if item.media_type == "image" {
             if let Ok((lat, lng)) = extract_gps_coords(&d.src) { item.gps_lat = lat; item.gps_lng = lng; }
             if let Ok(meta) = get_media_metadata(d.src.to_string_lossy().to_string()) {
@@ -993,37 +1129,58 @@ pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
             }
         }
         item.folder_id = leaf_id.clone();
-        chunk.push(item);
+        chunk.push((item, mtime));
 
         if chunk.len() >= CHUNK {
-            imported += flush_chunk(&state, app, &mut chunk)?;
+            imported += flush_adopted_chunk(state, app, &mut chunk)?;
         }
     }
-    imported += flush_chunk(&state, app, &mut chunk)?;
-
-    tracing::info!(imported, skipped_type, skipped_dupe, "Workspace scan complete");
-    if imported > 0 {
-        trigger_embed_if_ready(app);
-        let _ = generate_thumbnails_all(app.clone());
-        let _ = ocr::run_ocr_all(app.clone());
-    }
-    let _ = app.emit("import-done", ImportDone { imported, skipped_type, skipped_dupe, failed: 0 });
-    Ok(())
+    imported += flush_adopted_chunk(state, app, &mut chunk)?;
+    let _ = app.emit("import-done", ImportDone { imported, skipped_type: 0, skipped_dupe: 0, failed: 0 });
+    Ok(imported)
 }
 
-/// Adopt any new files in the active workspace's root (external workspaces
-/// only — a Default workspace's media dir is entirely Vivid-managed, so
-/// there's never anything to adopt there). Runs off the IPC thread and
-/// reports through the same `import-progress`/`import-batch`/`import-done`
-/// events as a regular import, so the frontend needs no separate UI for it.
-/// Safe to call on every launch and from an explicit "Rescan Folder" action.
+/// Like `flush_chunk`, but also stamps `mtime` on each inserted row (regular
+/// imports have no on-disk file to read a real mtime from, so that column
+/// stays workspace-adoption-specific rather than going through `db::insert`
+/// for every import path).
+fn flush_adopted_chunk(
+    state: &DbState,
+    app: &tauri::AppHandle,
+    chunk: &mut Vec<(MediaItem, i64)>,
+) -> Result<usize, String> {
+    if chunk.is_empty() { return Ok(0); }
+    let batch = std::mem::take(chunk);
+    let mut inserted: Vec<MediaItem> = Vec::with_capacity(batch.len());
+    {
+        let mut conn = state.0.lock().map_err(|e| e.to_string())?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        for (item, mtime) in batch {
+            if db::insert(&tx, &item).is_ok() {
+                let _ = db::set_mtime(&tx, &item.id, mtime);
+                inserted.push(item);
+            }
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+    }
+    let n = inserted.len();
+    if n > 0 {
+        let _ = app.emit("import-batch", ImportBatch { items: inserted });
+    }
+    Ok(n)
+}
+
+/// Adopt any new files in the active workspace's root, without also
+/// reconciling removals/modifications — kept as a lightweight manual
+/// "Rescan Folder" action. Full sync (added + removed + modified) is
+/// `reconcile_workspace`, run automatically on open.
 #[tauri::command]
 pub fn scan_workspace(app: tauri::AppHandle) -> Result<(), String> {
     if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External {
         return Ok(());
     }
     std::thread::spawn(move || {
-        if let Err(e) = run_workspace_scan(&app) {
+        if let Err(e) = reconcile_workspace(&app) {
             tracing::error!(error = %e, "workspace scan failed");
         }
     });
@@ -1131,7 +1288,7 @@ mod workspace_scan_tests {
         assert!(created);
         let folder_id = folder_id.unwrap();
         let folder = db::fetch_folder(&conn, &folder_id).unwrap();
-        // No "Uncategorized" prefix — rel_path mirrors the real on-disk
+        // No "Other" prefix — rel_path mirrors the real on-disk
         // location exactly, since adoption never moves anything.
         assert_eq!(folder.rel_path, "Trip/Beach");
         assert_eq!(folder.name, "Beach");
@@ -1428,7 +1585,7 @@ pub fn capture_screenshot(
 /// Save a still frame grabbed from the video player as a new library image.
 /// The frontend draws the current frame onto a canvas and hands over the JPEG
 /// as a data URL; this just decodes it and drops it straight into the library
-/// (Uncategorized, like the screenshot path above) — no import dialog.
+/// (Other, like the screenshot path above) — no import dialog.
 #[tauri::command]
 pub fn save_video_frame(
     app: tauri::AppHandle,

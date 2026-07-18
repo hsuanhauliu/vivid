@@ -1,4 +1,5 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { thumbSrcOf } from './path';
 
 /**
  * Resolve a collection's cover item from the library.
@@ -38,9 +39,9 @@ export function resolveCoverItem(group, items, { allowAny = false } = {}) {
  */
 export function coverSrc(item) {
   if (!item) return null;
-  const path =
-    item.media_type === 'image'
-      ? item.thumb_path || item.file_path
-      : item.audio_cover || item.thumb_path;
-  return path ? convertFileSrc(path) : null;
+  if (item.media_type === 'image') {
+    return item.thumb_path ? thumbSrcOf(item.thumb_path) : convertFileSrc(item.file_path);
+  }
+  const cover = item.audio_cover || item.thumb_path;
+  return cover ? thumbSrcOf(cover) : null;
 }

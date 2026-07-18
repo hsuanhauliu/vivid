@@ -84,8 +84,18 @@ export default function FileViewer({
   const prev = idx > 0 ? items[idx - 1] : null;
   const next = idx < items.length - 1 ? items[idx + 1] : null;
   const displaySrc = useDisplayableSrc(item.file_path);
-  // overrideSrc is a blob URL set after an in-place edit — bypasses WKWebView cache entirely
-  const imgSrc = overrideSrc || (displaySrc ? `${displaySrc}?v=${cacheKey}` : null);
+  // overrideSrc is a blob URL set after an in-place edit — bypasses WKWebView cache entirely.
+  // The `?v=` cache-buster only makes sense for a real asset:// URL — appending
+  // a query string to a `data:` URL (HEIC's in-memory-converted src) corrupts
+  // it, since everything after `?` becomes part of the base64 payload the
+  // decoder then fails on.
+  const imgSrc =
+    overrideSrc ||
+    (displaySrc
+      ? displaySrc.startsWith('data:')
+        ? displaySrc
+        : `${displaySrc}?v=${cacheKey}`
+      : null);
 
   useEffect(() => {
     setScale(1);

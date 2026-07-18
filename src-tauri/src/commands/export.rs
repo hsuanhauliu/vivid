@@ -322,29 +322,36 @@ pub fn export_files_as_zip(
 
 // ── HEIC / displayable path ───────────────────────────────────────────────────
 
-/// Return a displayable path. HEIC/HEIF files are converted to a cached JPEG in /tmp.
+/// Return a displayable path or, for HEIC/HEIF (which the webview can't
+/// render directly), a `data:image/jpeg;base64,...` URL converted entirely
+/// in memory. Deliberately never writes a converted copy to disk anywhere —
+/// not even to system temp — both because a stray full-resolution JPEG
+/// duplicate of every HEIC ever viewed is exactly the kind of derived file
+/// Vivid shouldn't be creating, and because a file under `/tmp` was never
+/// covered by the webview's asset-protocol scope in the first place (that's
+/// why this was silently failing to display full-size, even though the
+/// small pre-generated thumbnail — a different code path — showed up fine).
 #[tauri::command]
 pub fn get_displayable_path(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
 
-    if ext == "heic" || ext == "heif" {
-        use sha2::{Digest, Sha256};
-        let hash = hex::encode(Sha256::digest(file_path.as_bytes()));
-        let out_path = format!("/tmp/vivid_heic_{}.jpg", &hash[..16]);
-        if !Path::new(&out_path).exists() {
-            let status = std::process::Command::new("sips")
-                .args(["-s", "format", "jpeg", "--out", &out_path, &file_path])
-                .status()
-                .map_err(|e| format!("sips not available: {e}"))?;
-            if !status.success() {
-                return Err("sips conversion failed".into());
-            }
-        }
-        Ok(out_path)
-    } else {
-        Ok(file_path)
+    if ext != "heic" && ext != "heif" {
+        return Ok(file_path);
     }
+
+    use crate::clip::heif_to_jpeg_if_needed;
+    use base64::Engine;
+
+    let converted = heif_to_jpeg_if_needed(path).map_err(|e| e.to_string())?;
+    let jpeg_path = converted.as_deref().unwrap_or(path);
+    let bytes = fs::read(jpeg_path).map_err(|e| e.to_string())?;
+    if let Some(tmp) = &converted {
+        let _ = fs::remove_file(tmp);
+    }
+
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/jpeg;base64,{b64}"))
 }
 
 // ── Video playback fallback ────────────────────────────────────────────────────

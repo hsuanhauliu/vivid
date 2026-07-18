@@ -4,6 +4,7 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'lucide-react';
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { thumbSrcOf } from '../../utils/path';
 import { formatDuration } from '../../utils/format';
 import { groupByMonth } from '../../utils/timeline';
 import ScrollArea from '../common/ScrollArea';
@@ -58,7 +59,7 @@ const MasonryItem = memo(function MasonryItem({
   const imgSrc = useMemo(
     () =>
       freshThumbSrc ||
-      (item.media_type === 'image' && item.thumb_path ? convertFileSrc(item.thumb_path) : src),
+      (item.media_type === 'image' && item.thumb_path ? thumbSrcOf(item.thumb_path) : src),
     [freshThumbSrc, item.media_type, item.thumb_path, src],
   );
   const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
@@ -138,7 +139,7 @@ const MasonryItem = memo(function MasonryItem({
       {item.media_type === 'video' ? (
         <VideoThumb
           src={src}
-          poster={item.thumb_path ? convertFileSrc(item.thumb_path) : null}
+          poster={item.thumb_path ? thumbSrcOf(item.thumb_path) : null}
           alt=""
           imgClassName="masonry-img"
           onRatio={handleRatio}
@@ -170,7 +171,7 @@ const MasonryItem = memo(function MasonryItem({
         <>
           {item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt=""
               className="masonry-img"
               loading="lazy"
@@ -207,7 +208,7 @@ const MasonryItem = memo(function MasonryItem({
 function ListRowCover({ item }) {
   const cachedCover = item.audio_cover || item.thumb_path;
   if (cachedCover) {
-    return <img src={convertFileSrc(cachedCover)} alt="" loading="lazy" draggable={false} />;
+    return <img src={thumbSrcOf(cachedCover)} alt="" loading="lazy" draggable={false} />;
   }
   if (item.media_type === 'image') {
     return <ListRowFallbackCover item={item} />;
@@ -474,7 +475,7 @@ function QuickLookPopup({ item, rect, onClose }) {
         {item.media_type === 'audio' &&
           (item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt={item.display_name}
               className="ql-img"
             />

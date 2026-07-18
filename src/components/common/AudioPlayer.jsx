@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { thumbSrcOf } from '../../utils/path';
 import {
   Play,
   Pause,
@@ -243,7 +244,7 @@ export default function AudioPlayer({
         <div className="ap-icon">
           {item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt=""
               className="ap-cover-art"
             />

@@ -1,4 +1,4 @@
-use crate::{db, DbState};
+use crate::{db, workspace::WorkspaceKind, DbState};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,19 +32,29 @@ pub struct ThumbStatus {
     pub total: i64,
 }
 
-/// Thumbnail cache of the active workspace — inside `.vivid/thumbs` for an
-/// external workspace, so the cache travels with the folder instead of being
-/// stranded in this machine's app-data dir.
-fn thumbs_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app.state::<crate::workspace::WorkspaceState>().paths.thumbs_dir.clone();
+/// Where (if anywhere) generated thumbnails get written for the active
+/// workspace. `Default`'s thumbnail cache lives under `<app_data>/thumbs`,
+/// same as always. An External workspace's thumbnails are *never* written
+/// anywhere — Vivid doesn't create derived files (thumbnails, format
+/// conversions, or any other copy) near a user-managed folder, so
+/// `write_thumb` instead encodes straight to a `data:` URL that gets cached
+/// as text in `media_items.thumb_path` (see `db::set_thumb_dims`) — still
+/// persisted across restarts, just inside the DB rather than as loose files.
+fn thumb_output_dir(app: &tauri::AppHandle) -> Result<Option<PathBuf>, String> {
+    let ws = app.state::<crate::workspace::WorkspaceState>();
+    if ws.workspace.kind == WorkspaceKind::External {
+        return Ok(None);
+    }
+    let dir = ws.paths.thumbs_dir.clone();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    Ok(Some(dir))
 }
 
-/// Decode `src`, downscale to fit THUMB_MAX, and write a JPEG into `dir/<id>.jpg`.
-/// Returns the thumbnail path along with the source image's (EXIF-corrected)
-/// pixel dimensions. HEIC/HEIF is converted to JPEG via sips first.
-fn generate_thumbnail(src: &Path, id: &str, dir: &Path) -> Result<(PathBuf, u32, u32), String> {
+/// Decode `src`, downscale to fit THUMB_MAX, and hand off to `write_thumb`.
+/// Returns the thumbnail location (a file path, or a `data:` URL when `dir`
+/// is `None`) along with the source image's (EXIF-corrected) pixel
+/// dimensions. HEIC/HEIF is converted to JPEG via sips first.
+fn generate_thumbnail(src: &Path, id: &str, dir: Option<&Path>) -> Result<(String, u32, u32), String> {
     use crate::clip::{apply_exif_orientation, exif_orientation, heif_to_jpeg_if_needed, sips_to_jpeg};
 
     let converted = heif_to_jpeg_if_needed(src).map_err(|e| e.to_string())?;
@@ -85,16 +95,17 @@ fn generate_thumbnail(src: &Path, id: &str, dir: &Path) -> Result<(PathBuf, u32,
     result
 }
 
-/// Downscale `img` to fit THUMB_MAX and write it as a JPEG to `dir/<id>.jpg`.
-/// Returns the thumbnail path along with the source's pixel dimensions
-/// (captured before downscaling, so they stay display-accurate).
-fn write_thumb(img: &image::DynamicImage, id: &str, dir: &Path) -> Result<(PathBuf, u32, u32), String> {
+/// Downscale `img` to fit THUMB_MAX and JPEG-encode it. With `dir: Some(_)`,
+/// writes `dir/<id>.jpg` and returns that path; with `dir: None`, returns
+/// the encoded bytes as a base64 `data:image/jpeg;base64,...` URL instead —
+/// nothing touches disk. Either way the source's pixel dimensions (captured
+/// before downscaling, so they stay display-accurate) come back alongside.
+fn write_thumb(img: &image::DynamicImage, id: &str, dir: Option<&Path>) -> Result<(String, u32, u32), String> {
     let (orig_w, orig_h) = (img.width(), img.height());
 
     // `thumbnail` is a fast box filter — ideal for downscaling previews.
     let thumb = img.thumbnail(THUMB_MAX, THUMB_MAX);
 
-    let out = dir.join(format!("{id}.jpg"));
     // Composite alpha onto white before JPEG encoding; to_rgb8() alone maps
     // transparent pixels to black which produces ugly artifacts on PNG/WebP.
     let rgb = if thumb.color().has_alpha() {
@@ -112,27 +123,37 @@ fn write_thumb(img: &image::DynamicImage, id: &str, dir: &Path) -> Result<(PathB
     } else {
         thumb.to_rgb8()
     };
-    let file = std::fs::File::create(&out).map_err(|e| e.to_string())?;
-    let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(
-        std::io::BufWriter::new(file),
-        THUMB_QUALITY,
-    );
+
+    let mut bytes: Vec<u8> = Vec::new();
+    let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, THUMB_QUALITY);
     enc.encode(rgb.as_raw(), rgb.width(), rgb.height(), image::ExtendedColorType::Rgb8)
         .map_err(|e| e.to_string())?;
-    Ok((out, orig_w, orig_h))
+
+    match dir {
+        Some(dir) => {
+            let out = dir.join(format!("{id}.jpg"));
+            std::fs::write(&out, &bytes).map_err(|e| e.to_string())?;
+            Ok((out.to_string_lossy().to_string(), orig_w, orig_h))
+        }
+        None => {
+            use base64::Engine;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            Ok((format!("data:image/jpeg;base64,{b64}"), orig_w, orig_h))
+        }
+    }
 }
 
 /// Extract a poster frame from a video (via the Swift/AVFoundation helper —
-/// no ffmpeg) and write it as a thumbnail JPEG into `dir/<id>.jpg`. Returns the
-/// thumbnail path and the video's display dimensions. The single extracted
-/// frame serves as both the poster and the dimension source, so videos never
-/// need to be decoded in the webview.
+/// no ffmpeg) and hand it to `write_thumb`. Returns the thumbnail location
+/// and the video's display dimensions. The single extracted frame serves as
+/// both the poster and the dimension source, so videos never need to be
+/// decoded in the webview.
 fn generate_video_thumb(
     app: &tauri::AppHandle,
     src: &Path,
     id: &str,
-    dir: &Path,
-) -> Result<(PathBuf, u32, u32), String> {
+    dir: Option<&Path>,
+) -> Result<(String, u32, u32), String> {
     let frame = crate::clip::extract_video_frame(app, src).map_err(|e| e.to_string())?;
     let decoded = image::ImageReader::open(&frame)
         .map_err(|e| e.to_string())
@@ -143,15 +164,15 @@ fn generate_video_thumb(
     result
 }
 
-/// Extract embedded cover art from an audio file and write it as a thumbnail
-/// JPEG into `dir/<id>.jpg`. Returns `Ok(None)` when the file has no artwork so
-/// the caller can skip it without treating it as a failure.
+/// Extract embedded cover art from an audio file and hand it to
+/// `write_thumb`. Returns `Ok(None)` when the file has no artwork so the
+/// caller can skip it without treating it as a failure.
 fn generate_audio_thumb(
     app: &tauri::AppHandle,
     src: &Path,
     id: &str,
-    dir: &Path,
-) -> Result<Option<(PathBuf, u32, u32)>, String> {
+    dir: Option<&Path>,
+) -> Result<Option<(String, u32, u32)>, String> {
     let cover = match crate::clip::extract_audio_cover(app, src).map_err(|e| e.to_string())? {
         Some(p) => p,
         None => return Ok(None),
@@ -171,9 +192,9 @@ fn make_thumb(
     app: &tauri::AppHandle,
     src: &Path,
     id: &str,
-    dir: &Path,
+    dir: Option<&Path>,
     media_type: &str,
-) -> Result<Option<(PathBuf, u32, u32)>, String> {
+) -> Result<Option<(String, u32, u32)>, String> {
     match media_type {
         "video" => generate_video_thumb(app, src, id, dir).map(Some),
         "audio" => generate_audio_thumb(app, src, id, dir),
@@ -191,9 +212,8 @@ pub fn regenerate_single_thumbnail(
     app: tauri::AppHandle,
     state: State<DbState>,
 ) -> Result<String, String> {
-    let dir = thumbs_dir(&app)?;
-    let (thumb_path, w, h) = generate_thumbnail(Path::new(&file_path), &id, &dir)?;
-    let thumb_str = thumb_path.to_string_lossy().to_string();
+    let dir = thumb_output_dir(&app)?;
+    let (thumb_str, w, h) = generate_thumbnail(Path::new(&file_path), &id, dir.as_deref())?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::set_thumb_dims(&conn, &id, &thumb_str, w, h).map_err(|e| e.to_string())?;
     Ok(thumb_str)
@@ -210,7 +230,7 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
     std::thread::spawn(move || {
         let _guard = ScanGuard;
         let db = app.state::<DbState>();
-        let dir = match thumbs_dir(&app) {
+        let dir = match thumb_output_dir(&app) {
             Ok(d) => d,
             Err(e) => { tracing::error!(error = %e, "thumbs dir"); return; }
         };
@@ -227,9 +247,8 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
 
         for (i, (id, path, media_type)) in items.iter().enumerate() {
             if Path::new(path).exists() {
-                match make_thumb(&app, Path::new(path), id, &dir, media_type) {
-                    Ok(Some((thumb, w, h))) => {
-                        let thumb_str = thumb.to_string_lossy().to_string();
+                match make_thumb(&app, Path::new(path), id, dir.as_deref(), media_type) {
+                    Ok(Some((thumb_str, w, h))) => {
                         let conn = db.0.lock().unwrap();
                         let _ = db::set_thumb_dims(&conn, id, &thumb_str, w, h);
                     }
@@ -259,11 +278,10 @@ pub fn get_thumb_status(state: State<DbState>) -> Result<ThumbStatus, String> {
 pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, media_type: String) {
     let app = app.clone();
     std::thread::spawn(move || {
-        let dir = match thumbs_dir(&app) { Ok(d) => d, Err(_) => return };
+        let dir = match thumb_output_dir(&app) { Ok(d) => d, Err(_) => return };
         if !Path::new(&path).exists() { return; }
-        match make_thumb(&app, Path::new(&path), &id, &dir, &media_type) {
-            Ok(Some((thumb, w, h))) => {
-                let thumb_path = thumb.to_string_lossy().to_string();
+        match make_thumb(&app, Path::new(&path), &id, dir.as_deref(), &media_type) {
+            Ok(Some((thumb_path, w, h))) => {
                 {
                     let db = app.state::<DbState>();
                     let conn = db.0.lock().unwrap();

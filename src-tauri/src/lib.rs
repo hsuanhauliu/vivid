@@ -39,7 +39,7 @@ fn initialize_workspace(
     use tauri::Manager;
 
     let paths = workspace::WorkspacePaths::resolve(&workspace, data_dir);
-    paths.ensure_dirs().map_err(|e| e.to_string())?;
+    paths.ensure_dirs(workspace.kind).map_err(|e| e.to_string())?;
     tracing::info!(
         workspace = %workspace.name,
         kind = ?workspace.kind,
@@ -69,23 +69,9 @@ fn initialize_workspace(
          PRAGMA temp_store=MEMORY;
          PRAGMA mmap_size=1073741824;",
     ).map_err(|e| e.to_string())?;
-    // Seed the default "Uncategorized" folder DB row for every workspace
-    // (import needs a fallback destination folder to point at). Only
-    // pre-create its on-disk directory for the Default workspace though —
-    // for an External workspace we don't want to clutter the user's own
-    // folder with an empty "Uncategorized" subfolder the moment they switch
-    // to it; `run_import` creates it lazily if it's ever actually used as an
-    // import destination.
-    match db::ensure_uncategorized(&conn) {
-        Ok(_) if workspace.kind == workspace::WorkspaceKind::Default => {
-            if let Err(e) = std::fs::create_dir_all(paths.media_dir.join(db::UNCATEGORIZED)) {
-                tracing::warn!(error = %e, "create Uncategorized dir");
-            }
-        }
-        Ok(_) => {}
-        Err(e) => tracing::warn!(error = %e, "ensure Uncategorized folder"),
-    }
-
+    // Other is purely virtual (see `db::UNCATEGORIZED_ID`) — no row,
+    // no on-disk directory, nothing to seed here. A file with no folder_id
+    // simply lives at `paths.media_dir` itself.
     tracing::info!(path = %paths.db_path.display(), "Database opened");
     app.manage(DbState(Mutex::new(conn)));
     let kind = workspace.kind;
@@ -96,17 +82,27 @@ fn initialize_workspace(
         multilingual: None, multilingual_loading: false,
     }))));
 
-    // An external workspace's files were never copied in by Vivid, so
-    // there's nothing to browse until they're adopted into the DB. Safe to
-    // run on every launch — already-tracked files are skipped, so this only
-    // ever picks up what's new since the last run. (Not a substitute for a
-    // live watcher: removals/edits made while Vivid isn't running aren't
-    // detected, only new files.)
+    // An external workspace's folder can have changed while Vivid wasn't
+    // running (files added/removed/edited outside the app, or the folder
+    // moved/unmounted and come back). Reconcile before anything else touches
+    // the DB: adopt new files, drop rows for files that are genuinely gone,
+    // and invalidate derived data for files that changed on disk. Runs
+    // synchronously (one directory walk + one query + an in-memory diff, so
+    // it stays fast even at 10k+ files) — the caller (either `.setup()` or
+    // the `open_workspace` command) is what the frontend is waiting on, so
+    // this is exactly the "show a spinner until it resolves" window the UI
+    // needs before it's safe to browse the library.
     if kind == workspace::WorkspaceKind::External {
-        if let Err(e) = commands::scan_workspace(app.clone()) {
-            tracing::warn!(error = %e, "workspace scan on launch failed to start");
+        if let Err(e) = commands::reconcile_workspace(app) {
+            tracing::warn!(error = %e, "workspace reconciliation failed");
         }
     }
+
+    // Live filesystem watcher: keeps the DB in sync with the folder while
+    // Vivid keeps running (a one-time reconcile above only covers drift that
+    // happened while the app was closed). No-op for the Default workspace.
+    app.manage(commands::WatchState::new());
+    commands::watch_init(app);
 
     // ── Mirror backup: watcher worker + state ──────────────────────────────
     app.manage(commands::SyncState::new());
@@ -114,6 +110,55 @@ fn initialize_workspace(
 
     Ok(())
 }
+
+/// Rebuild the macOS menu bar's "Workspace" menu — a "Switch Workspace"
+/// submenu listing every registered workspace (clicking one switches
+/// directly, no confirmation) plus a "New Workspace…" entry — from the
+/// current registry, and reinstall it. Called once at startup and again
+/// after any command that mutates the registry (add/rename/remove/switch/
+/// update path), so the submenu never goes stale without a relaunch.
+/// A no-op on non-macOS, where there's no global menu bar to update.
+#[cfg(target_os = "macos")]
+pub(crate) fn rebuild_workspace_menu(app: &tauri::AppHandle) {
+    use tauri::menu::{Menu, SubmenuBuilder};
+    use tauri::Manager;
+
+    let Ok(data_dir) = app.path().app_data_dir() else { return };
+    let registry = workspace::load(&data_dir);
+    // The registry's `active_id` may point at a pending, not-yet-applied
+    // switch (see `list_workspaces`) — what's actually running right now is
+    // `WorkspaceState`, which may not even be managed yet during the
+    // deferred-loading window before the startup picker resolves.
+    let running_id = app.try_state::<workspace::WorkspaceState>().map(|s| s.workspace.id.clone());
+
+    let Ok(menu) = Menu::default(app) else { return };
+
+    let mut switch_builder = SubmenuBuilder::new(app, "Switch Workspace");
+    for w in &registry.workspaces {
+        let label = if running_id.as_deref() == Some(w.id.as_str()) {
+            format!("✓ {}", w.name)
+        } else {
+            w.name.clone()
+        };
+        switch_builder = switch_builder.text(format!("switch-workspace:{}", w.id), label);
+    }
+    let Ok(switch_submenu) = switch_builder.build() else { return };
+
+    let Ok(workspace_menu) = SubmenuBuilder::new(app, "Workspace")
+        .item(&switch_submenu)
+        .separator()
+        .text("add-workspace", "New Workspace…")
+        .build()
+    else { return };
+
+    // Position 1: right after the app-name menu, before File.
+    if menu.insert(&workspace_menu, 1).is_ok() {
+        let _ = app.set_menu(menu);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn rebuild_workspace_menu(_app: &tauri::AppHandle) {}
 
 /// Show or hide the native macOS traffic light buttons.
 /// Called from the frontend when entering/exiting video fullscreen so the
@@ -206,23 +251,13 @@ pub fn run() {
                 }
             }
 
-            // ── Menu bar: "Workspace" > "Switch Workspace…" ────────────────────
+            // ── Menu bar: "Workspace" > "Switch Workspace" > <workspaces> ──────
             // Built on top of Tauri's own default menu (App/File/Edit/View/
             // Window/Help) rather than from scratch, so nothing standard (Quit,
             // Copy/Paste, etc.) is lost. macOS-only for now — Windows/Linux use
             // a per-window menu bar instead of a global one, and the Settings >
             // Library workspace switcher already covers those platforms.
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::menu::{Menu, SubmenuBuilder};
-                let menu = Menu::default(app.handle())?;
-                let workspace_menu = SubmenuBuilder::new(app.handle(), "Workspace")
-                    .text("switch-workspace", "Switch Workspace…")
-                    .build()?;
-                // Position 1: right after the app-name menu, before File.
-                menu.insert(&workspace_menu, 1)?;
-                app.set_menu(menu)?;
-            }
+            rebuild_workspace_menu(&app.handle());
 
             tracing::info!("Vivid started");
 
@@ -241,9 +276,12 @@ pub fn run() {
             let _ = (window, event);
         })
         .on_menu_event(|app, event| {
-            if event.id() == "switch-workspace" {
-                use tauri::Emitter;
-                let _ = app.emit("menu-switch-workspace", ());
+            use tauri::Emitter;
+            let id = event.id().as_ref();
+            if let Some(target) = id.strip_prefix("switch-workspace:") {
+                let _ = app.emit("menu-switch-to-workspace", target.to_string());
+            } else if id == "add-workspace" {
+                let _ = app.emit("menu-add-workspace", ());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -351,6 +389,7 @@ pub fn run() {
             commands::open_workspace,
             commands::remove_workspace,
             commands::scan_workspace,
+            commands::update_workspace_path,
             // Window chrome
             set_native_traffic_lights_visible,
         ])

@@ -93,6 +93,25 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
       }),
     );
 
+    // A file changed on disk in an external workspace while Vivid was
+    // running (the live watcher in watch.rs), independent of anything the
+    // frontend itself invoked — these two mirror `import-batch`'s "splice
+    // into `allItems` without a full reload" shape for updates/removals
+    // instead of additions.
+    track(
+      listen('media-updated', (event) => {
+        const item = event.payload;
+        if (item?.id) setAllItems((prev) => prev.map((it) => (it.id === item.id ? item : it)));
+      }),
+    );
+
+    track(
+      listen('media-removed', (event) => {
+        const ids = new Set(event.payload?.ids ?? []);
+        if (ids.size) setAllItems((prev) => prev.filter((it) => !ids.has(it.id)));
+      }),
+    );
+
     track(
       listen('import-done', (event) => {
         const { imported, skipped_type, skipped_dupe, failed } = event.payload;

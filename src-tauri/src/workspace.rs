@@ -46,6 +46,19 @@ pub struct Workspace {
     pub name: String,
 }
 
+impl Workspace {
+    /// Does this workspace's folder currently exist? Always true for the
+    /// Default workspace (nothing external to go missing). Computed live
+    /// rather than cached, so a remounted drive or a corrected path
+    /// self-heals without a stale flag lingering anywhere.
+    pub fn path_exists(&self) -> bool {
+        match &self.path {
+            Some(p) => Path::new(p).is_dir(),
+            None => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceRegistry {
     pub workspaces: Vec<Workspace>,
@@ -145,11 +158,18 @@ impl WorkspacePaths {
         }
     }
 
-    /// Create the media, thumbnail, and data directories (and the DB file's
-    /// parent) if they don't already exist.
-    pub fn ensure_dirs(&self) -> std::io::Result<()> {
+    /// Create the media and data directories (and the DB file's parent) if
+    /// they don't already exist. The thumbnail directory is deliberately
+    /// *not* created here for an External workspace: Vivid never writes
+    /// derived files (thumbnails, format-converted previews) anywhere near
+    /// a user-managed folder — see `commands::thumbs`, which generates
+    /// External-workspace thumbnails in memory and caches them as data URLs
+    /// in the database instead of files on disk.
+    pub fn ensure_dirs(&self, kind: WorkspaceKind) -> std::io::Result<()> {
         fs::create_dir_all(&self.media_dir)?;
-        fs::create_dir_all(&self.thumbs_dir)?;
+        if kind == WorkspaceKind::Default {
+            fs::create_dir_all(&self.thumbs_dir)?;
+        }
         fs::create_dir_all(&self.data_dir)?;
         if let Some(parent) = self.db_path.parent() {
             fs::create_dir_all(parent)?;
@@ -386,7 +406,22 @@ mod tests {
     // ── ensure_dirs ───────────────────────────────────────────────────────
 
     #[test]
-    fn ensure_dirs_creates_media_and_thumbs_and_db_parent() {
+    fn ensure_dirs_creates_media_and_thumbs_and_db_parent_for_default() {
+        let dir = tempdir().unwrap();
+        let w = Workspace { id: DEFAULT_WORKSPACE_ID.into(), kind: WorkspaceKind::Default, path: None, name: "My Library".into() };
+        let paths = WorkspacePaths::resolve(&w, dir.path());
+        paths.ensure_dirs(w.kind).unwrap();
+        assert!(paths.media_dir.is_dir());
+        assert!(paths.thumbs_dir.is_dir());
+        assert!(paths.data_dir.is_dir());
+        assert!(paths.db_path.parent().unwrap().is_dir());
+    }
+
+    #[test]
+    fn ensure_dirs_never_creates_thumbs_dir_for_external() {
+        // External workspaces get their thumbnails generated in memory and
+        // cached in the database, never written to disk — so there's
+        // nothing to create here, unlike media_dir/data_dir/db_path's parent.
         let dir = tempdir().unwrap();
         let w = Workspace {
             id: "ext1".into(),
@@ -395,9 +430,9 @@ mod tests {
             name: "Photos".into(),
         };
         let paths = WorkspacePaths::resolve(&w, Path::new("/unused"));
-        paths.ensure_dirs().unwrap();
+        paths.ensure_dirs(w.kind).unwrap();
         assert!(paths.media_dir.is_dir());
-        assert!(paths.thumbs_dir.is_dir());
+        assert!(!paths.thumbs_dir.exists());
         assert!(paths.data_dir.is_dir());
         assert!(paths.db_path.parent().unwrap().is_dir());
     }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import SimpleMenu from './SimpleMenu';
 import { COLLECTION_NAME_MAX_LEN } from '../../utils/limits';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import {
   Folder,
   FolderOpen,
@@ -60,9 +61,16 @@ function MovePicker({ folders, sourceFolderId, sourceRelPath, onConfirm, onCance
 
   const candidates = useMemo(() => {
     const prefix = sourceRelPath + '/';
-    return folders
-      .filter((f) => f.id !== sourceFolderId && !f.rel_path.startsWith(prefix))
-      .sort((a, b) => a.rel_path.localeCompare(b.rel_path));
+    return (
+      folders
+        // The virtual Uncategorized bucket isn't a real nesting target — the
+        // "Root level" row above already covers moving a folder there.
+        .filter(
+          (f) =>
+            f.id !== sourceFolderId && f.id !== UNCATEGORIZED_ID && !f.rel_path.startsWith(prefix),
+        )
+        .sort((a, b) => a.rel_path.localeCompare(b.rel_path))
+    );
   }, [folders, sourceFolderId, sourceRelPath]);
 
   const filtered = query.trim()
@@ -374,7 +382,7 @@ export default function FolderTree({
 
       {ctxMenu && (
         <SimpleMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
-          {ctxMenu.folder.rel_path === 'Uncategorized' ? (
+          {ctxMenu.folder.id === UNCATEGORIZED_ID ? (
             <button className="sp-ctx-item" onClick={() => handleShowInFinder(ctxMenu.folder)}>
               <ExternalLink size={12} />
               <span>{t('panel.showInFinder', 'Show in Finder')}</span>

@@ -35,6 +35,9 @@ pub fn create_folder(
     let root = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
+    // The virtual Other bucket isn't a real folder to nest under —
+    // treat it the same as no parent (top-level).
+    let parent_id = parent_id.filter(|p| p != db::UNCATEGORIZED_ID);
     let parent_rel = match &parent_id {
         Some(pid) => db::fetch_folder(&conn, pid).map_err(|e| e.to_string())?.rel_path,
         None => String::new(),
@@ -60,10 +63,10 @@ pub fn rename_folder(
     let root_str = root.to_string_lossy().to_string();
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
-    if folder.rel_path == db::UNCATEGORIZED {
-        return Err("Cannot rename the Uncategorized folder".into());
+    if id == db::UNCATEGORIZED_ID {
+        return Err("Cannot rename the Other folder".into());
     }
+    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
     if db::folder_name_taken(&conn, folder.parent_id.as_deref(), &name, Some(&id))
         .map_err(|e| e.to_string())?
     {
@@ -93,26 +96,23 @@ pub fn delete_folder(
     let root_str = root.to_string_lossy().to_string();
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
-    if folder.rel_path == db::UNCATEGORIZED {
-        return Err("Cannot delete the Uncategorized folder".into());
+    if id == db::UNCATEGORIZED_ID {
+        return Err("Cannot delete the Other folder".into());
     }
+    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
 
-    // Files in this folder and any descendant are flattened back into
-    // Uncategorized rather than trashed — deleting a folder is an organizational
-    // act, not a request to lose media.
-    let unc_id = db::ensure_uncategorized(&conn).map_err(|e| e.to_string())?;
-    let unc_dir = root.join(db::UNCATEGORIZED);
-    fs::create_dir_all(&unc_dir).map_err(|e| e.to_string())?;
-
+    // Files in this folder and any descendant are flattened back to the
+    // library root (the virtual Other bucket) rather than trashed —
+    // deleting a folder is an organizational act, not a request to lose
+    // media. Nothing to create on disk: the root already exists.
     let items = db::items_under(&conn, &folder.rel_path, &root_str).map_err(|e| e.to_string())?;
     for item in &items {
         let src = Path::new(&item.file_path);
-        let dest = unique_path(&unc_dir, &item.file_name);
+        let dest = unique_path(&root, &item.file_name);
         if src.exists() {
             fs::rename(src, &dest).map_err(|e| e.to_string())?;
         }
-        db::set_item_folder(&conn, &item.id, &unc_id, &dest.to_string_lossy())
+        db::set_item_folder(&conn, &item.id, None, &dest.to_string_lossy())
             .map_err(|e| e.to_string())?;
     }
 
@@ -133,11 +133,14 @@ pub fn move_folder(
     let root_str = root.to_string_lossy().to_string();
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
-    if folder.rel_path == db::UNCATEGORIZED {
-        return Err("Cannot move the Uncategorized folder".into());
+    if id == db::UNCATEGORIZED_ID {
+        return Err("Cannot move the Other folder".into());
     }
+    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
 
+    // Moving *into* Other isn't a real nesting target — it collapses
+    // to root level, same as `new_parent_id: None`.
+    let new_parent_id = new_parent_id.filter(|p| p != db::UNCATEGORIZED_ID);
     let new_parent_rel = match &new_parent_id {
         Some(pid) => {
             let p = db::fetch_folder(&conn, pid).map_err(|e| e.to_string())?;
@@ -190,9 +193,13 @@ pub fn reveal_folder_in_finder(
     state: State<DbState>,
 ) -> Result<(), String> {
     let root = media_dir(&app)?;
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
-    let abs = root.join(&folder.rel_path);
+    let abs = if id == db::UNCATEGORIZED_ID {
+        root
+    } else {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let folder = db::fetch_folder(&conn, &id).map_err(|e| e.to_string())?;
+        root.join(&folder.rel_path)
+    };
     std::process::Command::new("open")
         .arg("-R")
         .arg(&abs)
@@ -211,8 +218,16 @@ pub fn move_to_folder(
     let root = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
 
-    let folder = db::fetch_folder(&conn, &folder_id).map_err(|e| e.to_string())?;
-    let dest_dir = root.join(&folder.rel_path);
+    // The virtual Other bucket has no row to fetch — its directory
+    // is the library root itself.
+    let (dest_folder_id, dest_dir): (Option<String>, std::path::PathBuf) =
+        if folder_id == db::UNCATEGORIZED_ID {
+            (None, root)
+        } else {
+            let folder = db::fetch_folder(&conn, &folder_id).map_err(|e| e.to_string())?;
+            let dir = root.join(&folder.rel_path);
+            (Some(folder.id), dir)
+        };
     fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
 
     let mut moved = Vec::with_capacity(item_ids.len());
@@ -224,7 +239,7 @@ pub fn move_to_folder(
         let src = Path::new(&item.file_path);
         // Already in the destination directory — nothing to move.
         if src.parent() == Some(dest_dir.as_path()) {
-            db::set_item_folder(&conn, id, &folder_id, &item.file_path).map_err(|e| e.to_string())?;
+            db::set_item_folder(&conn, id, dest_folder_id.as_deref(), &item.file_path).map_err(|e| e.to_string())?;
             moved.push(db::fetch_one(&conn, id).map_err(|e| e.to_string())?);
             continue;
         }
@@ -232,7 +247,7 @@ pub fn move_to_folder(
         if src.exists() {
             fs::rename(src, &dest).map_err(|e| e.to_string())?;
         }
-        db::set_item_folder(&conn, id, &folder_id, &dest.to_string_lossy())
+        db::set_item_folder(&conn, id, dest_folder_id.as_deref(), &dest.to_string_lossy())
             .map_err(|e| e.to_string())?;
         moved.push(db::fetch_one(&conn, id).map_err(|e| e.to_string())?);
     }

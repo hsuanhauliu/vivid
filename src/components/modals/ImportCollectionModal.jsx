@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, FolderOpen, BookImage, Disc, Plus, Library, Search, Check, Pencil } from 'lucide-react';
 import CollectionAvatar from '../common/CollectionAvatar';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './ImportCollectionModal.css';
 
 const KIND_ICON = { album: BookImage, playlist: Disc };
@@ -44,7 +45,7 @@ export default function ImportCollectionModal({
   const ext = origName.includes('.') ? origName.slice(origName.lastIndexOf('.')) : '';
   const origStem = ext ? origName.slice(0, -ext.length) : origName;
 
-  const uncategorized = folders?.find((f) => f.rel_path === 'Uncategorized');
+  const uncategorized = folders?.find((f) => f.id === UNCATEGORIZED_ID);
   // If dropped while already viewing a folder or collection page, default the
   // destination to that folder/collection instead of Uncategorized/None —
   // dropping a file on Album A's page should land it in Album A.
@@ -149,8 +150,8 @@ export default function ImportCollectionModal({
   const folderList = useMemo(
     () =>
       [...(folders ?? [])].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],

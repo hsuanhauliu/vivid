@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
+import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
@@ -312,7 +313,7 @@ export default function DetailPanel({
 
   const ext = item.file_name.split('.').pop()?.toUpperCase() ?? '';
   const activeCollection = collections?.find((g) => g.id === item.collection_id);
-  const itemFolder = folders?.find((f) => f.id === item.folder_id);
+  const itemFolder = folders?.find((f) => f.id === folderIdOf(item));
   const visibleAutoTags = (item.auto_tags || []).filter((tag) => !removedAutoTags.includes(tag));
 
   return (
