@@ -251,8 +251,6 @@ pub fn run() {
             commands::save_video_frame,
             commands::tool_status,
             commands::download_tool,
-            commands::download_ytdlp,
-            commands::download_ytdlp_video,
             commands::start_download_bg,
             commands::start_ytdlp_bg,
             commands::start_playlist_bg,
@@ -269,7 +267,6 @@ pub fn run() {
             commands::get_photos_library_path,
             commands::open_system_settings_privacy,
             commands::open_in_browser,
-            commands::download_ytdlp_playlist,
             // Folders (on-disk file tree)
             commands::list_folders,
             commands::create_folder,

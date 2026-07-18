@@ -45,6 +45,31 @@ const FOOTER_ITEMS_TOP = [
 ];
 const FOOTER_ITEMS_BOTTOM = [{ id: 'trash', labelKey: 'sidebar.trash', icon: Trash2 }];
 
+function SidebarItem({
+  label,
+  icon: Icon,
+  active,
+  panelActive,
+  onClick,
+  count,
+  collapsed,
+  showCounts,
+}) {
+  return (
+    <button
+      className={`sidebar-item ${active ? 'active' : panelActive ? 'panel-active' : ''}`}
+      onClick={onClick}
+      title={collapsed ? label : undefined}
+    >
+      <Icon size={15} strokeWidth={1.8} />
+      {!collapsed && <span className="sidebar-item-label">{label}</span>}
+      {!collapsed && showCounts && count != null && count > 0 && (
+        <span className="sidebar-count">{count}</span>
+      )}
+    </button>
+  );
+}
+
 export default function Sidebar({
   filter,
   onFilterChange,
@@ -117,20 +142,6 @@ export default function Sidebar({
 
   const isFooterActive = (id) => (id === 'stats' ? secondaryPanel === 'stats' : view === id);
 
-  const SidebarItem = ({ label, icon: Icon, active, panelActive, onClick, count }) => (
-    <button
-      className={`sidebar-item ${active ? 'active' : panelActive ? 'panel-active' : ''}`}
-      onClick={onClick}
-      title={collapsed ? label : undefined}
-    >
-      <Icon size={15} strokeWidth={1.8} />
-      {!collapsed && <span className="sidebar-item-label">{label}</span>}
-      {!collapsed && showCounts && count != null && count > 0 && (
-        <span className="sidebar-count">{count}</span>
-      )}
-    </button>
-  );
-
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Logo + collapse toggle */}
@@ -161,6 +172,8 @@ export default function Sidebar({
             active={isLibraryActive(id)}
             count={counts[id]}
             onClick={() => handleLibraryItem(id)}
+            collapsed={collapsed}
+            showCounts={showCounts}
           />
         ))}
       </nav>
@@ -179,6 +192,8 @@ export default function Sidebar({
             panelActive={!isPanelScoped(id) && isPanelOpen(id)}
             count={counts[id]}
             onClick={() => handlePanelItem(id)}
+            collapsed={collapsed}
+            showCounts={showCounts}
           />
         ))}
       </nav>
@@ -291,6 +306,8 @@ export default function Sidebar({
             onSecondaryPanel(null);
             if (view !== 'worldmap') onViewChange('worldmap');
           }}
+          collapsed={collapsed}
+          showCounts={showCounts}
         />
         {META_ITEMS.map(({ id, labelKey, icon }) => (
           <SidebarItem
@@ -301,6 +318,8 @@ export default function Sidebar({
             panelActive={isPanelOpen(id)}
             count={counts[id]}
             onClick={() => handlePanelItem(id)}
+            collapsed={collapsed}
+            showCounts={showCounts}
           />
         ))}
       </nav>
@@ -321,6 +340,8 @@ export default function Sidebar({
             active={id !== 'stats' && isFooterActive(id)}
             panelActive={id === 'stats' && secondaryPanel === 'stats'}
             onClick={() => handleFooterItem(id)}
+            collapsed={collapsed}
+            showCounts={showCounts}
           />
         ))}
         {/* Messages — between Settings and Trash */}
@@ -349,6 +370,8 @@ export default function Sidebar({
             icon={icon}
             active={isFooterActive(id)}
             onClick={() => handleFooterItem(id)}
+            collapsed={collapsed}
+            showCounts={showCounts}
           />
         ))}
       </nav>

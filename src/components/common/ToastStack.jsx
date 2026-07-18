@@ -14,7 +14,11 @@ function Toast({ toast, onDismiss }) {
   const Icon = TYPE_ICON[toast.type] ?? Info;
   const [hovered, setHovered] = useState(false);
   const remainingRef = useRef(toast.duration);
-  const startedAtRef = useRef(Date.now());
+  // Real value is always assigned by the mount-time run of the effect below
+  // (hovered starts false, so the `else` branch sets it) before anything
+  // ever reads it — 0 here is just a placeholder, not a real timestamp, so
+  // this avoids calling the impure `Date.now()` during render itself.
+  const startedAtRef = useRef(0);
   const timerRef = useRef(null);
 
   // Pause the auto-dismiss timer on hover, resume with whatever time was left.
