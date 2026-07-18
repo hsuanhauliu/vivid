@@ -399,6 +399,14 @@
   letter-spacing: 0.02em;
 }
 
+/* Gap between the sticky date header and the card grid below it — on the
+   container, not the cards, so it doesn't affect card spacing/sizing. */
+.timeline-section-header + .media-grid,
+.timeline-section-header + .masonry-grid,
+.timeline-section-header + .media-list {
+  padding-top: 14px;
+}
+
 /* ─── Grid drag-reorder ───────────────────────────────────── */
 
 .reorder-wrap {
