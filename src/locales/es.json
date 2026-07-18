@@ -24,7 +24,21 @@
     "toolsTitle": "Herramientas multimedia (opcional)",
     "toolsDesc": "Permite descargar contenido desde enlaces. Si ya lo tienes instalado, Vivid usará esa versión — si no, puedes obtenerlo aquí.",
     "toolsNote": "Opcional — omite este paso y descárgalo más tarde desde Configuración cuando lo necesites.",
-    "done": "Todo listo"
+    "done": "Todo listo",
+    "workspace": {
+      "title": "¿Dónde debería vivir tu biblioteca?",
+      "desc": "Puedes cambiarlo más tarde en Ajustes.",
+      "defaultTitle": "Empezar de cero",
+      "defaultDesc": "Vivid gestiona tu biblioteca por ti.",
+      "externalTitle": "Usar una carpeta existente",
+      "externalDesc": "Indícale a Vivid una carpeta que ya tengas — no se copia nada, y la carpeta se vuelve portátil a otro dispositivo.",
+      "chooseTitle": "Elige una carpeta para usar como tu biblioteca",
+      "changeFolder": "Elegir otra carpeta",
+      "pickFolderFirst": "Elige primero una carpeta.",
+      "adding": "Añadiendo…",
+      "restarting": "Reiniciando…",
+      "nameLabel": "Nombre"
+    }
   },
   "tools": {
     "ytdlpDesc": "Descarga video y audio desde enlaces",
@@ -160,7 +174,8 @@
       "semanticSearch": "Búsqueda semántica",
       "aiNaming": "Nombres y descripciones con IA",
       "about": "Vivid",
-      "pinnedCollections": "Colecciones fijadas"
+      "pinnedCollections": "Colecciones fijadas",
+      "workspace": "Espacio de trabajo"
     },
     "general": {
       "homePage": "Página de inicio",
@@ -337,6 +352,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Todos los derechos reservados.",
       "viewSource": "Ver en GitHub",
       "website": "Sitio web"
+    },
+    "workspace": {
+      "desc": "De forma predeterminada, Vivid guarda tu biblioteca en su propia carpeta de datos de la aplicación. En su lugar, puedes indicarle una carpeta existente: su propia base de datos y miniaturas vivirán dentro de esa carpeta, por lo que todo es portátil a otro dispositivo.",
+      "defaultPath": "Biblioteca predeterminada de Vivid",
+      "active": "Activo",
+      "pendingRestart": "Reiniciar para aplicar",
+      "switch": "Cambiar",
+      "remove": "Eliminar",
+      "add": "Añadir espacio de trabajo",
+      "chooseTitle": "Elige una carpeta para usar como espacio de trabajo",
+      "switchTitle": "¿Cambiar de espacio de trabajo?",
+      "switchConfirm": "Vivid necesita reiniciarse para cambiar a \"{{name}}\". Se perderán los cambios no guardados en otras vistas.",
+      "switchAndRestart": "Cambiar y reiniciar",
+      "removeTitle": "¿Eliminar espacio de trabajo?",
+      "removeConfirm": "Esto solo olvida \"{{name}}\" en Vivid — su carpeta y todo lo que contiene (incluida su base de datos) permanece intacto en el disco.",
+      "rename": "Renombrar",
+      "saveName": "Guardar nombre",
+      "devRestartNeeded": "Espacio de trabajo cambiado. Reinicia el servidor de desarrollo (no solo esta ventana) para aplicarlo: el reinicio automático no funciona en `tauri dev`."
     }
   },
   "trash": {
@@ -1232,5 +1265,11 @@
     "newName": "Nuevo nombre",
     "titleSingle": "Renombrar archivo en disco",
     "rename": "Renombrar"
+  },
+  "workspacePicker": {
+    "title": "¿Qué espacio de trabajo?",
+    "desc": "Tienes más de un espacio de trabajo configurado. Elige uno para continuar.",
+    "continue": "Continuar",
+    "restarting": "Reiniciando…"
   }
 }

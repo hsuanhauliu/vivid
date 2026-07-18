@@ -24,7 +24,21 @@
     "toolsTitle": "Ferramentas de mídia (opcional)",
     "toolsDesc": "Permite baixar a partir de links. Se você já tiver instalado, o Vivid usará sua versão — caso contrário, pode obtê-lo aqui.",
     "toolsNote": "Opcional — pule e baixe depois nas Configurações quando precisar.",
-    "done": "Tudo pronto"
+    "done": "Tudo pronto",
+    "workspace": {
+      "title": "Onde sua biblioteca deve ficar?",
+      "desc": "Você pode alterar isso depois em Configurações.",
+      "defaultTitle": "Começar do zero",
+      "defaultDesc": "O Vivid gerencia sua biblioteca para você.",
+      "externalTitle": "Usar uma pasta existente",
+      "externalDesc": "Aponte o Vivid para uma pasta que você já tem — nada é copiado, e a pasta se torna portátil para outro dispositivo.",
+      "chooseTitle": "Escolha uma pasta para usar como sua biblioteca",
+      "changeFolder": "Escolher outra pasta",
+      "pickFolderFirst": "Escolha uma pasta primeiro.",
+      "adding": "Adicionando…",
+      "restarting": "Reiniciando…",
+      "nameLabel": "Nome"
+    }
   },
   "tools": {
     "ytdlpDesc": "Baixar vídeo e áudio de links",
@@ -160,7 +174,8 @@
       "semanticSearch": "Busca semântica",
       "aiNaming": "Nomeação e descrição por IA",
       "about": "Vivid",
-      "pinnedCollections": "Coleções fixadas"
+      "pinnedCollections": "Coleções fixadas",
+      "workspace": "Espaço de trabalho"
     },
     "general": {
       "homePage": "Página inicial",
@@ -337,6 +352,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Todos os direitos reservados.",
       "viewSource": "Ver no GitHub",
       "website": "Site"
+    },
+    "workspace": {
+      "desc": "Por padrão, o Vivid armazena sua biblioteca em sua própria pasta de dados do aplicativo. Você pode, em vez disso, apontá-lo para uma pasta existente — seu próprio banco de dados e miniaturas ficarão dentro dessa pasta, tornando tudo portátil para outro dispositivo.",
+      "defaultPath": "Biblioteca padrão do Vivid",
+      "active": "Ativo",
+      "pendingRestart": "Reinicie para aplicar",
+      "switch": "Trocar",
+      "remove": "Remover",
+      "add": "Adicionar espaço de trabalho",
+      "chooseTitle": "Escolha uma pasta para usar como espaço de trabalho",
+      "switchTitle": "Trocar de espaço de trabalho?",
+      "switchConfirm": "O Vivid precisa reiniciar para trocar para \"{{name}}\". Alterações não salvas em outras telas serão perdidas.",
+      "switchAndRestart": "Trocar e reiniciar",
+      "removeTitle": "Remover espaço de trabalho?",
+      "removeConfirm": "Isso apenas esquece \"{{name}}\" no Vivid — sua pasta e tudo dentro dela (incluindo seu banco de dados) permanece intacto no disco.",
+      "rename": "Renomear",
+      "saveName": "Salvar nome",
+      "devRestartNeeded": "Espaço de trabalho trocado. Reinicie o servidor de desenvolvimento (não apenas esta janela) para aplicar — o reinício automático não funciona no `tauri dev`."
     }
   },
   "trash": {
@@ -1232,5 +1265,11 @@
     "newName": "Novo nome",
     "titleSingle": "Renomear arquivo no disco",
     "rename": "Renomear"
+  },
+  "workspacePicker": {
+    "title": "Qual espaço de trabalho?",
+    "desc": "Você tem mais de um espaço de trabalho configurado. Escolha um para continuar.",
+    "continue": "Continuar",
+    "restarting": "Reiniciando…"
   }
 }

@@ -24,7 +24,21 @@
     "toolsTitle": "Media tools (optional)",
     "toolsDesc": "Powers downloading from links. If you already have it installed, Vivid uses yours — otherwise you can grab it here.",
     "toolsNote": "Optional — skip and download later from Settings whenever you need them.",
-    "done": "You're all set"
+    "done": "You're all set",
+    "workspace": {
+      "title": "Where should your library live?",
+      "desc": "You can change this later in Settings.",
+      "defaultTitle": "Start fresh",
+      "defaultDesc": "Vivid manages your library for you.",
+      "externalTitle": "Use an existing folder",
+      "externalDesc": "Point Vivid at a folder you already have — nothing is copied, and the folder becomes portable to another device.",
+      "chooseTitle": "Choose a folder to use as your library",
+      "changeFolder": "Choose a different folder",
+      "pickFolderFirst": "Choose a folder first.",
+      "adding": "Adding…",
+      "restarting": "Restarting…",
+      "nameLabel": "Name"
+    }
   },
   "tools": {
     "ytdlpDesc": "Download video & audio from links",
@@ -160,7 +174,8 @@
       "semanticSearch": "Semantic Search",
       "aiNaming": "AI Naming & Description",
       "about": "Vivid",
-      "pinnedCollections": "Pinned Collections"
+      "pinnedCollections": "Pinned Collections",
+      "workspace": "Workspace"
     },
     "general": {
       "homePage": "Home page",
@@ -337,6 +352,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. All rights reserved.",
       "viewSource": "View on GitHub",
       "website": "Website"
+    },
+    "workspace": {
+      "desc": "Vivid stores your library in its own app data folder by default. You can instead point it at an existing folder — its own database and thumbnails will live inside that folder, so the whole thing is portable to another device.",
+      "defaultPath": "Vivid's default library",
+      "active": "Active",
+      "pendingRestart": "Restart to apply",
+      "switch": "Switch",
+      "remove": "Remove",
+      "add": "Add Workspace",
+      "chooseTitle": "Choose a folder to use as a workspace",
+      "switchTitle": "Switch workspace?",
+      "switchConfirm": "Vivid needs to restart to switch to \"{{name}}\". Any unsaved changes in other views will be lost.",
+      "switchAndRestart": "Switch & Restart",
+      "removeTitle": "Remove workspace?",
+      "removeConfirm": "This only forgets \"{{name}}\" in Vivid — its folder and everything inside it (including its database) is left untouched on disk.",
+      "rename": "Rename",
+      "saveName": "Save name",
+      "devRestartNeeded": "Workspace switched. Restart the dev server (not just this window) to apply it — automatic restart doesn’t work in `tauri dev`."
     }
   },
   "trash": {
@@ -1232,5 +1265,11 @@
     "newName": "New name",
     "titleSingle": "Rename File on Disk",
     "rename": "Rename"
+  },
+  "workspacePicker": {
+    "title": "Which workspace?",
+    "desc": "You have more than one workspace set up. Pick one to continue.",
+    "continue": "Continue",
+    "restarting": "Restarting…"
   }
 }

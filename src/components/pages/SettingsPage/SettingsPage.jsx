@@ -9,6 +9,7 @@ import { TABS } from './constants';
 import './SettingsPage.css';
 
 export default function SettingsPage({
+  initialTab = null,
   theme,
   onThemeChange,
   colorTheme,
@@ -47,7 +48,7 @@ export default function SettingsPage({
   allItems = [],
 }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState(initialTab || 'general');
 
   return (
     <div className="settings-page">

@@ -24,7 +24,21 @@
     "toolsTitle": "媒体工具（可选）",
     "toolsDesc": "用于从链接下载内容。如果系统已安装，Vivid 会直接使用；否则可以在这里获取。",
     "toolsNote": "可选——可以先跳过，需要时再从设置中下载。",
-    "done": "设置完成"
+    "done": "设置完成",
+    "workspace": {
+      "title": "资料库应该存放在哪里？",
+      "desc": "你可以稍后在设置中更改此项。",
+      "defaultTitle": "全新开始",
+      "defaultDesc": "Vivid 会为你管理资料库。",
+      "externalTitle": "使用现有文件夹",
+      "externalDesc": "让 Vivid 指向你已有的文件夹——不会复制任何内容，且该文件夹可移植到其他设备。",
+      "chooseTitle": "选择一个文件夹作为你的资料库",
+      "changeFolder": "选择其他文件夹",
+      "pickFolderFirst": "请先选择一个文件夹。",
+      "adding": "添加中…",
+      "restarting": "重启中…",
+      "nameLabel": "名称"
+    }
   },
   "tools": {
     "ytdlpDesc": "从链接下载视频和音频",
@@ -159,7 +173,8 @@
       "semanticSearch": "语义搜索",
       "aiNaming": "AI 命名与描述",
       "about": "Vivid",
-      "pinnedCollections": "已固定的合集"
+      "pinnedCollections": "已固定的合集",
+      "workspace": "工作区"
     },
     "general": {
       "homePage": "启动页",
@@ -336,6 +351,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu。保留所有权利。",
       "viewSource": "在 GitHub 上查看",
       "website": "官网"
+    },
+    "workspace": {
+      "desc": "Vivid 默认将资料库存储在自己的应用数据文件夹中。你也可以让它指向一个现有文件夹——它自己的数据库和缩略图将存放在该文件夹内，因此整个内容可以移植到其他设备。",
+      "defaultPath": "Vivid 的默认资料库",
+      "active": "使用中",
+      "pendingRestart": "重启后生效",
+      "switch": "切换",
+      "remove": "移除",
+      "add": "添加工作区",
+      "chooseTitle": "选择一个文件夹作为工作区",
+      "switchTitle": "切换工作区？",
+      "switchConfirm": "Vivid 需要重启才能切换到“{{name}}”。其他视图中未保存的更改将会丢失。",
+      "switchAndRestart": "切换并重启",
+      "removeTitle": "移除工作区？",
+      "removeConfirm": "这只会在 Vivid 中忘记“{{name}}”——它的文件夹及其中的所有内容（包括数据库）在磁盘上保持不变。",
+      "rename": "重命名",
+      "saveName": "保存名称",
+      "devRestartNeeded": "工作区已切换。请重启开发服务器（而不仅仅是这个窗口）以应用更改 —— 自动重启在 `tauri dev` 下不可用。"
     }
   },
   "trash": {
@@ -1190,5 +1223,11 @@
     "newName": "新名称",
     "titleSingle": "重命名磁盘上的文件",
     "rename": "重命名"
+  },
+  "workspacePicker": {
+    "title": "使用哪个工作区？",
+    "desc": "你已设置了多个工作区，请选择一个以继续。",
+    "continue": "继续",
+    "restarting": "重启中…"
   }
 }

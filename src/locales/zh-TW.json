@@ -24,7 +24,21 @@
     "toolsTitle": "媒體工具（選用）",
     "toolsDesc": "用於從連結下載。若您已安裝，Vivid 會直接使用您的版本；否則可在此取得。",
     "toolsNote": "選用——可略過，需要時再從設定下載。",
-    "done": "全部完成"
+    "done": "全部完成",
+    "workspace": {
+      "title": "資料庫應該存放在哪裡？",
+      "desc": "你可以稍後在設定中變更此項。",
+      "defaultTitle": "全新開始",
+      "defaultDesc": "Vivid 會為你管理資料庫。",
+      "externalTitle": "使用現有資料夾",
+      "externalDesc": "讓 Vivid 指向你已有的資料夾——不會複製任何內容，且該資料夾可移植到其他裝置。",
+      "chooseTitle": "選擇一個資料夾作為你的資料庫",
+      "changeFolder": "選擇其他資料夾",
+      "pickFolderFirst": "請先選擇一個資料夾。",
+      "adding": "新增中…",
+      "restarting": "重新啟動中…",
+      "nameLabel": "名稱"
+    }
   },
   "tools": {
     "ytdlpDesc": "從連結下載影片與音訊",
@@ -160,7 +174,8 @@
       "semanticSearch": "語意搜尋與自動標記",
       "aiNaming": "AI 命名與描述",
       "about": "Vivid",
-      "pinnedCollections": "已釘選的收藏"
+      "pinnedCollections": "已釘選的收藏",
+      "workspace": "工作區"
     },
     "general": {
       "homePage": "主頁",
@@ -337,6 +352,24 @@
       "scanning": "掃描中 {{current}}／{{total}}…",
       "scanBtn": "掃描文字",
       "scanningBtn": "掃描中…"
+    },
+    "workspace": {
+      "desc": "Vivid 預設會將資料庫儲存在自己的應用程式資料夾中。你也可以讓它指向一個現有的資料夾——它自己的資料庫和縮圖會存放在該資料夾內，因此整個內容可以移植到其他裝置。",
+      "defaultPath": "Vivid 的預設資料庫",
+      "active": "使用中",
+      "pendingRestart": "重新啟動以套用",
+      "switch": "切換",
+      "remove": "移除",
+      "add": "新增工作區",
+      "chooseTitle": "選擇一個資料夾作為工作區",
+      "switchTitle": "切換工作區？",
+      "switchConfirm": "Vivid 需要重新啟動才能切換到「{{name}}」。其他檢視中未儲存的變更將會遺失。",
+      "switchAndRestart": "切換並重新啟動",
+      "removeTitle": "移除工作區？",
+      "removeConfirm": "這只會在 Vivid 中忘記「{{name}}」——它的資料夾及其中的所有內容（包括資料庫）在磁碟上維持不變。",
+      "rename": "重新命名",
+      "saveName": "儲存名稱",
+      "devRestartNeeded": "工作區已切換。請重新啟動開發伺服器（而不只是這個視窗）以套用變更 —— 自動重新啟動在 `tauri dev` 下無法運作。"
     }
   },
   "trash": {
@@ -1204,5 +1237,11 @@
     "newName": "新名稱",
     "titleSingle": "重新命名磁碟上的檔案",
     "rename": "重新命名"
+  },
+  "workspacePicker": {
+    "title": "使用哪個工作區？",
+    "desc": "你已設定多個工作區，請選擇一個以繼續。",
+    "continue": "繼續",
+    "restarting": "重新啟動中…"
   }
 }

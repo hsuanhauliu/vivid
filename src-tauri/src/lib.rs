@@ -5,6 +5,7 @@ mod db;
 mod emb_index;
 mod logger;
 mod models;
+mod workspace;
 // pub so examples/calibrate.rs (a kept-around manual testing tool for
 // AUTO_TAG_THRESHOLD/AUTO_TAG_MAX calibration, see config.rs) can reach
 // SiglipClip directly.
@@ -51,14 +52,44 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             use tauri::Manager;
 
-            // ── Database ──────────────────────────────────────────────────────
+            // ── Workspace ─────────────────────────────────────────────────────
+            // `data_dir` is always Vivid's own OS app-data directory: it's where
+            // the workspace registry itself lives, where the (always-present)
+            // default workspace's data lives, and where machine-global caches
+            // (downloaded models, yt-dlp) stay regardless of which workspace is
+            // active — none of those are workspace-portable data.
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let db_path = data_dir.join("vivid.db");
-            let conn = Connection::open(&db_path)?;
+            let registry = workspace::load(&data_dir);
+            let active_workspace = workspace::resolve_startup_workspace(&registry);
+            let paths = workspace::WorkspacePaths::resolve(&active_workspace, &data_dir);
+            paths.ensure_dirs()?;
+            tracing::info!(
+                workspace = %active_workspace.name,
+                kind = ?active_workspace.kind,
+                db = %paths.db_path.display(),
+                "Active workspace"
+            );
+
+            // The default workspace's files live under `$APPDATA`, already
+            // covered by the static asset-protocol scope in tauri.conf.json.
+            // An external workspace's folder is picked by the user at runtime
+            // and can be anywhere, so it has to be granted dynamically —
+            // otherwise the webview gets a 403 trying to load its thumbnails
+            // (and originals) via `convertFileSrc`. `.vivid/` derived data
+            // living inside it is covered too since this grant is recursive.
+            if active_workspace.kind == workspace::WorkspaceKind::External {
+                if let Err(e) = app.asset_protocol_scope().allow_directory(&paths.media_dir, true) {
+                    tracing::warn!(error = %e, "grant asset-protocol scope for workspace root");
+                }
+            }
+
+            // ── Database ──────────────────────────────────────────────────────
+            let conn = Connection::open(&paths.db_path)?;
             db::init(&conn)?;
             conn.execute_batch(
                 "PRAGMA journal_mode=WAL;
@@ -67,19 +98,26 @@ pub fn run() {
                  PRAGMA temp_store=MEMORY;
                  PRAGMA mmap_size=1073741824;",
             )?;
-            // Seed the default "Uncategorized" folder + its on-disk directory.
-            let media_root = data_dir.join("media");
+            // Seed the default "Uncategorized" folder DB row for every workspace
+            // (import needs a fallback destination folder to point at). Only
+            // pre-create its on-disk directory for the Default workspace though —
+            // for an External workspace we don't want to clutter the user's own
+            // folder with an empty "Uncategorized" subfolder the moment they
+            // switch to it; `run_import` creates it lazily if it's ever actually
+            // used as an import destination.
             match db::ensure_uncategorized(&conn) {
-                Ok(_) => {
-                    if let Err(e) = std::fs::create_dir_all(media_root.join(db::UNCATEGORIZED)) {
+                Ok(_) if active_workspace.kind == workspace::WorkspaceKind::Default => {
+                    if let Err(e) = std::fs::create_dir_all(paths.media_dir.join(db::UNCATEGORIZED)) {
                         tracing::warn!(error = %e, "create Uncategorized dir");
                     }
                 }
+                Ok(_) => {}
                 Err(e) => tracing::warn!(error = %e, "ensure Uncategorized folder"),
             }
 
-            tracing::info!(path = %db_path.display(), "Database opened");
+            tracing::info!(path = %paths.db_path.display(), "Database opened");
             app.manage(DbState(Mutex::new(conn)));
+            app.manage(workspace::WorkspaceState { workspace: active_workspace, paths });
 
             // Managed external tools (yt-dlp) live here when downloaded.
             commands::init_bin_dir(data_dir.join("bin"));
@@ -88,6 +126,18 @@ pub fn run() {
                 emb_index: Arc::new(crate::emb_index::EmbIndex::default()),
                 multilingual: None, multilingual_loading: false,
             }))));
+
+            // An external workspace's files were never copied in by Vivid, so
+            // there's nothing to browse until they're adopted into the DB.
+            // Safe to run on every launch — already-tracked files are skipped,
+            // so this only ever picks up what's new since the last run. (Not
+            // a substitute for a live watcher: removals/edits made while
+            // Vivid isn't running aren't detected, only new files.)
+            if app.state::<workspace::WorkspaceState>().workspace.kind == workspace::WorkspaceKind::External {
+                if let Err(e) = commands::scan_workspace(app.handle().clone()) {
+                    tracing::warn!(error = %e, "workspace scan on launch failed to start");
+                }
+            }
 
             // ── Mirror backup: watcher worker + state ─────────────────────────
             app.manage(commands::SyncState::new());
@@ -114,6 +164,24 @@ pub fn run() {
                 }
             }
 
+            // ── Menu bar: "Workspace" > "Switch Workspace…" ────────────────────
+            // Built on top of Tauri's own default menu (App/File/Edit/View/
+            // Window/Help) rather than from scratch, so nothing standard (Quit,
+            // Copy/Paste, etc.) is lost. macOS-only for now — Windows/Linux use
+            // a per-window menu bar instead of a global one, and the Settings >
+            // Library workspace switcher already covers those platforms.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{Menu, SubmenuBuilder};
+                let menu = Menu::default(app.handle())?;
+                let workspace_menu = SubmenuBuilder::new(app.handle(), "Workspace")
+                    .text("switch-workspace", "Switch Workspace…")
+                    .build()?;
+                // Position 2: after the app-name menu and File, before Edit.
+                menu.insert(&workspace_menu, 2)?;
+                app.set_menu(menu)?;
+            }
+
             tracing::info!("Vivid started");
 
             Ok(())
@@ -129,6 +197,12 @@ pub fn run() {
             }
             #[cfg(not(target_os = "macos"))]
             let _ = (window, event);
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == "switch-workspace" {
+                use tauri::Emitter;
+                let _ = app.emit("menu-switch-workspace", ());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_map_config,
@@ -229,6 +303,14 @@ pub fn run() {
             commands::generate_thumbnails_all,
             commands::regenerate_single_thumbnail,
             commands::get_thumb_status,
+            // Workspaces
+            commands::list_workspaces,
+            commands::get_active_workspace,
+            commands::add_workspace,
+            commands::rename_workspace,
+            commands::switch_workspace,
+            commands::remove_workspace,
+            commands::scan_workspace,
             // Window chrome
             set_native_traffic_lights_visible,
         ])

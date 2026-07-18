@@ -24,7 +24,21 @@
     "toolsTitle": "メディアツール（任意）",
     "toolsDesc": "リンクからのダウンロードに使用します。すでにインストール済みの場合はそれを使い、なければここで入手できます。",
     "toolsNote": "任意です。スキップして、必要なときに設定からダウンロードできます。",
-    "done": "準備完了"
+    "done": "準備完了",
+    "workspace": {
+      "title": "ライブラリをどこに置きますか？",
+      "desc": "後から設定で変更できます。",
+      "defaultTitle": "新規に始める",
+      "defaultDesc": "Vivid がライブラリを管理します。",
+      "externalTitle": "既存のフォルダを使う",
+      "externalDesc": "既にあるフォルダを Vivid に指定します — 何もコピーされず、そのフォルダごと他のデバイスに持ち運べます。",
+      "chooseTitle": "ライブラリとして使うフォルダを選択",
+      "changeFolder": "別のフォルダを選択",
+      "pickFolderFirst": "先にフォルダを選択してください。",
+      "adding": "追加中…",
+      "restarting": "再起動中…",
+      "nameLabel": "名前"
+    }
   },
   "tools": {
     "ytdlpDesc": "リンクから動画・音声をダウンロード",
@@ -160,7 +174,8 @@
       "semanticSearch": "セマンティック検索と自動タグ付け",
       "aiNaming": "AI命名と説明",
       "about": "Vivid",
-      "pinnedCollections": "ピン留めコレクション"
+      "pinnedCollections": "ピン留めコレクション",
+      "workspace": "ワークスペース"
     },
     "general": {
       "homePage": "ホームページ",
@@ -337,6 +352,24 @@
       "scanning": "スキャン中 {{current}}／{{total}}…",
       "scanBtn": "テキストをスキャン",
       "scanningBtn": "スキャン中…"
+    },
+    "workspace": {
+      "desc": "Vivid は既定でライブラリを独自のアプリデータフォルダに保存します。既存のフォルダを指定することもでき、その場合はデータベースとサムネイルもそのフォルダ内に置かれるため、フォルダごと他のデバイスに持ち運べます。",
+      "defaultPath": "Vivid の既定のライブラリ",
+      "active": "使用中",
+      "pendingRestart": "再起動で適用",
+      "switch": "切り替え",
+      "remove": "削除",
+      "add": "ワークスペースを追加",
+      "chooseTitle": "ワークスペースとして使うフォルダを選択",
+      "switchTitle": "ワークスペースを切り替えますか？",
+      "switchConfirm": "「{{name}}」に切り替えるには Vivid の再起動が必要です。他の画面での未保存の変更は失われます。",
+      "switchAndRestart": "切り替えて再起動",
+      "removeTitle": "ワークスペースを削除しますか？",
+      "removeConfirm": "これは Vivid 内で「{{name}}」を削除するだけです。フォルダとその中身（データベースを含む）はディスク上にそのまま残ります。",
+      "rename": "名前を変更",
+      "saveName": "名前を保存",
+      "devRestartNeeded": "ワークスペースを切り替えました。適用するには開発サーバー自体を再起動してください（このウィンドウだけでは不十分です）。`tauri dev` では自動再起動が機能しません。"
     }
   },
   "trash": {
@@ -1204,5 +1237,11 @@
     "newName": "新しい名前",
     "titleSingle": "ディスク上のファイル名を変更",
     "rename": "変更"
+  },
+  "workspacePicker": {
+    "title": "どのワークスペースを使いますか？",
+    "desc": "複数のワークスペースが設定されています。続けるには1つ選んでください。",
+    "continue": "続ける",
+    "restarting": "再起動中…"
   }
 }

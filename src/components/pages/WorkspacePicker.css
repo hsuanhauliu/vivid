@@ -1,0 +1,74 @@
+/* ─── Startup workspace picker ─────────────────────────────── */
+
+.workspace-picker-modal {
+  width: 400px;
+}
+
+.workspace-picker-footer {
+  justify-content: flex-end;
+}
+
+.workspace-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.workspace-picker-row:hover {
+  border-color: var(--border);
+  background: var(--surface-hover);
+}
+.workspace-picker-row.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.workspace-picker-row-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.workspace-picker-row.active .workspace-picker-row-icon {
+  color: var(--accent);
+}
+.workspace-picker-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.workspace-picker-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.workspace-picker-row-path {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-picker-row-check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.workspace-notice {
+  font-size: 11.5px;
+  color: var(--accent);
+  margin: 0;
+}

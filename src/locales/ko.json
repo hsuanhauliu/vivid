@@ -24,7 +24,21 @@
     "toolsTitle": "미디어 도구 (선택 사항)",
     "toolsDesc": "링크에서 다운로드할 때 사용됩니다. 이미 설치되어 있다면 Vivid가 그대로 사용하고, 없다면 여기서 받을 수 있어요.",
     "toolsNote": "선택 사항입니다 — 지금 건너뛰고 필요할 때 설정에서 다운로드하세요.",
-    "done": "설정 완료"
+    "done": "설정 완료",
+    "workspace": {
+      "title": "라이브러리를 어디에 둘까요?",
+      "desc": "나중에 설정에서 변경할 수 있습니다.",
+      "defaultTitle": "새로 시작",
+      "defaultDesc": "Vivid가 라이브러리를 관리합니다.",
+      "externalTitle": "기존 폴더 사용",
+      "externalDesc": "이미 가지고 있는 폴더를 Vivid에 지정하세요 — 아무것도 복사되지 않으며, 해당 폴더를 다른 기기로 옮길 수 있습니다.",
+      "chooseTitle": "라이브러리로 사용할 폴더 선택",
+      "changeFolder": "다른 폴더 선택",
+      "pickFolderFirst": "먼저 폴더를 선택하세요.",
+      "adding": "추가하는 중…",
+      "restarting": "재시작하는 중…",
+      "nameLabel": "이름"
+    }
   },
   "tools": {
     "ytdlpDesc": "링크에서 동영상과 오디오 다운로드",
@@ -159,7 +173,8 @@
       "semanticSearch": "의미 기반 검색",
       "aiNaming": "AI 이름 및 설명",
       "about": "Vivid",
-      "pinnedCollections": "고정된 컬렉션"
+      "pinnedCollections": "고정된 컬렉션",
+      "workspace": "작업 영역"
     },
     "general": {
       "homePage": "시작 페이지",
@@ -336,6 +351,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. All rights reserved.",
       "viewSource": "GitHub에서 보기",
       "website": "웹사이트"
+    },
+    "workspace": {
+      "desc": "Vivid는 기본적으로 라이브러리를 자체 앱 데이터 폴더에 저장합니다. 대신 기존 폴더를 지정할 수도 있으며, 이 경우 데이터베이스와 썸네일도 해당 폴더 안에 저장되어 다른 기기로 폴더 전체를 옮길 수 있습니다.",
+      "defaultPath": "Vivid의 기본 라이브러리",
+      "active": "사용 중",
+      "pendingRestart": "재시작하면 적용됨",
+      "switch": "전환",
+      "remove": "제거",
+      "add": "작업 영역 추가",
+      "chooseTitle": "작업 영역으로 사용할 폴더 선택",
+      "switchTitle": "작업 영역을 전환할까요?",
+      "switchConfirm": "\"{{name}}\"(으)로 전환하려면 Vivid를 재시작해야 합니다. 다른 화면의 저장되지 않은 변경 사항은 사라집니다.",
+      "switchAndRestart": "전환 후 재시작",
+      "removeTitle": "작업 영역을 제거할까요?",
+      "removeConfirm": "Vivid에서 \"{{name}}\"을(를) 잊어버리기만 합니다 — 폴더와 그 안의 모든 내용(데이터베이스 포함)은 디스크에 그대로 남습니다.",
+      "rename": "이름 변경",
+      "saveName": "이름 저장",
+      "devRestartNeeded": "작업 영역이 전환되었습니다. 적용하려면 개발 서버를 재시작하세요(이 창만으로는 부족합니다) — `tauri dev`에서는 자동 재시작이 동작하지 않습니다."
     }
   },
   "trash": {
@@ -1190,5 +1223,11 @@
     "newName": "새 이름",
     "titleSingle": "디스크의 파일 이름 변경",
     "rename": "이름 변경"
+  },
+  "workspacePicker": {
+    "title": "어느 작업 영역을 사용할까요?",
+    "desc": "작업 영역이 여러 개 설정되어 있습니다. 계속하려면 하나를 선택하세요.",
+    "continue": "계속",
+    "restarting": "재시작하는 중…"
   }
 }

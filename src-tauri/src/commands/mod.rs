@@ -1,7 +1,7 @@
 use crate::{
     db,
     models::{extension_to_media_type, ExifMetadata, Collection, MediaItem},
-    DbState,
+    workspace, DbState,
 };
 use serde::Serialize;
 use std::{
@@ -102,6 +102,9 @@ pub use sync::*;
 mod upload;
 pub use upload::*;
 
+mod workspace_cmds;
+pub use workspace_cmds::*;
+
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -149,8 +152,11 @@ pub struct AudioMeta {
 
 // ── Shared helpers (used by submodules via super::) ───────────────────────────
 
+/// Media root of the *active workspace* — the default app-data `media/`
+/// directory, or an external workspace's chosen folder (files there are
+/// adopted in place, not copied into a subdirectory of it).
 pub(crate) fn media_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("media");
+    let dir = app.state::<workspace::WorkspaceState>().paths.media_dir.clone();
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
@@ -796,6 +802,335 @@ fn flush_chunk(
     Ok(n)
 }
 
+// ── Workspace adoption (external workspaces) ─────────────────────────────────
+//
+// An external workspace's media root is a folder the user already had, full
+// of files that were never copied in by Vivid. `run_import` above always
+// copies its source into the managed tree, which is the wrong operation
+// here — adoption must index files exactly where they already sit. This is
+// a deliberately separate pipeline (not a mode flag on `run_import`) so the
+// well-exercised copy-based import path can't regress from changes made for
+// this newer, less-tested one.
+
+/// Walk a workspace's root, recording every file with its sub-folder chain
+/// relative to the root itself. Unlike `collect_dir_preserving` (which keeps
+/// the *imported* directory's own name as the first path component, since
+/// that directory is being placed *into* the library), the root directory
+/// here *is* the library, so it never appears in the chain. Vivid's own
+/// `.vivid/` derived-data directory is skipped rather than adopted as media.
+fn collect_workspace_root(root: &Path, out: &mut Vec<Discovered>) {
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(root.to_path_buf());
+    while let Some(current) = queue.pop_front() {
+        let Ok(entries) = fs::read_dir(&current) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if current == root && path.file_name().and_then(|n| n.to_str()) == Some(workspace::VIVID_SUBDIR) {
+                continue;
+            }
+            if path.is_dir() && !is_bundle(&path) {
+                queue.push_back(path);
+            } else {
+                let sub = path
+                    .strip_prefix(root)
+                    .ok()
+                    .and_then(|rel| rel.parent().map(|p| p.to_path_buf()))
+                    .map(|parent| parent.components()
+                        .filter_map(|c| safe_component(c.as_os_str()))
+                        .collect::<Vec<_>>())
+                    .unwrap_or_default();
+                out.push(Discovered { src: path, sub });
+            }
+        }
+    }
+}
+
+/// Like `ensure_subfolder`, but anchored at the workspace root itself instead
+/// of a chosen destination folder — `sub`'s components become the folder's
+/// `rel_path` directly (no prefix), matching its real on-disk location, and
+/// no directories are created since adoption never touches the filesystem.
+/// An empty `sub` (a file sitting loose at the root) intentionally resolves
+/// to no folder at all rather than an "Uncategorized" bucket — the folder
+/// tree here should mirror the user's existing layout exactly, not impose
+/// one.
+fn ensure_subfolder_from_root(
+    conn: &rusqlite::Connection,
+    mdir: &Path,
+    sub: &[String],
+    any_created: &mut bool,
+) -> Result<(Option<String>, PathBuf), String> {
+    if sub.is_empty() {
+        return Ok((None, mdir.to_path_buf()));
+    }
+    let mut parent_id: Option<String> = None;
+    let mut rel = String::new();
+    for comp in sub {
+        rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
+        let id = match db::folder_id_by_rel_path(conn, &rel).map_err(|e| e.to_string())? {
+            Some(id) => id,
+            None => {
+                let f = db::create_folder(conn, comp, parent_id.as_deref(), &rel).map_err(|e| e.to_string())?;
+                *any_created = true;
+                f.id
+            }
+        };
+        parent_id = Some(id);
+    }
+    Ok((parent_id, mdir.join(&rel)))
+}
+
+/// Adopt every not-yet-tracked file under an external workspace's root into
+/// the DB, in place. Safe to call repeatedly (on every launch, or from a
+/// manual "Rescan" action): already-tracked paths are skipped via the same
+/// `source_path_exists` check `run_import` uses, so this only ever picks up
+/// files that are new since the last scan. It does not detect files that
+/// were removed or modified since the last scan — that reconciliation is a
+/// live filesystem watcher, not yet implemented (see workspace plan).
+pub(crate) fn run_workspace_scan(app: &tauri::AppHandle) -> Result<(), String> {
+    use std::time::Instant;
+
+    let mdir = media_dir(app)?;
+    let state = app.state::<DbState>();
+
+    let mut discovered: Vec<Discovered> = Vec::new();
+    collect_workspace_root(&mdir, &mut discovered);
+
+    let (mut candidates, skipped_type, skipped_dupe): (Vec<Discovered>, usize, usize) = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let mut st = 0usize;
+        let mut sd = 0usize;
+        let kept: Vec<Discovered> = discovered.into_iter().filter(|d| {
+            let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if extension_to_media_type(ext).is_none() { st += 1; return false; }
+            if db::source_path_exists(&conn, &d.src.to_string_lossy()).unwrap_or(true) { sd += 1; return false; }
+            true
+        }).collect();
+        (kept, st, sd)
+    };
+
+    let total = candidates.len();
+    if total == 0 {
+        let _ = app.emit("import-done", ImportDone { imported: 0, skipped_type, skipped_dupe, failed: 0 });
+        return Ok(());
+    }
+
+    let mut folder_cache: std::collections::HashMap<Vec<String>, (Option<String>, PathBuf)> =
+        std::collections::HashMap::new();
+    let mut folders_created = false;
+    {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        for d in &candidates {
+            if folder_cache.contains_key(&d.sub) { continue; }
+            let resolved = ensure_subfolder_from_root(&conn, &mdir, &d.sub, &mut folders_created)?;
+            folder_cache.insert(d.sub.clone(), resolved);
+        }
+    }
+    if folders_created {
+        let _ = app.emit("folders-changed", ());
+    }
+
+    const CHUNK: usize = 24;
+    let mut imported = 0usize;
+    let mut chunk: Vec<MediaItem> = Vec::with_capacity(CHUNK);
+    let mut last_progress = Instant::now();
+
+    for (i, d) in candidates.drain(..).enumerate() {
+        let file_name = d.src.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+
+        if last_progress.elapsed().as_millis() >= 80 || i + 1 == total {
+            let _ = app.emit("import-progress", ImportProgress { current: i + 1, total, file_name: file_name.clone() });
+            last_progress = Instant::now();
+        }
+
+        let (leaf_id, _leaf_dir) = folder_cache.get(&d.sub).expect("sub-folder pre-resolved");
+        let source_str = d.src.to_string_lossy().to_string();
+        let mut item = match build_item(&d.src, Some(source_str)) {
+            Ok(it) => it,
+            Err(e) => {
+                tracing::warn!(path = ?d.src, error = %e, "workspace scan: build_item failed, skipping");
+                continue;
+            }
+        };
+        if item.media_type == "image" {
+            if let Ok((lat, lng)) = extract_gps_coords(&d.src) { item.gps_lat = lat; item.gps_lng = lng; }
+            if let Ok(meta) = get_media_metadata(d.src.to_string_lossy().to_string()) {
+                item.date_taken = meta.date_taken;
+                item.camera_make = meta.camera_make;
+                item.camera_model = meta.camera_model;
+            }
+        }
+        if item.media_type == "audio" {
+            if let Ok(meta) = extract_audio_meta(&d.src) {
+                if meta.title.is_some() { item.display_name = meta.title.clone().unwrap_or(item.display_name.clone()); }
+                item.audio_title    = meta.title;
+                item.audio_artist   = meta.artist;
+                item.audio_album    = meta.album;
+                item.audio_track    = meta.track;
+                item.audio_duration = meta.duration_secs;
+                item.audio_year     = meta.year;
+            }
+        }
+        item.folder_id = leaf_id.clone();
+        chunk.push(item);
+
+        if chunk.len() >= CHUNK {
+            imported += flush_chunk(&state, app, &mut chunk)?;
+        }
+    }
+    imported += flush_chunk(&state, app, &mut chunk)?;
+
+    tracing::info!(imported, skipped_type, skipped_dupe, "Workspace scan complete");
+    if imported > 0 {
+        trigger_embed_if_ready(app);
+        let _ = generate_thumbnails_all(app.clone());
+        let _ = ocr::run_ocr_all(app.clone());
+    }
+    let _ = app.emit("import-done", ImportDone { imported, skipped_type, skipped_dupe, failed: 0 });
+    Ok(())
+}
+
+/// Adopt any new files in the active workspace's root (external workspaces
+/// only — a Default workspace's media dir is entirely Vivid-managed, so
+/// there's never anything to adopt there). Runs off the IPC thread and
+/// reports through the same `import-progress`/`import-batch`/`import-done`
+/// events as a regular import, so the frontend needs no separate UI for it.
+/// Safe to call on every launch and from an explicit "Rescan Folder" action.
+#[tauri::command]
+pub fn scan_workspace(app: tauri::AppHandle) -> Result<(), String> {
+    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External {
+        return Ok(());
+    }
+    std::thread::spawn(move || {
+        if let Err(e) = run_workspace_scan(&app) {
+            tracing::error!(error = %e, "workspace scan failed");
+        }
+    });
+    Ok(())
+}
+
+#[cfg(test)]
+mod workspace_scan_tests {
+    use super::*;
+    use rusqlite::Connection;
+    use tempfile::tempdir;
+
+    fn open_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        db::init(&conn).unwrap();
+        conn
+    }
+
+    // ── collect_workspace_root ───────────────────────────────────────────
+
+    #[test]
+    fn loose_root_file_has_no_sub_path() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("a.jpg"), b"").unwrap();
+
+        let mut out = Vec::new();
+        collect_workspace_root(dir.path(), &mut out);
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].src, dir.path().join("a.jpg"));
+        assert!(out[0].sub.is_empty());
+    }
+
+    #[test]
+    fn nested_file_records_its_folder_chain() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("Trip/Beach")).unwrap();
+        std::fs::write(dir.path().join("Trip/Beach/b.jpg"), b"").unwrap();
+
+        let mut out = Vec::new();
+        collect_workspace_root(dir.path(), &mut out);
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].sub, vec!["Trip".to_string(), "Beach".to_string()]);
+    }
+
+    #[test]
+    fn vivid_subdir_at_root_is_skipped() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(workspace::VIVID_SUBDIR)).unwrap();
+        std::fs::write(dir.path().join(workspace::VIVID_SUBDIR).join("vivid.db"), b"").unwrap();
+        std::fs::write(dir.path().join("a.jpg"), b"").unwrap();
+
+        let mut out = Vec::new();
+        collect_workspace_root(dir.path(), &mut out);
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].src, dir.path().join("a.jpg"));
+    }
+
+    #[test]
+    fn macos_bundle_is_not_descended_into() {
+        // is_bundle() only ever returns true on macOS (see its doc comment);
+        // elsewhere it's always false, so a plain directory with an
+        // extension is walked normally there. Assert whichever behavior
+        // this platform actually has, rather than assuming macOS.
+        let dir = tempdir().unwrap();
+        let bundle = dir.path().join("Something.app");
+        std::fs::create_dir_all(&bundle).unwrap();
+        std::fs::write(bundle.join("inner.jpg"), b"").unwrap();
+
+        let mut out = Vec::new();
+        collect_workspace_root(dir.path(), &mut out);
+
+        if is_bundle(&bundle) {
+            // Not descended into — the bundle itself is recorded as one
+            // opaque entry, its inner "inner.jpg" is never seen.
+            assert_eq!(out.len(), 1);
+            assert_eq!(out[0].src, bundle);
+        } else {
+            assert_eq!(out.len(), 1);
+            assert_eq!(out[0].src, bundle.join("inner.jpg"));
+        }
+    }
+
+    // ── ensure_subfolder_from_root ───────────────────────────────────────
+
+    #[test]
+    fn empty_sub_resolves_to_no_folder() {
+        let conn = open_db();
+        let mut created = false;
+        let (folder_id, dir) = ensure_subfolder_from_root(&conn, Path::new("/root"), &[], &mut created).unwrap();
+        assert!(folder_id.is_none());
+        assert_eq!(dir, PathBuf::from("/root"));
+        assert!(!created);
+    }
+
+    #[test]
+    fn nested_sub_creates_folder_chain_with_real_rel_paths() {
+        let conn = open_db();
+        let mut created = false;
+        let sub = vec!["Trip".to_string(), "Beach".to_string()];
+        let (folder_id, dir) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
+
+        assert!(created);
+        let folder_id = folder_id.unwrap();
+        let folder = db::fetch_folder(&conn, &folder_id).unwrap();
+        // No "Uncategorized" prefix — rel_path mirrors the real on-disk
+        // location exactly, since adoption never moves anything.
+        assert_eq!(folder.rel_path, "Trip/Beach");
+        assert_eq!(folder.name, "Beach");
+        assert_eq!(dir, PathBuf::from("/root/Trip/Beach"));
+    }
+
+    #[test]
+    fn repeated_sub_reuses_existing_folder_row() {
+        let conn = open_db();
+        let mut created = false;
+        let sub = vec!["Trip".to_string()];
+        let (first_id, _) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
+
+        let mut created_again = false;
+        let (second_id, _) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created_again).unwrap();
+
+        assert_eq!(first_id, second_id);
+        assert!(!created_again, "second call should reuse the existing folder row");
+    }
+}
+
 #[tauri::command]
 pub fn update_media(
     id: String,
@@ -842,7 +1177,7 @@ pub fn remove_media(
     app: tauri::AppHandle,
     state: State<DbState>,
 ) -> Result<(), String> {
-    let mdir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("media");
+    let mdir = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     if let Some(file_path) = db::remove(&conn, &id).map_err(|e| e.to_string())? {
         let path = PathBuf::from(&file_path);
@@ -875,7 +1210,7 @@ pub fn get_trash(state: State<DbState>) -> Result<Vec<MediaItem>, String> {
 
 #[tauri::command]
 pub fn empty_trash(app: tauri::AppHandle, state: State<DbState>) -> Result<(), String> {
-    let mdir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("media");
+    let mdir = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let paths = db::empty_trash(&conn).map_err(|e| e.to_string())?;
     for p in paths {
@@ -887,7 +1222,7 @@ pub fn empty_trash(app: tauri::AppHandle, state: State<DbState>) -> Result<(), S
 
 #[tauri::command]
 pub fn purge_old_trash(days: i64, app: tauri::AppHandle, state: State<DbState>) -> Result<(), String> {
-    let mdir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("media");
+    let mdir = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let paths = db::purge_old_trash(&conn, days).map_err(|e| e.to_string())?;
     for p in paths {

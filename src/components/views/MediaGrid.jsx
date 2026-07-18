@@ -3,9 +3,37 @@ import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'lucide-react';
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
+import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatDuration } from '../../utils/format';
 import ScrollArea from '../common/ScrollArea';
 import './MediaGrid.css';
+
+// Images without a cached thumbnail fall back to the original, resolving HEIC
+// via the backend — same reasoning as MediaCard's FallbackImageThumb (see its
+// comment): kept as its own component so the HEIC-decoding hook only mounts
+// for the uncommon no-thumbnail case, never for the common cached-thumbnail
+// path that covers most of a normal grid. This matters most right after
+// adopting a large external workspace, where thumbnail generation for a
+// folder that already had thousands of files can take a while to catch up —
+// without this, HEIC originals (the default iPhone photo format) would render
+// as a broken image in the meantime instead of the real photo.
+function MasonryFallbackImg({ item, onRatio }) {
+  const src = useDisplayableSrc(item.file_path);
+  return (
+    <img
+      src={src ?? undefined}
+      alt=""
+      className="masonry-img"
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      onLoad={(e) => {
+        const { naturalWidth: w, naturalHeight: h } = e.target;
+        if (w && h) onRatio(w / h);
+      }}
+    />
+  );
+}
 
 const MasonryItem = memo(function MasonryItem({
   item,
@@ -25,6 +53,7 @@ const MasonryItem = memo(function MasonryItem({
   // available — huge decode win on fast scroll, and for GIFs specifically
   // avoids every tile independently decoding/looping its full animated
   // original at once. Falls back to the original until a thumbnail exists.
+  const hasCachedThumb = !!freshThumbSrc || (item.media_type === 'image' && !!item.thumb_path);
   const imgSrc = useMemo(
     () =>
       freshThumbSrc ||
@@ -121,7 +150,7 @@ const MasonryItem = memo(function MasonryItem({
           imgClassName="masonry-img"
           onRatio={handleRatio}
         />
-      ) : item.media_type === 'image' ? (
+      ) : item.media_type === 'image' && hasCachedThumb ? (
         <img
           src={imgSrc}
           alt=""
@@ -134,6 +163,8 @@ const MasonryItem = memo(function MasonryItem({
             if (w && h) handleRatio(w / h);
           }}
         />
+      ) : item.media_type === 'image' ? (
+        <MasonryFallbackImg item={item} onRatio={handleRatio} />
       ) : item.media_type === 'audio' ? (
         <>
           {item.audio_cover || item.thumb_path ? (
@@ -168,6 +199,26 @@ const MasonryItem = memo(function MasonryItem({
   );
 });
 
+// Cached cover art (album art or a generated thumbnail) renders directly; an
+// image with neither yet falls back to the original, same HEIC-safe path as
+// MasonryFallbackImg above — otherwise a HEIC original would show broken in
+// list view until its thumbnail catches up.
+function ListRowCover({ item }) {
+  const cachedCover = item.audio_cover || item.thumb_path;
+  if (cachedCover) {
+    return <img src={convertFileSrc(cachedCover)} alt="" loading="lazy" draggable={false} />;
+  }
+  if (item.media_type === 'image') {
+    return <ListRowFallbackCover item={item} />;
+  }
+  return <Music size={15} color="rgba(255,255,255,0.4)" />;
+}
+
+function ListRowFallbackCover({ item }) {
+  const src = useDisplayableSrc(item.file_path);
+  return <img src={src ?? undefined} alt="" loading="lazy" draggable={false} />;
+}
+
 // A single line in the music-player "list" view. Shares the selection / open
 // semantics of MasonryItem (single click = details, double click = play/open,
 // click while selecting = toggle check). The optional `reorderHandle` slot holds
@@ -186,9 +237,6 @@ const ListRow = memo(function ListRow({
   onCardDragStart,
   reorderHandle = null,
 }) {
-  const coverPath =
-    item.audio_cover || item.thumb_path || (item.media_type === 'image' ? item.file_path : null);
-
   const dblFired = useRef(false);
   const clickTimer = useRef(null);
 
@@ -254,11 +302,7 @@ const ListRow = memo(function ListRow({
         </span>
       </button>
       <span className="list-row-cover">
-        {coverPath ? (
-          <img src={convertFileSrc(coverPath)} alt="" loading="lazy" draggable={false} />
-        ) : (
-          <Music size={15} color="rgba(255,255,255,0.4)" />
-        )}
+        <ListRowCover item={item} />
       </span>
       <span className="list-row-main">
         <span className="list-row-title">{item.audio_title || item.display_name}</span>

@@ -32,8 +32,11 @@ pub struct ThumbStatus {
     pub total: i64,
 }
 
+/// Thumbnail cache of the active workspace — inside `.vivid/thumbs` for an
+/// external workspace, so the cache travels with the folder instead of being
+/// stranded in this machine's app-data dir.
 fn thumbs_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("thumbs");
+    let dir = app.state::<crate::workspace::WorkspaceState>().paths.thumbs_dir.clone();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }

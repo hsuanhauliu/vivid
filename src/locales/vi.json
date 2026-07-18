@@ -24,7 +24,21 @@
     "toolsTitle": "Công cụ media (tùy chọn)",
     "toolsDesc": "Dùng để tải xuống từ đường liên kết. Nếu máy bạn đã cài sẵn, Vivid sẽ dùng bản đó — nếu chưa, bạn có thể tải ở đây.",
     "toolsNote": "Tùy chọn — có thể bỏ qua và tải sau trong Cài đặt khi cần.",
-    "done": "Đã sẵn sàng"
+    "done": "Đã sẵn sàng",
+    "workspace": {
+      "title": "Thư viện của bạn nên đặt ở đâu?",
+      "desc": "Bạn có thể thay đổi điều này sau trong Cài đặt.",
+      "defaultTitle": "Bắt đầu mới",
+      "defaultDesc": "Vivid quản lý thư viện của bạn.",
+      "externalTitle": "Dùng một thư mục có sẵn",
+      "externalDesc": "Trỏ Vivid đến một thư mục bạn đã có — không có gì bị sao chép, và thư mục đó có thể mang sang thiết bị khác.",
+      "chooseTitle": "Chọn một thư mục để dùng làm thư viện",
+      "changeFolder": "Chọn thư mục khác",
+      "pickFolderFirst": "Hãy chọn một thư mục trước.",
+      "adding": "Đang thêm…",
+      "restarting": "Đang khởi động lại…",
+      "nameLabel": "Tên"
+    }
   },
   "tools": {
     "ytdlpDesc": "Tải video và âm thanh từ đường liên kết",
@@ -159,7 +173,8 @@
       "semanticSearch": "Tìm kiếm ngữ nghĩa",
       "aiNaming": "Đặt tên & mô tả bằng AI",
       "about": "Vivid",
-      "pinnedCollections": "Bộ sưu tập đã ghim"
+      "pinnedCollections": "Bộ sưu tập đã ghim",
+      "workspace": "Không gian làm việc"
     },
     "general": {
       "homePage": "Trang chủ",
@@ -336,6 +351,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Bảo lưu mọi quyền.",
       "viewSource": "Xem trên GitHub",
       "website": "Trang web"
+    },
+    "workspace": {
+      "desc": "Theo mặc định, Vivid lưu trữ thư viện của bạn trong thư mục dữ liệu ứng dụng riêng. Bạn có thể trỏ đến một thư mục có sẵn — cơ sở dữ liệu và ảnh thu nhỏ riêng sẽ nằm trong thư mục đó, giúp toàn bộ có thể mang sang thiết bị khác.",
+      "defaultPath": "Thư viện mặc định của Vivid",
+      "active": "Đang hoạt động",
+      "pendingRestart": "Khởi động lại để áp dụng",
+      "switch": "Chuyển",
+      "remove": "Xóa",
+      "add": "Thêm không gian làm việc",
+      "chooseTitle": "Chọn một thư mục để dùng làm không gian làm việc",
+      "switchTitle": "Chuyển không gian làm việc?",
+      "switchConfirm": "Vivid cần khởi động lại để chuyển sang \"{{name}}\". Mọi thay đổi chưa lưu ở các màn hình khác sẽ bị mất.",
+      "switchAndRestart": "Chuyển & khởi động lại",
+      "removeTitle": "Xóa không gian làm việc?",
+      "removeConfirm": "Thao tác này chỉ khiến Vivid quên \"{{name}}\" — thư mục của nó và mọi thứ bên trong (kể cả cơ sở dữ liệu) vẫn được giữ nguyên trên ổ đĩa.",
+      "rename": "Đổi tên",
+      "saveName": "Lưu tên",
+      "devRestartNeeded": "Đã chuyển không gian làm việc. Khởi động lại máy chủ phát triển (không chỉ cửa sổ này) để áp dụng — khởi động lại tự động không hoạt động trong `tauri dev`."
     }
   },
   "trash": {
@@ -1195,5 +1228,11 @@
     "newName": "Tên mới",
     "titleSingle": "Đổi tên tệp trên đĩa",
     "rename": "Đổi tên"
+  },
+  "workspacePicker": {
+    "title": "Dùng không gian làm việc nào?",
+    "desc": "Bạn đã thiết lập nhiều không gian làm việc. Chọn một để tiếp tục.",
+    "continue": "Tiếp tục",
+    "restarting": "Đang khởi động lại…"
   }
 }

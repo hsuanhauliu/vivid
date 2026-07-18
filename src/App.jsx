@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
   Search,
@@ -61,6 +62,7 @@ import ImportConfirmModal from './components/modals/ImportConfirmModal';
 import ScreensaverOverlay from './components/common/ScreensaverOverlay';
 import NotificationsPanel from './components/common/NotificationsPanel';
 import WelcomeFlow from './components/pages/WelcomeFlow';
+import WorkspacePicker from './components/pages/WorkspacePicker';
 import ImageEditorPage from './components/pages/ImageEditorPage';
 import ImagePickerModal from './components/modals/ImagePickerModal';
 import useNotifications from './hooks/useNotifications';
@@ -409,6 +411,38 @@ export default function App() {
     return () => {
       delete window.__vividShowWelcome;
     };
+  }, []);
+
+  // Startup workspace picker: only relevant once a second workspace exists
+  // (most users only ever have the default one and will never see this).
+  // Deliberately gated behind `!showWelcome` below so it can never appear
+  // mid-onboarding — welcome's own new workspace-choice step already covers
+  // that decision for a first-time user, and finishing it sets a one-shot
+  // flag (checked here) so this picker doesn't immediately re-ask about the
+  // very choice just made.
+  const [workspaceChoices, setWorkspaceChoices] = useState(null); // { workspaces, runningId } | null
+  // Which Settings tab to land on next time it opens — used by the
+  // "Switch Workspace…" menu item to jump straight to the workspace list
+  // when there's nothing to pick between yet (see the effect below).
+  const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+  useEffect(() => {
+    if (localStorage.getItem('vivid-skip-workspace-picker-once') === 'true') {
+      localStorage.removeItem('vivid-skip-workspace-picker-once');
+      return;
+    }
+    (async () => {
+      try {
+        const [registry, active] = await Promise.all([
+          invoke('list_workspaces'),
+          invoke('get_active_workspace'),
+        ]);
+        if (registry.workspaces.length > 1) {
+          setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
+        }
+      } catch {
+        /* if this fails, the app just opens straight into whatever's active */
+      }
+    })();
   }, []);
 
   // Intercept all external link clicks — open in system browser, not in-app
@@ -1165,6 +1199,37 @@ export default function App() {
       guardedNav,
     ],
   );
+
+  // macOS menu bar: Workspace > Switch Workspace…. Reuses the same picker
+  // overlay as the startup check, so it doesn't matter which one populated
+  // it — but this is a deliberate user action, so unlike the startup check
+  // it ignores the one-shot skip-once flag. With only the default workspace
+  // registered there's nothing to pick between, so it opens Settings'
+  // workspace list (where one can be added) instead of an empty picker.
+  useEffect(() => {
+    let unlisten;
+    listen('menu-switch-workspace', async () => {
+      try {
+        const [registry, active] = await Promise.all([
+          invoke('list_workspaces'),
+          invoke('get_active_workspace'),
+        ]);
+        if (registry.workspaces.length > 1) {
+          setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
+        } else {
+          setSettingsInitialTab('library');
+          handleViewChange('settings');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [handleViewChange]);
 
   // "View on Map" from the detail panel — jumps to the World Map centered on
   // this specific item instead of the usual fit-to-all-pins behavior.
@@ -2054,6 +2119,7 @@ export default function App() {
                 </div>
               ) : view === 'settings' ? (
                 <SettingsPage
+                  initialTab={settingsInitialTab}
                   theme={theme}
                   onThemeChange={setTheme}
                   colorTheme={colorTheme}
@@ -2662,6 +2728,14 @@ export default function App() {
           multilingualInstalled={multilingualInstalled}
           multilingualLoading={multilingualLoading}
           onDownloadModel={downloadMultilingual}
+        />
+      )}
+
+      {!showWelcome && workspaceChoices && (
+        <WorkspacePicker
+          workspaces={workspaceChoices.workspaces}
+          runningId={workspaceChoices.runningId}
+          onDismiss={() => setWorkspaceChoices(null)}
         />
       )}
     </div>

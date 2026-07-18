@@ -24,7 +24,21 @@
     "toolsTitle": "Outils média (facultatif)",
     "toolsDesc": "Permet le téléchargement depuis des liens. Si vous l'avez déjà installé, Vivid utilisera votre version — sinon vous pouvez l'obtenir ici.",
     "toolsNote": "Facultatif — ignorez et téléchargez plus tard depuis les Réglages si besoin.",
-    "done": "Tout est prêt"
+    "done": "Tout est prêt",
+    "workspace": {
+      "title": "Où votre bibliothèque doit-elle vivre ?",
+      "desc": "Vous pourrez changer cela plus tard dans les Réglages.",
+      "defaultTitle": "Repartir de zéro",
+      "defaultDesc": "Vivid gère votre bibliothèque pour vous.",
+      "externalTitle": "Utiliser un dossier existant",
+      "externalDesc": "Indiquez à Vivid un dossier que vous avez déjà — rien n'est copié, et le dossier devient portable vers un autre appareil.",
+      "chooseTitle": "Choisissez un dossier à utiliser comme bibliothèque",
+      "changeFolder": "Choisir un autre dossier",
+      "pickFolderFirst": "Choisissez d'abord un dossier.",
+      "adding": "Ajout en cours…",
+      "restarting": "Redémarrage…",
+      "nameLabel": "Nom"
+    }
   },
   "tools": {
     "ytdlpDesc": "Télécharger vidéo et audio depuis des liens",
@@ -160,7 +174,8 @@
       "semanticSearch": "Recherche sémantique",
       "aiNaming": "Nommage et description par IA",
       "about": "Vivid",
-      "pinnedCollections": "Collections épinglées"
+      "pinnedCollections": "Collections épinglées",
+      "workspace": "Espace de travail"
     },
     "general": {
       "homePage": "Page d'accueil",
@@ -337,6 +352,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Tous droits réservés.",
       "viewSource": "Voir sur GitHub",
       "website": "Site web"
+    },
+    "workspace": {
+      "desc": "Par défaut, Vivid stocke votre bibliothèque dans son propre dossier de données d'application. Vous pouvez plutôt le pointer vers un dossier existant : sa propre base de données et ses miniatures vivront dans ce dossier, ce qui rend l'ensemble portable vers un autre appareil.",
+      "defaultPath": "Bibliothèque par défaut de Vivid",
+      "active": "Actif",
+      "pendingRestart": "Redémarrer pour appliquer",
+      "switch": "Changer",
+      "remove": "Supprimer",
+      "add": "Ajouter un espace de travail",
+      "chooseTitle": "Choisissez un dossier à utiliser comme espace de travail",
+      "switchTitle": "Changer d'espace de travail ?",
+      "switchConfirm": "Vivid doit redémarrer pour passer à « {{name}} ». Les modifications non enregistrées dans les autres vues seront perdues.",
+      "switchAndRestart": "Changer et redémarrer",
+      "removeTitle": "Supprimer l'espace de travail ?",
+      "removeConfirm": "Ceci ne fait qu'oublier « {{name}} » dans Vivid — son dossier et tout ce qu'il contient (y compris sa base de données) reste intact sur le disque.",
+      "rename": "Renommer",
+      "saveName": "Enregistrer le nom",
+      "devRestartNeeded": "Espace de travail changé. Redémarrez le serveur de développement (pas seulement cette fenêtre) pour l'appliquer — le redémarrage automatique ne fonctionne pas avec `tauri dev`."
     }
   },
   "trash": {
@@ -1232,5 +1265,11 @@
     "newName": "Nouveau nom",
     "titleSingle": "Renommer le fichier sur le disque",
     "rename": "Renommer"
+  },
+  "workspacePicker": {
+    "title": "Quel espace de travail ?",
+    "desc": "Vous avez plusieurs espaces de travail configurés. Choisissez-en un pour continuer.",
+    "continue": "Continuer",
+    "restarting": "Redémarrage…"
   }
 }

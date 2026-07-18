@@ -24,7 +24,21 @@
     "toolsTitle": "Medien-Tools (optional)",
     "toolsDesc": "Ermöglicht den Download über Links. Falls bereits installiert, verwendet Vivid Ihre Version — andernfalls können Sie es hier herunterladen.",
     "toolsNote": "Optional — überspringen und bei Bedarf später in den Einstellungen herunterladen.",
-    "done": "Alles bereit"
+    "done": "Alles bereit",
+    "workspace": {
+      "title": "Wo soll deine Bibliothek liegen?",
+      "desc": "Du kannst dies später in den Einstellungen ändern.",
+      "defaultTitle": "Neu beginnen",
+      "defaultDesc": "Vivid verwaltet deine Bibliothek für dich.",
+      "externalTitle": "Vorhandenen Ordner verwenden",
+      "externalDesc": "Verweise Vivid auf einen bereits vorhandenen Ordner — es wird nichts kopiert, und der Ordner wird auf ein anderes Gerät übertragbar.",
+      "chooseTitle": "Wähle einen Ordner als deine Bibliothek",
+      "changeFolder": "Anderen Ordner wählen",
+      "pickFolderFirst": "Wähle zuerst einen Ordner.",
+      "adding": "Wird hinzugefügt…",
+      "restarting": "Wird neu gestartet…",
+      "nameLabel": "Name"
+    }
   },
   "tools": {
     "ytdlpDesc": "Video & Audio von Links herunterladen",
@@ -160,7 +174,8 @@
       "semanticSearch": "Semantische Suche",
       "aiNaming": "KI-Benennung & Beschreibung",
       "about": "Vivid",
-      "pinnedCollections": "Angeheftete Sammlungen"
+      "pinnedCollections": "Angeheftete Sammlungen",
+      "workspace": "Arbeitsbereich"
     },
     "general": {
       "homePage": "Startseite",
@@ -337,6 +352,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Alle Rechte vorbehalten.",
       "viewSource": "Auf GitHub ansehen",
       "website": "Website"
+    },
+    "workspace": {
+      "desc": "Vivid speichert deine Bibliothek standardmäßig in einem eigenen App-Datenordner. Du kannst stattdessen auf einen vorhandenen Ordner verweisen — dessen eigene Datenbank und Miniaturansichten liegen dann in diesem Ordner, sodass alles auf ein anderes Gerät übertragbar ist.",
+      "defaultPath": "Standardbibliothek von Vivid",
+      "active": "Aktiv",
+      "pendingRestart": "Neustart zum Anwenden",
+      "switch": "Wechseln",
+      "remove": "Entfernen",
+      "add": "Arbeitsbereich hinzufügen",
+      "chooseTitle": "Wähle einen Ordner als Arbeitsbereich",
+      "switchTitle": "Arbeitsbereich wechseln?",
+      "switchConfirm": "Vivid muss neu gestartet werden, um zu „{{name}}“ zu wechseln. Nicht gespeicherte Änderungen in anderen Ansichten gehen verloren.",
+      "switchAndRestart": "Wechseln & neu starten",
+      "removeTitle": "Arbeitsbereich entfernen?",
+      "removeConfirm": "Dies vergisst „{{name}}“ nur in Vivid — der Ordner und alles darin (einschließlich seiner Datenbank) bleibt unverändert auf der Festplatte.",
+      "rename": "Umbenennen",
+      "saveName": "Namen speichern",
+      "devRestartNeeded": "Arbeitsbereich gewechselt. Starte den Dev-Server neu (nicht nur dieses Fenster), um die Änderung zu übernehmen — der automatische Neustart funktioniert unter `tauri dev` nicht."
     }
   },
   "trash": {
@@ -1232,5 +1265,11 @@
     "newName": "Neuer Name",
     "titleSingle": "Datei auf der Festplatte umbenennen",
     "rename": "Umbenennen"
+  },
+  "workspacePicker": {
+    "title": "Welcher Arbeitsbereich?",
+    "desc": "Du hast mehr als einen Arbeitsbereich eingerichtet. Wähle einen aus, um fortzufahren.",
+    "continue": "Weiter",
+    "restarting": "Wird neu gestartet…"
   }
 }
