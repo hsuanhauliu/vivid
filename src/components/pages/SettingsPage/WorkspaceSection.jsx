@@ -6,6 +6,7 @@ import {
   FolderPlus,
   Unlink,
   FolderOpen,
+  HardDrive,
   CheckCircle2,
   RotateCcw,
   Pencil,
@@ -173,14 +174,17 @@ export default function WorkspaceSection({ onRequestConfirm }) {
     }
   }
 
-  // Forget a registered external workspace, leaving its folder (and
-  // everything inside it, including its own `.vivid/` database) untouched
-  // on disk — it can always be re-added later by picking the folder again.
-  // Unlike the plain "Remove" this used to be, unlinking the *active*
-  // workspace is allowed: it switches to the default workspace first (a
-  // registry-only write), forgets the old entry, then relaunches once so
-  // the running process actually picks up the default instead of the one
-  // that just got unlinked.
+  // Forget a registered workspace — including the default one, if the user
+  // wants to stop using Vivid's managed library entirely — leaving its
+  // folder (and everything inside it, including its own `.vivid/` database
+  // for an external one) untouched on disk, so it can always be re-added
+  // later (picking the folder again, or "Add Vivid's managed library"
+  // below). Unlinking the *active* workspace is allowed: it switches to
+  // whichever other workspace is registered first (a registry-only write),
+  // forgets the old entry, then relaunches once so the running process
+  // actually picks up the fallback instead of the one that just got
+  // unlinked. The button is hidden entirely when this is the only
+  // registered workspace, since there'd be nothing to fall back to.
   function unlinkWorkspace(id, name) {
     const isActive = id === runningId;
     onRequestConfirm?.({
@@ -195,8 +199,8 @@ export default function WorkspaceSection({ onRequestConfirm }) {
         setNotice(null);
         try {
           if (isActive) {
-            const defaultWs = workspaces.find((w) => w.kind === 'default');
-            if (defaultWs) await invoke('switch_workspace', { id: defaultWs.id });
+            const fallback = workspaces.find((w) => w.id !== id);
+            if (fallback) await invoke('switch_workspace', { id: fallback.id });
             await invoke('remove_workspace', { id });
             if (import.meta.env.DEV) {
               // Same dev-mode limitation as switchWorkspaceAndApply: the
@@ -216,6 +220,21 @@ export default function WorkspaceSection({ onRequestConfirm }) {
         }
       },
     });
+  }
+
+  // Re-register Vivid's own managed library after the user unlinked it —
+  // never switches to it automatically, matching "Add Workspace" below.
+  async function addDefaultWorkspace() {
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke('add_default_workspace');
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const workspaces = registry?.workspaces ?? [];
@@ -307,7 +326,7 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                     <Pencil size={13} />
                   </button>
                 )}
-                {w.kind !== 'default' && !isEditing && (
+                {workspaces.length > 1 && !isEditing && (
                   <button
                     className="icon-btn"
                     title={t('settings.workspace.unlink')}
@@ -350,15 +369,18 @@ export default function WorkspaceSection({ onRequestConfirm }) {
             </div>
           </div>
         ) : (
-          <button
-            className="btn btn-secondary"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={pickWorkspaceFolder}
-            disabled={busy}
-          >
-            <FolderPlus size={13} style={{ marginRight: 4 }} />
-            {t('settings.workspace.add')}
-          </button>
+          <div className="workspace-add-row">
+            {!workspaces.some((w) => w.kind === 'default') && (
+              <button className="btn btn-secondary" onClick={addDefaultWorkspace} disabled={busy}>
+                <HardDrive size={13} style={{ marginRight: 4 }} />
+                {t('settings.workspace.addDefault')}
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={pickWorkspaceFolder} disabled={busy}>
+              <FolderPlus size={13} style={{ marginRight: 4 }} />
+              {t('settings.workspace.add')}
+            </button>
+          </div>
         )}
       </div>
     </SettingsSection>

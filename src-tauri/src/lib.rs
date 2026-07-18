@@ -198,8 +198,8 @@ pub fn run() {
 
             // ── Workspace ─────────────────────────────────────────────────────
             // `data_dir` is always Vivid's own OS app-data directory: it's where
-            // the workspace registry itself lives, where the (always-present)
-            // default workspace's data lives, and where machine-global caches
+            // the workspace registry itself lives, where the default workspace's
+            // data lives *if registered*, and where machine-global caches
             // (downloaded models, yt-dlp) stay regardless of which workspace is
             // active — none of those are workspace-portable data.
             let data_dir = app.path().app_data_dir()?;
@@ -214,22 +214,29 @@ pub fn run() {
             app.manage(commands::UploadState::new());
 
             let registry = workspace::load(&data_dir);
-            if registry.workspaces.len() <= 1 {
-                // Nothing to choose between — load immediately, exactly as
-                // before this workspace-choice gate existed.
+            if registry.workspaces.len() == 1 {
+                // Exactly one registered workspace — nothing to choose between,
+                // load it immediately.
                 let active_workspace = workspace::resolve_startup_workspace(&registry);
                 initialize_workspace(&app.handle(), active_workspace, &data_dir)?;
             } else {
-                // Multiple workspaces registered: deliberately don't load any
-                // of them yet. `DbState`/`WorkspaceState`/`ClipState`/
-                // `SyncState` simply aren't managed until the frontend's
-                // startup picker calls `open_workspace` with the user's
-                // choice — any command that needs them errors cleanly if
-                // invoked before that (which the frontend is responsible for
-                // not doing; see `WorkspaceGate.jsx`).
+                // Either 2+ registered workspaces, or none at all (a fresh
+                // install, or every workspace has been unlinked) — in both
+                // cases, deliberately don't load or create anything yet.
+                // `DbState`/`WorkspaceState`/`ClipState`/`SyncState` simply
+                // aren't managed until the frontend's pre-mount gate resolves
+                // a choice and calls `open_workspace` (existing workspace) or
+                // `add_default_workspace`/`add_workspace` + `open_workspace`
+                // (first run, nothing registered yet) — any command that
+                // needs them errors cleanly if invoked before that (which the
+                // frontend is responsible for not doing; see
+                // `WorkspaceGate.jsx`). This is also how a user who wants to
+                // use only their own folder — never Vivid's managed library —
+                // is honored: nothing about the default workspace is ever
+                // created unless they explicitly ask for it.
                 tracing::info!(
                     count = registry.workspaces.len(),
-                    "Multiple workspaces registered — waiting for user choice before loading one"
+                    "Deferring workspace load until the frontend resolves a choice"
                 );
             }
 
@@ -384,6 +391,7 @@ pub fn run() {
             commands::list_workspaces,
             commands::get_active_workspace,
             commands::add_workspace,
+            commands::add_default_workspace,
             commands::rename_workspace,
             commands::switch_workspace,
             commands::open_workspace,

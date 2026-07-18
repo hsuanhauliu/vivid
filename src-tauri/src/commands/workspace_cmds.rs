@@ -117,6 +117,32 @@ pub fn add_workspace(app: AppHandle, path: String, name: String) -> Result<Works
     Ok(ws)
 }
 
+/// Re-register Vivid's own managed library — the counterpart to
+/// `add_workspace` for external folders, used when the user wants a Vivid-
+/// managed library back after unlinking it (or on first run, if they choose
+/// it over an external folder). A fresh install never has this registered
+/// automatically; nothing about the default workspace is created until this
+/// is explicitly called. Idempotent — returns the existing entry if it's
+/// already registered rather than erroring.
+#[tauri::command]
+pub fn add_default_workspace(app: AppHandle) -> Result<Workspace, String> {
+    let data_dir = app_data_dir(&app)?;
+    let mut registry = workspace::load(&data_dir);
+    if let Some(existing) = registry.find(workspace::DEFAULT_WORKSPACE_ID) {
+        return Ok(existing.clone());
+    }
+    let ws = Workspace {
+        id: workspace::DEFAULT_WORKSPACE_ID.into(),
+        kind: WorkspaceKind::Default,
+        path: None,
+        name: "My Library".into(),
+    };
+    registry.workspaces.push(ws.clone());
+    workspace::save(&data_dir, &registry).map_err(|e| e.to_string())?;
+    crate::rebuild_workspace_menu(&app);
+    Ok(ws)
+}
+
 /// Mark `id` as the active workspace in the registry. Takes effect on the
 /// next app launch — the frontend is responsible for prompting a restart.
 #[tauri::command]
@@ -215,18 +241,23 @@ pub fn rename_workspace(app: AppHandle, id: String, name: String) -> Result<Work
     Ok(updated)
 }
 
-/// Forget a registered workspace. Only ever touches the registry — the
-/// workspace's folder (and everything inside it, including its `.vivid/`
-/// database) is left untouched on disk, so it can be re-added later.
+/// Forget a registered workspace — including the default one, if the user
+/// wants to stop using Vivid's managed library entirely. Only ever touches
+/// the registry: the workspace's folder (and everything inside it, including
+/// its `.vivid/` database) is left untouched on disk, and the default
+/// workspace's app-data files are left untouched too, so either can be
+/// re-added later (`add_workspace` / `add_default_workspace`). The registry
+/// must always keep at least one workspace, so Vivid always has *something*
+/// to boot into.
 #[tauri::command]
 pub fn remove_workspace(app: AppHandle, id: String) -> Result<(), String> {
-    if id == workspace::DEFAULT_WORKSPACE_ID {
-        return Err("The default workspace can't be removed".into());
-    }
     let data_dir = app_data_dir(&app)?;
     let mut registry = workspace::load(&data_dir);
     if registry.active_id == id {
         return Err("Can't remove the active workspace — switch to another one first".into());
+    }
+    if registry.workspaces.len() <= 1 {
+        return Err("Can't remove the only registered workspace".into());
     }
     let before = registry.workspaces.len();
     registry.workspaces.retain(|w| w.id != id);
@@ -249,6 +280,22 @@ mod tests {
             kind: WorkspaceKind::External,
             path: Some(path.to_string_lossy().into_owned()),
             name: id.into(),
+        }
+    }
+
+    /// A registry with just the default workspace registered —
+    /// `WorkspaceRegistry::default()` is genuinely empty now (a fresh
+    /// install never assumes a managed library), so tests that need a
+    /// default entry to exist build one explicitly.
+    fn registry_with_default() -> WorkspaceRegistry {
+        WorkspaceRegistry {
+            workspaces: vec![Workspace {
+                id: workspace::DEFAULT_WORKSPACE_ID.into(),
+                kind: WorkspaceKind::Default,
+                path: None,
+                name: "My Library".into(),
+            }],
+            active_id: workspace::DEFAULT_WORKSPACE_ID.into(),
         }
     }
 
@@ -339,7 +386,7 @@ mod tests {
 
     #[test]
     fn rename_updates_matching_workspace() {
-        let mut reg = WorkspaceRegistry::default(); // seeds the "default" workspace
+        let mut reg = registry_with_default();
         let updated = rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "My Photos").unwrap();
         assert_eq!(updated.name, "My Photos");
         assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "My Photos");
@@ -347,14 +394,14 @@ mod tests {
 
     #[test]
     fn rename_trims_whitespace() {
-        let mut reg = WorkspaceRegistry::default();
+        let mut reg = registry_with_default();
         rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "  Trimmed  ").unwrap();
         assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "Trimmed");
     }
 
     #[test]
     fn rename_rejects_empty_name() {
-        let mut reg = WorkspaceRegistry::default();
+        let mut reg = registry_with_default();
         assert!(rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "   ").is_err());
         // Unchanged on rejection.
         assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "My Library");
@@ -368,7 +415,7 @@ mod tests {
 
     #[test]
     fn rename_only_touches_the_targeted_workspace() {
-        let mut reg = WorkspaceRegistry::default();
+        let mut reg = registry_with_default();
         reg.workspaces.push(Workspace {
             id: "w2".into(),
             kind: WorkspaceKind::External,

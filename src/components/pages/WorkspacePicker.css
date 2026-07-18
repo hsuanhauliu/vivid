@@ -102,6 +102,38 @@
   gap: 8px;
 }
 
+.workspace-picker-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.workspace-picker-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+.workspace-picker-add-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.workspace-picker-add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .workspace-picker-row {
   display: flex;
   align-items: center;

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { AlertTriangle, Check, FolderOpen, HardDrive, Loader } from 'lucide-react';
+import { AlertTriangle, Check, FolderOpen, FolderPlus, HardDrive, Loader } from 'lucide-react';
+import { pickWorkspaceFolder as pickWorkspaceFolderDialog } from '../../utils/workspace';
 import vividIcon from '../../../src-tauri/icons/128x128.png';
 import './WelcomeFlow.css';
 import './WorkspacePicker.css';
@@ -27,9 +28,18 @@ const FLOAT_ICON_COUNT = 8;
  * Switching workspaces from an already-running app is a separate, simpler
  * path now — the macOS "Workspace" menu switches directly (see
  * `menu-switch-to-workspace` in App.jsx), no picker UI involved.
+ *
+ * Also lets the user register a workspace they don't have yet, right from
+ * here, rather than having to continue into one just to reach Settings:
+ * "Link a folder…" (an external workspace) is always offered, and "Add
+ * Vivid's managed library" appears too if the default workspace isn't
+ * already registered. Either just adds to the list below — it doesn't
+ * select or open it, so picking which workspace to actually continue with
+ * stays a separate, deliberate step.
  */
 export default function WorkspacePicker({ workspaces, runningId, onDismiss }) {
   const { t } = useTranslation();
+  const [list, setList] = useState(workspaces);
   const [selected, setSelected] = useState(runningId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -52,6 +62,32 @@ export default function WorkspacePicker({ workspaces, runningId, onDismiss }) {
     }
   }
 
+  async function linkFolder() {
+    const picked = await pickWorkspaceFolderDialog(t('settings.workspace.chooseTitle'));
+    if (!picked) return;
+    setError(null);
+    try {
+      const ws = await invoke('add_workspace', { path: picked.path, name: picked.suggestedName });
+      setList((prev) => [...prev, { ...ws, valid: true }]);
+      setSelected(ws.id);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function addDefault() {
+    setError(null);
+    try {
+      const ws = await invoke('add_default_workspace');
+      setList((prev) => [...prev, { ...ws, valid: true }]);
+      setSelected(ws.id);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  const hasDefault = list.some((w) => w.kind === 'default');
+
   return (
     <div className="welcome-backdrop workspace-picker-backdrop-startup">
       <div className="workspace-picker-mesh" aria-hidden="true">
@@ -69,7 +105,7 @@ export default function WorkspacePicker({ workspaces, runningId, onDismiss }) {
           <p className="welcome-step-desc">{t('workspacePicker.desc')}</p>
 
           <div className="workspace-picker-list">
-            {workspaces.map((w) => {
+            {list.map((w) => {
               const invalid = w.valid === false;
               return (
                 <button
@@ -102,6 +138,27 @@ export default function WorkspacePicker({ workspaces, runningId, onDismiss }) {
                 </button>
               );
             })}
+          </div>
+
+          <div className="workspace-picker-add-row">
+            {!hasDefault && (
+              <button
+                type="button"
+                className="workspace-picker-add-btn"
+                onClick={addDefault}
+                disabled={busy}
+              >
+                <HardDrive size={13} /> {t('settings.workspace.addDefault')}
+              </button>
+            )}
+            <button
+              type="button"
+              className="workspace-picker-add-btn"
+              onClick={linkFolder}
+              disabled={busy}
+            >
+              <FolderPlus size={13} /> {t('settings.workspace.add')}
+            </button>
           </div>
 
           {error && <p className="welcome-workspace-error">{error}</p>}
