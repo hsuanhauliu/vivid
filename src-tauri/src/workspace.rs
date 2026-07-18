@@ -111,6 +111,10 @@ pub struct WorkspacePaths {
     pub db_path: PathBuf,
     pub media_dir: PathBuf,
     pub thumbs_dir: PathBuf,
+    /// Directory for other per-workspace Vivid-managed data (mirror-sync
+    /// config/manifest, and anywhere future per-workspace JSON files should
+    /// live) — the same directory the DB file lives in.
+    pub data_dir: PathBuf,
 }
 
 impl WorkspacePaths {
@@ -123,6 +127,7 @@ impl WorkspacePaths {
                 db_path: app_data_dir.join("vivid.db"),
                 media_dir: app_data_dir.join("media"),
                 thumbs_dir: app_data_dir.join("thumbs"),
+                data_dir: app_data_dir.to_path_buf(),
             },
             WorkspaceKind::External => {
                 // `add_workspace` always sets `path` for an External workspace;
@@ -134,16 +139,18 @@ impl WorkspacePaths {
                     db_path: vivid_dir.join("vivid.db"),
                     media_dir: root,
                     thumbs_dir: vivid_dir.join("thumbs"),
+                    data_dir: vivid_dir,
                 }
             }
         }
     }
 
-    /// Create the media and thumbnail directories (and the DB file's parent)
-    /// if they don't already exist.
+    /// Create the media, thumbnail, and data directories (and the DB file's
+    /// parent) if they don't already exist.
     pub fn ensure_dirs(&self) -> std::io::Result<()> {
         fs::create_dir_all(&self.media_dir)?;
         fs::create_dir_all(&self.thumbs_dir)?;
+        fs::create_dir_all(&self.data_dir)?;
         if let Some(parent) = self.db_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -339,6 +346,7 @@ mod tests {
         assert_eq!(paths.db_path, PathBuf::from("/app/data/vivid.db"));
         assert_eq!(paths.media_dir, PathBuf::from("/app/data/media"));
         assert_eq!(paths.thumbs_dir, PathBuf::from("/app/data/thumbs"));
+        assert_eq!(paths.data_dir, PathBuf::from("/app/data"));
     }
 
     #[test]
@@ -356,6 +364,7 @@ mod tests {
         // copied into a managed subdirectory.
         assert_eq!(paths.media_dir, PathBuf::from("/Volumes/Photos"));
         assert_eq!(paths.thumbs_dir, PathBuf::from("/Volumes/Photos/.vivid/thumbs"));
+        assert_eq!(paths.data_dir, PathBuf::from("/Volumes/Photos/.vivid"));
     }
 
     #[test]
@@ -368,8 +377,10 @@ mod tests {
         let paths = WorkspacePaths::resolve(&w, &app_data);
         assert!(paths.db_path.starts_with(&paths.media_dir));
         assert!(paths.thumbs_dir.starts_with(&paths.media_dir));
+        assert!(paths.data_dir.starts_with(&paths.media_dir));
         assert!(!paths.db_path.starts_with(&app_data));
         assert!(!paths.thumbs_dir.starts_with(&app_data));
+        assert!(!paths.data_dir.starts_with(&app_data));
     }
 
     // ── ensure_dirs ───────────────────────────────────────────────────────
@@ -387,6 +398,7 @@ mod tests {
         paths.ensure_dirs().unwrap();
         assert!(paths.media_dir.is_dir());
         assert!(paths.thumbs_dir.is_dir());
+        assert!(paths.data_dir.is_dir());
         assert!(paths.db_path.parent().unwrap().is_dir());
     }
 }

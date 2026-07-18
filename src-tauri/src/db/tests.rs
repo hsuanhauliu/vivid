@@ -459,3 +459,177 @@ fn delete_collection_is_atomic() {
     let fetched = fetch_one(&conn, "id-1").unwrap();
     assert!(fetched.collection_id.is_none());
 }
+
+// ── Folders (on-disk directory tree) ─────────────────────────────────────
+
+#[test]
+fn ensure_uncategorized_is_idempotent() {
+    let conn = open();
+    let id1 = ensure_uncategorized(&conn).unwrap();
+    let id2 = ensure_uncategorized(&conn).unwrap();
+    assert_eq!(id1, id2);
+    assert_eq!(list_folders(&conn).unwrap().len(), 1);
+}
+
+#[test]
+fn create_fetch_and_list_folders() {
+    let conn = open();
+    let f = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    assert_eq!(f.name, "Trip");
+    assert_eq!(f.rel_path, "Trip");
+    assert!(f.parent_id.is_none());
+
+    let fetched = fetch_folder(&conn, &f.id).unwrap();
+    assert_eq!(fetched.id, f.id);
+
+    assert_eq!(folder_id_by_rel_path(&conn, "Trip").unwrap(), Some(f.id.clone()));
+    assert_eq!(folder_id_by_rel_path(&conn, "Nope").unwrap(), None);
+
+    assert_eq!(list_folders(&conn).unwrap().len(), 1);
+}
+
+#[test]
+fn folder_name_taken_is_case_insensitive_and_parent_scoped() {
+    let conn = open();
+    create_folder(&conn, "Trip", None, "Trip").unwrap();
+
+    // Same parent (root, i.e. None), any case → taken.
+    assert!(folder_name_taken(&conn, None, "Trip", None).unwrap());
+    assert!(folder_name_taken(&conn, None, "trip", None).unwrap());
+    // Unused name at the same level → free.
+    assert!(!folder_name_taken(&conn, None, "Other", None).unwrap());
+
+    // Same name nested under a different parent is a different namespace → free.
+    let parent = create_folder(&conn, "Parent", None, "Parent").unwrap();
+    assert!(!folder_name_taken(&conn, Some(&parent.id), "Trip", None).unwrap());
+}
+
+#[test]
+fn folder_name_taken_excludes_self_for_rename() {
+    let conn = open();
+    let f = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    // Renaming a folder to its own (cased) name must not count as a clash.
+    assert!(!folder_name_taken(&conn, None, "trip", Some(&f.id)).unwrap());
+}
+
+#[test]
+fn set_folder_parent_reparents() {
+    let conn = open();
+    let a = create_folder(&conn, "A", None, "A").unwrap();
+    let b = create_folder(&conn, "B", None, "B").unwrap();
+
+    set_folder_parent(&conn, &b.id, Some(&a.id)).unwrap();
+
+    let updated = fetch_folder(&conn, &b.id).unwrap();
+    assert_eq!(updated.parent_id.as_deref(), Some(a.id.as_str()));
+}
+
+#[test]
+fn set_item_folder_updates_folder_id_and_path() {
+    let conn = open();
+    let f = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    insert(&conn, &item("id-1", "/lib/Uncategorized/a.jpg")).unwrap();
+
+    set_item_folder(&conn, "id-1", &f.id, "/lib/Trip/a.jpg").unwrap();
+
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.folder_id.as_deref(), Some(f.id.as_str()));
+    assert_eq!(fetched.file_path, "/lib/Trip/a.jpg");
+}
+
+#[test]
+fn delete_folder_subtree_removes_descendants_but_not_siblings() {
+    let conn = open();
+    create_folder(&conn, "Trip", None, "Trip").unwrap();
+    create_folder(&conn, "Beach", None, "Trip/Beach").unwrap();
+    // A sibling whose name merely starts with the same prefix must survive —
+    // guards the LIKE pattern's '/' boundary (`Trip/%`, not `Trip%`).
+    create_folder(&conn, "TripOther", None, "TripOther").unwrap();
+
+    delete_folder_subtree(&conn, "Trip").unwrap();
+
+    let remaining: Vec<String> = list_folders(&conn).unwrap().into_iter().map(|f| f.rel_path).collect();
+    assert_eq!(remaining, vec!["TripOther".to_string()]);
+}
+
+#[test]
+fn items_under_matches_direct_and_nested_children_only() {
+    let conn = open();
+    let root = "/lib";
+    insert(&conn, &item("direct", &format!("{root}/Trip/a.jpg"))).unwrap();
+    insert(&conn, &item("nested", &format!("{root}/Trip/Beach/b.jpg"))).unwrap();
+    // Prefix look-alike sibling — must NOT be matched (no '/' right after "Trip").
+    insert(&conn, &item("sibling", &format!("{root}/TripOther/c.jpg"))).unwrap();
+    // Unrelated folder — must NOT be matched.
+    insert(&conn, &item("unrelated", &format!("{root}/Other/d.jpg"))).unwrap();
+
+    let found = items_under(&conn, "Trip", root).unwrap();
+    let ids: Vec<&str> = found.iter().map(|i| i.id.as_str()).collect();
+
+    assert_eq!(found.len(), 2);
+    assert!(ids.contains(&"direct"));
+    assert!(ids.contains(&"nested"));
+}
+
+#[test]
+fn items_under_excludes_deleted() {
+    let conn = open();
+    let root = "/lib";
+    insert(&conn, &item("id-1", &format!("{root}/Trip/a.jpg"))).unwrap();
+    trash_item(&conn, "id-1").unwrap();
+
+    assert!(items_under(&conn, "Trip", root).unwrap().is_empty());
+}
+
+#[test]
+fn rename_folder_tree_rewrites_rel_paths_file_paths_and_name() {
+    let conn = open();
+    let root = "/lib";
+    let trip = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    create_folder(&conn, "Beach", Some(&trip.id), "Trip/Beach").unwrap();
+    // Sibling that merely shares a prefix — must be untouched.
+    create_folder(&conn, "TripOther", None, "TripOther").unwrap();
+
+    insert(&conn, &item("direct", &format!("{root}/Trip/a.jpg"))).unwrap();
+    insert(&conn, &item("nested", &format!("{root}/Trip/Beach/b.jpg"))).unwrap();
+    insert(&conn, &item("sibling", &format!("{root}/TripOther/c.jpg"))).unwrap();
+
+    rename_folder_tree(&conn, &trip.id, "Vacation", "Trip", "Vacation", root).unwrap();
+
+    // The renamed folder itself: new name + new rel_path.
+    let renamed = fetch_folder(&conn, &trip.id).unwrap();
+    assert_eq!(renamed.name, "Vacation");
+    assert_eq!(renamed.rel_path, "Vacation");
+
+    // The descendant folder's rel_path shifted along with it.
+    let all = list_folders(&conn).unwrap();
+    let beach = all.iter().find(|f| f.name == "Beach").unwrap();
+    assert_eq!(beach.rel_path, "Vacation/Beach");
+
+    // Items directly in and nested under the renamed folder both moved.
+    assert_eq!(fetch_one(&conn, "direct").unwrap().file_path, format!("{root}/Vacation/a.jpg"));
+    assert_eq!(fetch_one(&conn, "nested").unwrap().file_path, format!("{root}/Vacation/Beach/b.jpg"));
+
+    // The prefix-look-alike sibling folder and its item are untouched.
+    let sibling = all.iter().find(|f| f.name == "TripOther").unwrap();
+    assert_eq!(sibling.rel_path, "TripOther");
+    assert_eq!(fetch_one(&conn, "sibling").unwrap().file_path, format!("{root}/TripOther/c.jpg"));
+}
+
+#[test]
+fn rename_folder_tree_rolls_back_on_conflict() {
+    let conn = open();
+    let trip = create_folder(&conn, "Trip", None, "Trip").unwrap();
+    // A folder already occupies the destination rel_path — the UNIQUE
+    // constraint on rel_path should fail the rename and roll it back whole.
+    create_folder(&conn, "Vacation", None, "Vacation").unwrap();
+    insert(&conn, &item("direct", "/lib/Trip/a.jpg")).unwrap();
+
+    let result = rename_folder_tree(&conn, &trip.id, "Vacation", "Trip", "Vacation", "/lib");
+    assert!(result.is_err());
+
+    // Nothing was changed: original folder and item path both survive intact.
+    let unchanged = fetch_folder(&conn, &trip.id).unwrap();
+    assert_eq!(unchanged.rel_path, "Trip");
+    assert_eq!(fetch_one(&conn, "direct").unwrap().file_path, "/lib/Trip/a.jpg");
+}

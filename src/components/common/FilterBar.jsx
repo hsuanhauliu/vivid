@@ -811,3 +811,31 @@ export function applyAllFilters(items, filters) {
   });
   return applyFilters(out, filters);
 }
+
+/**
+ * Whether any filter field (or the mood filter, which lives outside the
+ * `filters` object) is currently set — the same field list `applyAllFilters`
+ * checks, kept as one function so the "is anything active" question is
+ * answered in exactly one place rather than three call sites in App.jsx that
+ * previously had to be kept in sync by hand whenever a field was added.
+ */
+export function hasActiveFilterFields(filters, moodFilter) {
+  return !!(
+    filters.colorLabel?.length > 0 ||
+    filters.dateRange ||
+    filters.exactDay ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.tags?.length > 0 ||
+    filters.mediaType?.length > 0 ||
+    filters.extension?.length > 0 ||
+    filters.starred ||
+    filters.hasGps ||
+    filters.hasText ||
+    filters.orientation ||
+    filters.fileSize ||
+    filters.collection ||
+    filters.cameras?.length > 0 ||
+    moodFilter
+  );
+}

@@ -36,7 +36,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use notify_debouncer_full::notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
 
-use crate::commands::media_dir;
+use crate::commands::{media_dir, normalize_abs};
 use crate::db;
 use crate::DbState;
 
@@ -175,27 +175,6 @@ pub fn get_sync_config(state: State<'_, SyncState>) -> SyncConfig {
 #[tauri::command]
 pub fn get_sync_status(state: State<'_, SyncState>) -> SyncStatus {
     state.status.lock().unwrap().clone()
-}
-
-/// Resolve a path to an absolute, lexically-normalized form (resolves `.`/`..`
-/// without requiring the path to exist, so a not-yet-created destination can
-/// still be checked). Symlinks aren't followed — good enough for the overlap
-/// checks below, which guard against obvious mistakes, not adversarial evasion.
-fn normalize_abs(p: &Path) -> PathBuf {
-    let abs = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_default().join(p)
-    };
-    let mut out = PathBuf::new();
-    for comp in abs.components() {
-        match comp {
-            std::path::Component::ParentDir => { out.pop(); }
-            std::path::Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
 }
 
 /// Reject destinations that would be unsafe to mirror into: ones overlapping the
@@ -780,12 +759,17 @@ fn folder_id_for_rel(conn: &rusqlite::Connection, rel: &str) -> Option<String> {
 
 // ── Config + manifest persistence ────────────────────────────────────────────
 
+// Sync targets and their manifests are scoped to the active workspace (which
+// folders to mirror, and what's already been mirrored, both only make sense
+// relative to *that* workspace's library) — read from `WorkspaceState.paths`
+// rather than the raw app-data dir so switching workspaces doesn't share or
+// clobber stale mirror state between them.
 fn config_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_data_dir().ok().map(|d| d.join("sync_config.json"))
+    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_config.json"))
 }
 
 fn manifest_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_data_dir().ok().map(|d| d.join("sync_manifest.json"))
+    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_manifest.json"))
 }
 
 fn load_config(app: &AppHandle) -> SyncConfig {
@@ -831,12 +815,8 @@ mod tests {
         p
     }
 
-    // ── normalize_abs / validate_dest: destination safety ──────────────────────
-
-    #[test]
-    fn normalize_resolves_dot_and_parent() {
-        assert_eq!(normalize_abs(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
-    }
+    // ── validate_dest: destination safety ───────────────────────────────────
+    // (normalize_abs itself is tested where it's defined, commands/mod.rs)
 
     #[test]
     fn reject_dest_equal_to_library() {

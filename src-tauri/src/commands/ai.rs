@@ -7,7 +7,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::{Emitter, Manager, State};
 
 /// Guards against overlapping embed-all passes. Without this, every single
@@ -30,9 +30,13 @@ impl Drop for EmbedScanGuard {
 
 pub struct ClipInner {
     /// In-memory embedding index. Updated incrementally after each embed.
-    /// Wrapped in Arc so callers can cheaply clone and release the lock before
-    /// running the compute-heavy cosine similarity loop.
-    pub emb_index:           Arc<EmbIndex>,
+    /// Wrapped in `Arc<RwLock<_>>` (not just `Arc`) so callers can cheaply
+    /// clone the `Arc` and release the outer `ClipState` lock before running
+    /// the compute-heavy cosine similarity loop, while single-item upserts
+    /// (`embed_and_tag_image`) mutate in place under the `RwLock` instead of
+    /// deep-cloning the whole index — which a bare `Arc::make_mut` would do
+    /// whenever a concurrent search is holding its own clone of the `Arc`.
+    pub emb_index:           Arc<RwLock<EmbIndex>>,
     pub multilingual:        Option<Arc<SiglipClip>>,
     pub multilingual_loading: bool,
 }
@@ -176,7 +180,7 @@ pub fn load_multilingual(app: tauri::AppHandle) -> Result<(), String> {
                     let mut g = state.0.lock().unwrap();
                     g.multilingual         = Some(Arc::new(enc));
                     g.multilingual_loading = false;
-                    g.emb_index            = Arc::new(emb_index);
+                    g.emb_index            = Arc::new(RwLock::new(emb_index));
                     drop(g);
 
                     // Auto-index any items added before the model was available.
@@ -354,10 +358,12 @@ pub async fn embed_and_tag_image(
         db::fetch_one(&conn, &id).map_err(|e| e.to_string())?
     };
 
-    // Keep the in-memory index current so searches immediately reflect this item.
+    // Keep the in-memory index current so searches immediately reflect this
+    // item. Mutates in place under the RwLock — never clones the index, even
+    // if a concurrent search is holding its own `Arc` clone of it.
     {
-        let mut g = clip.0.lock().unwrap();
-        Arc::make_mut(&mut g.emb_index).upsert(id.clone(), &emb_f32);
+        let g = clip.0.lock().unwrap();
+        g.emb_index.write().unwrap().upsert(id.clone(), &emb_f32);
     }
 
     Ok(updated)
@@ -495,7 +501,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
         );
         tracing::info!(count = new_index.len(), "Embedding index refreshed after embed-all");
         let mut g = clip.0.lock().unwrap();
-        g.emb_index = Arc::new(new_index);
+        g.emb_index = Arc::new(RwLock::new(new_index));
     });
     Ok(())
 }
@@ -517,7 +523,8 @@ pub async fn semantic_search(
 
     let scored = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<(f32, String)>, String> {
         let query_emb = multilingual.embed_text(&query).map_err(|e| e.to_string())?;
-        let mut scored: Vec<(f32, String)> = emb_index
+        let idx = emb_index.read().unwrap();
+        let mut scored: Vec<(f32, String)> = idx
             .iter()
             .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
             .collect();
@@ -562,7 +569,8 @@ pub async fn mood_filter(
     };
 
     let scored = tauri::async_runtime::spawn_blocking(move || {
-        let mut scored: Vec<(f32, String)> = emb_index
+        let idx = emb_index.read().unwrap();
+        let mut scored: Vec<(f32, String)> = idx
             .iter()
             .map(|(id, emb)| (multilingual.score_moods(emb)[mood_idx].1, id.to_string()))
             .collect();
@@ -590,9 +598,10 @@ pub fn find_similar(
     clip:    State<'_, ClipState>,
 ) -> Result<Vec<SemanticResult>, String> {
     let emb_index = Arc::clone(&clip.0.lock().unwrap().emb_index);
+    let idx = emb_index.read().unwrap();
 
     // Look up the query embedding in the cache first; fall back to DB.
-    let query_emb: Vec<f32> = if let Some(emb) = emb_index.get(&item_id) {
+    let query_emb: Vec<f32> = if let Some(emb) = idx.get(&item_id) {
         emb.to_vec()
     } else {
         let conn = db.0.lock().unwrap();
@@ -602,8 +611,8 @@ pub fn find_similar(
         bytes_to_embedding(&bytes)
     };
 
-    let mut scored: Vec<(f32, String)> = if !emb_index.is_empty() {
-        emb_index.iter()
+    let mut scored: Vec<(f32, String)> = if !idx.is_empty() {
+        idx.iter()
             .filter(|(id, _)| *id != item_id)
             .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
             .collect()
@@ -615,6 +624,7 @@ pub fn find_similar(
             .map(|(id, bytes)| (cosine_sim(&query_emb, &bytes_to_embedding(&bytes)), id))
             .collect()
     };
+    drop(idx);
 
     // Drop weak matches before truncating — better to return fewer, genuinely
     // similar items than to pad out to `limit` with unrelated ones.

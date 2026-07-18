@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import {
   FolderPlus,
   Trash2,
@@ -14,7 +13,11 @@ import {
 } from 'lucide-react';
 import { SettingsSection } from './primitives';
 import { basenameOf } from '../../../utils/path';
-import { switchWorkspaceAndApply } from '../../../utils/workspace';
+import {
+  fetchWorkspaceRegistry,
+  pickWorkspaceFolder as pickWorkspaceFolderDialog,
+  switchWorkspaceAndApply,
+} from '../../../utils/workspace';
 
 /**
  * Lets the user point Vivid at an external folder to use as a portable,
@@ -46,10 +49,7 @@ export default function WorkspaceSection({ onRequestConfirm }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [reg, active] = await Promise.all([
-        invoke('list_workspaces'),
-        invoke('get_active_workspace'),
-      ]);
+      const { registry: reg, active } = await fetchWorkspaceRegistry();
       setRegistry(reg);
       setRunningId(active.id);
     } catch (e) {
@@ -91,12 +91,11 @@ export default function WorkspaceSection({ onRequestConfirm }) {
   );
 
   async function pickWorkspaceFolder() {
-    const picked = await open({ directory: true, title: t('settings.workspace.chooseTitle') });
+    const picked = await pickWorkspaceFolderDialog(t('settings.workspace.chooseTitle'));
     if (!picked) return;
-    const path = typeof picked === 'string' ? picked : picked[0];
     setError(null);
-    setDraftPath(path);
-    setDraftName(basenameOf(path));
+    setDraftPath(picked.path);
+    setDraftName(picked.suggestedName);
   }
 
   function cancelDraft() {

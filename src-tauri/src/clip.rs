@@ -40,23 +40,6 @@ pub const TAG_VOCAB: &[&str] = &[
     "indoor scene", "outdoor scene", "urban scene", "nature scene",
 ];
 
-// ── Scene vocabulary (scene classification) ───────────────────────────────────
-
-pub const SCENE_VOCAB: &[&str] = &[
-    "indoor",
-    "outdoor",
-    "nature",
-    "cityscape",
-    "architecture",
-    "portrait",
-    "food and drink",
-    "travel",
-    "sports and action",
-    "abstract and artistic",
-    "animals",
-    "night",
-];
-
 // ── Mood vocabulary (vibe filter) ─────────────────────────────────────────────
 // Each entry: (display_name, embedding_prompt)
 

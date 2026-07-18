@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import {
   Sun,
   Moon,
@@ -18,7 +17,10 @@ import {
 import ToolsManager from '../common/ToolsManager';
 import Select from '../common/Select';
 import { basenameOf } from '../../utils/path';
-import { switchWorkspaceAndApply } from '../../utils/workspace';
+import {
+  pickWorkspaceFolder as pickWorkspaceFolderDialog,
+  switchWorkspaceAndApply,
+} from '../../utils/workspace';
 import vividIcon from '../../../src-tauri/icons/128x128.png';
 import './WelcomeFlow.css';
 
@@ -122,15 +124,14 @@ export default function WelcomeFlow({
   }
 
   async function pickWorkspaceFolder() {
-    const picked = await open({ directory: true, title: t('welcome.workspace.chooseTitle') });
+    const picked = await pickWorkspaceFolderDialog(t('welcome.workspace.chooseTitle'));
     if (!picked) return;
-    const path = typeof picked === 'string' ? picked : picked[0];
-    setWsFolder(path);
+    setWsFolder(picked.path);
     setWsChoice('external');
     setWsError(null);
     // Suggest the folder's own name, but don't clobber a name the user
     // already typed in (e.g. after picking a different folder).
-    setWsName((prev) => (prev.trim() ? prev : basenameOf(path)));
+    setWsName((prev) => (prev.trim() ? prev : picked.suggestedName));
   }
 
   // Reconcile the backend registry with whatever's currently chosen, then

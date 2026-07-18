@@ -3,7 +3,12 @@
 //! Embeddings are stored contiguously in a single `Vec<f32>` (dim-strided)
 //! rather than as a `Vec<Vec<f32>>`, so the cosine-similarity scan over the
 //! whole library walks one contiguous buffer instead of chasing N separate heap
-//! allocations. Ids live in a parallel `Vec<String>`.
+//! allocations. Ids live in a parallel `Vec<String>`, with a `HashMap` from id
+//! to row index alongside it so lookups/upserts are O(1) instead of an O(n)
+//! scan of `ids` — `from_pairs` calls `upsert` once per row, so without this
+//! building the index from a large library would be O(n²).
+
+use std::collections::HashMap;
 
 /// All embeddings have the same dimensionality (CLIP produces 512-dim vectors).
 #[derive(Clone, Default)]
@@ -11,6 +16,7 @@ pub struct EmbIndex {
     ids: Vec<String>,
     data: Vec<f32>, // flat: row i occupies data[i*dim .. (i+1)*dim]
     dim: usize,
+    index: HashMap<String, usize>, // id -> row index into ids/data
 }
 
 impl EmbIndex {
@@ -22,6 +28,7 @@ impl EmbIndex {
             ids: Vec::with_capacity(pairs.len()),
             data: Vec::with_capacity(pairs.len() * dim),
             dim,
+            index: HashMap::with_capacity(pairs.len()),
         };
         for (id, emb) in pairs {
             idx.upsert(id, &emb);
@@ -48,7 +55,7 @@ impl EmbIndex {
 
     /// Look up a single embedding by id.
     pub fn get(&self, id: &str) -> Option<&[f32]> {
-        let i = self.ids.iter().position(|x| x == id)?;
+        let i = *self.index.get(id)?;
         Some(&self.data[i * self.dim..(i + 1) * self.dim])
     }
 
@@ -60,9 +67,11 @@ impl EmbIndex {
         if emb.len() != self.dim {
             return;
         }
-        if let Some(i) = self.ids.iter().position(|x| *x == id) {
+        if let Some(&i) = self.index.get(&id) {
             self.data[i * self.dim..(i + 1) * self.dim].copy_from_slice(emb);
         } else {
+            let i = self.ids.len();
+            self.index.insert(id.clone(), i);
             self.ids.push(id);
             self.data.extend_from_slice(emb);
         }

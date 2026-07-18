@@ -1,5 +1,38 @@
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { basenameOf } from './path';
+
+/**
+ * Fetch the workspace registry and the workspace this process actually
+ * started with, together — every caller that needs one needs the other
+ * (the registry's `active_id` may point at a pending, not-yet-applied
+ * switch; `runningId` is what's really loaded right now).
+ *
+ * @returns {Promise<{registry: object, active: object}>}
+ */
+export async function fetchWorkspaceRegistry() {
+  const [registry, active] = await Promise.all([
+    invoke('list_workspaces'),
+    invoke('get_active_workspace'),
+  ]);
+  return { registry, active };
+}
+
+/**
+ * Open the native folder picker for choosing a workspace folder, and suggest
+ * a display name from the folder's own basename. Returns `null` if the user
+ * cancelled the dialog.
+ *
+ * @param {string} title - dialog title.
+ * @returns {Promise<{path: string, suggestedName: string} | null>}
+ */
+export async function pickWorkspaceFolder(title) {
+  const picked = await open({ directory: true, title });
+  if (!picked) return null;
+  const path = typeof picked === 'string' ? picked : picked[0];
+  return { path, suggestedName: basenameOf(path) };
+}
 
 /**
  * Switch the active workspace and apply it. In a bundled app this restarts

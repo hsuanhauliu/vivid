@@ -42,7 +42,7 @@ use tokenizers::Tokenizer;
 
 use crate::clip::{
     best_device, cosine_sim, extract_video_frame, heif_to_jpeg_if_needed, sips_to_jpeg,
-    to_normed_vec, MOOD_VOCAB, SCENE_VOCAB, TAG_VOCAB,
+    to_normed_vec, MOOD_VOCAB, TAG_VOCAB,
 };
 use crate::config::{AUTO_TAG_MAX, AUTO_TAG_THRESHOLD};
 
@@ -57,7 +57,6 @@ pub struct SiglipClip {
     tokenizer: Tokenizer,
     tag_embeddings: Vec<Vec<f32>>,
     mood_embeddings: Vec<Vec<f32>>,
-    scene_embeddings: Vec<Vec<f32>>,
     device: Device,
 }
 
@@ -98,13 +97,11 @@ impl SiglipClip {
             tokenizer,
             tag_embeddings: Vec::new(),
             mood_embeddings: Vec::new(),
-            scene_embeddings: Vec::new(),
             device,
         };
 
         result.tag_embeddings = result.compute_tag_embeddings()?;
         result.mood_embeddings = result.compute_mood_embeddings()?;
-        result.scene_embeddings = result.compute_scene_embeddings()?;
 
         tracing::info!(path = ?model_dir, "SigLIP (multilingual) loaded");
         Ok(result)
@@ -217,8 +214,5 @@ impl SiglipClip {
     }
     fn compute_mood_embeddings(&self) -> Result<Vec<Vec<f32>>> {
         MOOD_VOCAB.iter().map(|(_, prompt)| self.embed_text(prompt)).collect()
-    }
-    fn compute_scene_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        SCENE_VOCAB.iter().map(|scene| self.embed_text(&format!("a photo of {scene}"))).collect()
     }
 }

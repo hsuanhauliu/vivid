@@ -44,7 +44,7 @@ import SettingsPage from './components/pages/SettingsPage';
 import AudioPlayer from './components/common/AudioPlayer';
 import KeyboardHelpModal from './components/modals/KeyboardHelpModal';
 import ExportModal from './components/modals/ExportModal';
-import FilterBar, { applyAllFilters } from './components/common/FilterBar';
+import FilterBar, { applyAllFilters, hasActiveFilterFields } from './components/common/FilterBar';
 import WorldMapView from './components/views/WorldMapView';
 import MusicView from './components/views/MusicView';
 import CommandPalette from './components/common/CommandPalette';
@@ -84,6 +84,7 @@ import usePersistentState, {
   jsonParse,
 } from './hooks/usePersistentState';
 import { sortItems } from './utils/sort';
+import { fetchWorkspaceRegistry } from './utils/workspace';
 import SortDropdown from './components/common/SortDropdown';
 import ResultsBar from './components/common/ResultsBar';
 import SystemMessagesPage from './components/pages/SystemMessagesPage';
@@ -432,10 +433,7 @@ export default function App() {
     }
     (async () => {
       try {
-        const [registry, active] = await Promise.all([
-          invoke('list_workspaces'),
-          invoke('get_active_workspace'),
-        ]);
+        const { registry, active } = await fetchWorkspaceRegistry();
         if (registry.workspaces.length > 1) {
           setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
         }
@@ -1210,10 +1208,7 @@ export default function App() {
     let unlisten;
     listen('menu-switch-workspace', async () => {
       try {
-        const [registry, active] = await Promise.all([
-          invoke('list_workspaces'),
-          invoke('get_active_workspace'),
-        ]);
+        const { registry, active } = await fetchWorkspaceRegistry();
         if (registry.workspaces.length > 1) {
           setWorkspaceChoices({ workspaces: registry.workspaces, runningId: active.id });
         } else {
@@ -1798,7 +1793,7 @@ export default function App() {
               Shared as-is by the World Map view: same button, same filters state. */}
           {(view === 'library' || view === 'worldmap') && (
             <button
-              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel?.length > 0 || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
+              className={`icon-btn toolbar-view-btn ${showFilterBar || hasActiveFilterFields(filters, moodFilter) ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
               title={t('toolbar.filters')}
             >
@@ -1947,24 +1942,7 @@ export default function App() {
               visible.length > 0 &&
               (() => {
                 const hasActiveSearch = search.trim().length > 0;
-                const hasActiveFilters = !!(
-                  filters.colorLabel?.length > 0 ||
-                  filters.dateRange ||
-                  filters.exactDay ||
-                  filters.dateFrom ||
-                  filters.dateTo ||
-                  filters.tags?.length > 0 ||
-                  filters.mediaType?.length > 0 ||
-                  filters.extension?.length > 0 ||
-                  filters.starred ||
-                  filters.hasGps ||
-                  filters.hasText ||
-                  filters.orientation ||
-                  filters.fileSize ||
-                  filters.collection ||
-                  filters.cameras?.length > 0 ||
-                  moodFilter
-                );
+                const hasActiveFilters = hasActiveFilterFields(filters, moodFilter);
                 if (!hasActiveSearch && !hasActiveFilters) return null;
                 const hasAudio = visible.some((i) => i.media_type === 'audio');
                 const hasNonAudio = visible.some((i) => i.media_type !== 'audio');
@@ -2398,26 +2376,7 @@ export default function App() {
                   <MediaGrid
                     items={visible}
                     isFiltered={
-                      !!(
-                        search.trim() ||
-                        filters.colorLabel?.length > 0 ||
-                        filters.dateRange ||
-                        filters.exactDay ||
-                        filters.dateFrom ||
-                        filters.dateTo ||
-                        filters.tags?.length > 0 ||
-                        filters.mediaType?.length > 0 ||
-                        filters.extension?.length > 0 ||
-                        filters.starred ||
-                        filters.hasGps ||
-                        filters.hasText ||
-                        filters.orientation ||
-                        filters.fileSize ||
-                        filters.collection ||
-                        filters.cameras?.length > 0 ||
-                        moodFilter ||
-                        activeTag
-                      )
+                      !!(search.trim() || activeTag) || hasActiveFilterFields(filters, moodFilter)
                     }
                     checkedIds={checkedIds}
                     highlightedId={selected?.id}

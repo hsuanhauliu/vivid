@@ -91,7 +91,6 @@ pub fn set_item_folder(conn: &Connection, item_id: &str, folder_id: &str, file_p
 }
 
 
-/// Rename a folder and re-root its whole subtree. After the on-disk directory has
 /// Update only the parent_id of a folder (used when re-parenting via move_folder).
 pub fn set_folder_parent(conn: &Connection, id: &str, parent_id: Option<&str>) -> Result<()> {
     conn.execute(
@@ -101,6 +100,7 @@ pub fn set_folder_parent(conn: &Connection, id: &str, parent_id: Option<&str>) -
     Ok(())
 }
 
+/// Rename a folder and re-root its whole subtree. After the on-disk directory has
 /// been moved from `old_rel` to `new_rel`, this rewrites the `rel_path` of the
 /// folder and every descendant, every affected item's `file_path` (whose absolute
 /// path is `root`/`rel_path`/file), and the folder's display name — atomically.

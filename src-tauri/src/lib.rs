@@ -123,7 +123,7 @@ pub fn run() {
             commands::init_bin_dir(data_dir.join("bin"));
 
             app.manage(ClipState(Arc::new(Mutex::new(ClipInner {
-                emb_index: Arc::new(crate::emb_index::EmbIndex::default()),
+                emb_index: Arc::new(std::sync::RwLock::new(crate::emb_index::EmbIndex::default())),
                 multilingual: None, multilingual_loading: false,
             }))));
 

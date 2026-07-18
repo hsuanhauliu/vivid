@@ -5,6 +5,7 @@ import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'luci
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatDuration } from '../../utils/format';
+import { groupByMonth } from '../../utils/timeline';
 import ScrollArea from '../common/ScrollArea';
 import './MediaGrid.css';
 
@@ -323,26 +324,6 @@ const ListRow = memo(function ListRow({
     </div>
   );
 });
-
-function groupByMonth(items, order = 'desc') {
-  const buckets = new Map();
-  for (const item of items) {
-    const key = (item.date_taken || item.created_at)?.slice(0, 7) ?? 'Unknown';
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(item);
-  }
-  const sorted = [...buckets.entries()].sort(([a], [b]) => {
-    if (a === 'Unknown') return 1;
-    if (b === 'Unknown') return -1;
-    return order === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
-  });
-  // Reverse files within each month too, so 'asc' truly flips the file order
-  // (not just the section order).
-  return sorted.map(([month, items]) => ({
-    month,
-    items: order === 'asc' ? [...items].reverse() : items,
-  }));
-}
 
 function monthLabel(key, locale) {
   if (key === 'Unknown') return 'Unknown Date';

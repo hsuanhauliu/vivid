@@ -17,6 +17,11 @@ function Toast({ toast, onDismiss }) {
   const startedAtRef = useRef(Date.now());
   const timerRef = useRef(null);
 
+  // Pause the auto-dismiss timer on hover, resume with whatever time was left.
+  // Deliberately only depends on `hovered` — `toast.id`/`toast.duration` are
+  // fixed for this Toast instance's whole lifetime (a new toast is a new key,
+  // never a prop update), and `onDismiss` is stable, so re-running on those
+  // would just restart the same timer for no reason.
   useEffect(() => {
     if (hovered) {
       clearTimeout(timerRef.current);
@@ -26,7 +31,8 @@ function Toast({ toast, onDismiss }) {
       timerRef.current = setTimeout(() => onDismiss(toast.id), remainingRef.current);
     }
     return () => clearTimeout(timerRef.current);
-  }, [hovered]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hovered]);
 
   return (
     <div

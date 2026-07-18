@@ -249,20 +249,8 @@ pub fn export_files_to_folder(
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let fname = src.file_name().ok_or("Invalid file path")?;
-        let mut dest_path = dest.join(fname);
-        if dest_path.exists() {
-            let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-            let ext  = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-            for i in 1u32.. {
-                let candidate = dest.join(if ext.is_empty() {
-                    format!("{stem}_{i}")
-                } else {
-                    format!("{stem}_{i}.{ext}")
-                });
-                if !candidate.exists() { dest_path = candidate; break; }
-            }
-        }
+        let fname = src.file_name().and_then(|n| n.to_str()).ok_or("Invalid file path")?;
+        let dest_path = unique_path(dest, fname);
         fs::copy(src, &dest_path).map_err(|e| format!("Copy failed for {src_str}: {e}"))?;
     }
     Ok(())

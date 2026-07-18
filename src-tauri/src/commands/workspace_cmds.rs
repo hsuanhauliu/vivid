@@ -9,32 +9,11 @@ use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 
+use crate::commands::normalize_abs;
 use crate::workspace::{self, Workspace, WorkspaceKind, WorkspaceRegistry};
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path().app_data_dir().map_err(|e| e.to_string())
-}
-
-/// Resolve to an absolute, lexically-normalized path (`.`/`..` resolved
-/// without requiring the path to exist). Mirrors `sync.rs`'s `normalize_abs`
-/// — used the same way here: comparing paths for overlap without being
-/// fooled by a crafted `..` segment. Symlinks aren't followed; good enough
-/// for guarding against obvious mistakes, not adversarial evasion.
-fn normalize_abs(p: &Path) -> PathBuf {
-    let abs = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_default().join(p)
-    };
-    let mut out = PathBuf::new();
-    for comp in abs.components() {
-        match comp {
-            std::path::Component::ParentDir => { out.pop(); }
-            std::path::Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
 }
 
 /// Reject a candidate workspace folder that doesn't exist, is already
@@ -185,14 +164,8 @@ mod tests {
         }
     }
 
-    // ── normalize_abs ─────────────────────────────────────────────────────
-
-    #[test]
-    fn normalize_resolves_dot_and_parent() {
-        assert_eq!(normalize_abs(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
-    }
-
     // ── validate_new_workspace_path ──────────────────────────────────────
+    // (normalize_abs itself is tested where it's defined, commands/mod.rs)
 
     #[test]
     fn reject_nonexistent_folder() {

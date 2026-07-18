@@ -186,6 +186,28 @@ pub(crate) fn unique_path(dir: &Path, fname: &str) -> PathBuf {
     path
 }
 
+/// Resolve a path to an absolute, lexically-normalized form (resolves `.`/`..`
+/// without requiring the path to exist, so a not-yet-created destination can
+/// still be checked). Symlinks aren't followed — good enough for the overlap
+/// checks callers use this for, which guard against obvious mistakes, not
+/// adversarial evasion.
+pub(crate) fn normalize_abs(p: &Path) -> PathBuf {
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(p)
+    };
+    let mut out = PathBuf::new();
+    for comp in abs.components() {
+        match comp {
+            std::path::Component::ParentDir => { out.pop(); }
+            std::path::Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
 /// Decode a `data:image/...;base64,...` URL (as produced by canvas.toDataURL
 /// on the frontend) into raw bytes.
 pub(crate) fn decode_data_url(data_url: &str) -> Result<Vec<u8>, String> {
@@ -1647,8 +1669,14 @@ pub fn update_audio_meta(
 
 #[cfg(test)]
 mod tests {
-    use super::unique_path;
+    use super::{normalize_abs, unique_path};
+    use std::path::{Path, PathBuf};
     use tempfile::tempdir;
+
+    #[test]
+    fn normalize_resolves_dot_and_parent() {
+        assert_eq!(normalize_abs(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
+    }
 
     #[test]
     fn unique_path_no_conflict() {
@@ -1695,8 +1723,6 @@ mod tests {
     }
 }
 
-/// Hash library files and return collections with identical SHA-256.
-/// Pre-filters by file_size first — files with a unique size cannot be duplicates —
 #[derive(serde::Serialize)]
 pub struct LibraryStats {
     pub total_images:    i64,
@@ -1724,8 +1750,10 @@ pub fn get_library_stats(state: State<DbState>) -> Result<LibraryStats, String> 
     })
 }
 
-/// so we only hash the small subset of size-colliding files. Lock is released before
-/// any disk I/O to avoid blocking other operations.
+/// Hash library files and return collections with identical SHA-256.
+/// Pre-filters by file_size first — files with a unique size cannot be
+/// duplicates — so we only hash the small subset of size-colliding files.
+/// Lock is released before any disk I/O to avoid blocking other operations.
 #[tauri::command]
 pub fn find_duplicates(state: State<DbState>) -> Result<Vec<Vec<MediaItem>>, String> {
     // Fetch metadata only; release lock before touching the filesystem.
