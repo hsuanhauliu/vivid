@@ -400,9 +400,9 @@
 }
 
 /* Gap between the sticky date header and the card grid below it — on the
-   container, not the cards, so it doesn't affect card spacing/sizing. */
+   container, not the cards, so it doesn't affect card spacing/sizing.
+   Excludes masonry mode, which wants tiles flush against the date bar. */
 .timeline-section-header + .media-grid,
-.timeline-section-header + .masonry-grid,
 .timeline-section-header + .media-list {
   padding-top: 14px;
 }
