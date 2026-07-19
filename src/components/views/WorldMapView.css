@@ -198,6 +198,89 @@
   font-size: 22px;
 }
 
+/* Highlight ring for pins caught by marquee-drag/ctrl-click select */
+.map-thumb-outer.selected .map-thumb-wrap {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Marquee-drag selection rectangle */
+.map-marquee {
+  position: absolute;
+  z-index: 700;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+/* Right-click context menu on selected pins */
+.map-context-menu {
+  position: fixed;
+  z-index: 1200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  min-width: 160px;
+}
+.map-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.map-context-menu button:hover {
+  background: var(--surface-hover);
+}
+
+/* "N hidden — show all" banner, shown while any pins are hidden from view */
+.map-hidden-banner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 6px 5px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.map-hidden-banner button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-hidden-banner button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* Map cluster count badge */
 .map-cluster-badge {
   position: absolute;

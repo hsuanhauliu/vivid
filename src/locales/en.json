@@ -57,6 +57,7 @@
     "browse": "Choose a file instead…"
   },
   "sidebar": {
+    "resizePinned": "Drag to resize",
     "allMedia": "All Media",
     "starred": "Starred",
     "favorites": "Favorites",
@@ -497,6 +498,8 @@
     "camera": "Camera",
     "camerasCount_one": "{{count}} camera",
     "camerasCount_other": "{{count}} cameras",
+    "resolutionsCount_one": "{{count}} resolution",
+    "resolutionsCount_other": "{{count}} resolutions",
     "colorsCount_one": "{{count}} label",
     "colorsCount_other": "{{count}} labels",
     "color": {
@@ -528,6 +531,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Resolution",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K & up"
+    },
     "inCollection": "In a collection"
   },
   "panel": {
@@ -555,6 +565,7 @@
     "setCover": "Set cover…",
     "unpin": "Unpin",
     "pin": "Pin",
+    "pinned": "Pinned",
     "maxPinned": "(max 5)",
     "delete": "Delete",
     "noFolders": "No folders yet",
@@ -602,7 +613,11 @@
     "stepFirst": "First stop",
     "stepBack": "Previous stop",
     "stepForward": "Next stop",
-    "stepLast": "Last stop"
+    "stepLast": "Last stop",
+    "selectMode": "Select pins (drag to box-select, ctrl+click to toggle)",
+    "hideSelected": "Hide {{count}} from view",
+    "hiddenCount": "{{count}} hidden",
+    "showAll": "Show all"
   },
   "stats": {
     "empty": "Import some files to see library stats.",
@@ -829,7 +844,21 @@
   },
   "search": {
     "aiPlaceholder": "Describe what you're looking for…",
-    "placeholder": "Search by name, tag, or description…"
+    "placeholder": "Search by name, tag, or description…",
+    "scope": {
+      "title": "Search in",
+      "name": "File name",
+      "tags": "Tags",
+      "description": "Description",
+      "ocr": "Text in image (OCR)"
+    },
+    "saved": {
+      "title": "Saved searches",
+      "namePlaceholder": "Name this search…",
+      "save": "Save",
+      "delete": "Delete",
+      "empty": "No saved searches yet."
+    }
   },
   "detail": {
     "title": "Details",

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import CollectionAvatar from '../common/CollectionAvatar';
+import ScrollArea from '../common/ScrollArea';
 import './Sidebar.css';
 import {
   Image,
@@ -22,7 +23,17 @@ import {
   PinOff,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
 } from 'lucide-react';
+
+// Default/max pinned-section height — 8 rows, same cap as the old hardcoded
+// behavior. User-adjustable (smaller) via the drag handle below the section;
+// see `vivid-sidebar-pinned-height` in localStorage. Never allowed to exceed
+// the actual pinned-item count's height, so there's no dead space between
+// the last row and the divider below it.
+const PINNED_ROW_HEIGHT = 31;
+const PINNED_DEFAULT_ROWS = 8;
+const PINNED_MIN_ROWS = 2;
 
 const LIBRARY_ITEMS = [
   { id: 'all', labelKey: 'sidebar.allMedia', icon: Library },
@@ -93,6 +104,17 @@ export default function Sidebar({
   dragOverId,
 }) {
   const { t } = useTranslation();
+  const [pinnedSectionOpen, setPinnedSectionOpen] = useState(
+    () => localStorage.getItem('vivid-sidebar-pinned-collapsed') !== 'true',
+  );
+  const togglePinnedSection = () => {
+    setPinnedSectionOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('vivid-sidebar-pinned-collapsed', String(!next));
+      return next;
+    });
+  };
+
   const pinnedCollections = (() => {
     const pinned = (collections ?? []).filter((g) => g.sidebar_pin);
     if (pinnedOrder.length === 0) return pinned.slice(0, 30);
@@ -100,6 +122,44 @@ export default function Sidebar({
     const rest = pinned.filter((g) => !pinnedOrder.includes(g.id));
     return [...ordered, ...rest].slice(0, 30);
   })();
+
+  const [pinnedHeight, setPinnedHeight] = useState(() => {
+    const n = Number(localStorage.getItem('vivid-sidebar-pinned-height'));
+    return Number.isFinite(n) && n > 0 ? n : PINNED_DEFAULT_ROWS * PINNED_ROW_HEIGHT;
+  });
+  // Clamped to the section's actual content height so it can never show a
+  // gap below the last item, and capped at the 8-row default so a long
+  // pinned list still scrolls instead of growing without bound.
+  const pinnedContentHeight = pinnedCollections.length * PINNED_ROW_HEIGHT;
+  const pinnedMaxHeight = Math.min(PINNED_DEFAULT_ROWS * PINNED_ROW_HEIGHT, pinnedContentHeight);
+  const pinnedMinHeight = Math.min(PINNED_MIN_ROWS * PINNED_ROW_HEIGHT, pinnedContentHeight);
+  const effectivePinnedHeight = Math.min(Math.max(pinnedHeight, pinnedMinHeight), pinnedMaxHeight);
+
+  // Drag the divider below the pinned section to resize it — tracked on
+  // `document` (not the handle itself) so the drag keeps following the mouse
+  // even once the cursor leaves the thin handle strip.
+  const handlePinnedResizeStart = (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = effectivePinnedHeight;
+    const onMove = (ev) => {
+      const next = Math.min(
+        pinnedMaxHeight,
+        Math.max(pinnedMinHeight, startHeight + (ev.clientY - startY)),
+      );
+      setPinnedHeight(next);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setPinnedHeight((h) => {
+        localStorage.setItem('vivid-sidebar-pinned-height', String(h));
+        return h;
+      });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
   // A library filter is only "active" on the plain library view — not when a
   // collection or folder scope is in effect (those highlight their own items).
   const isLibraryActive = (id) =>
@@ -109,13 +169,18 @@ export default function Sidebar({
   const isPanelOpen = (id) => secondaryPanel === id;
 
   // Highlight the collection/folder panel button that owns the active scope,
-  // even when its secondary panel is collapsed.
+  // even when its secondary panel is collapsed. Suppressed for
+  // albums/playlists when the active collection is itself a pinned sidebar
+  // shortcut — that row already carries its own highlight, and double-
+  // highlighting both it and the primary Albums/Playlists nav item for one
+  // selection reads as two different things being active at once.
   const activeCollectionKind = collections?.find((g) => g.id === activeCollection)?.kind;
+  const isActiveCollectionPinned = pinnedCollections.some((g) => g.id === activeCollection);
   const isPanelScoped = (id) => {
     if (view !== 'library') return false;
     if (id === 'folders') return !!activeFolder;
-    if (id === 'albums') return activeCollectionKind === 'album';
-    if (id === 'playlists') return activeCollectionKind === 'playlist';
+    if (id === 'albums') return activeCollectionKind === 'album' && !isActiveCollectionPinned;
+    if (id === 'playlists') return activeCollectionKind === 'playlist' && !isActiveCollectionPinned;
     return false;
   };
 
@@ -202,73 +267,101 @@ export default function Sidebar({
       {pinnedCollections.length > 0 && (
         <>
           <div className="sidebar-divider" />
-          <nav
-            className={`sidebar-nav sidebar-pinned-nav ${pinnedCollections.length > 5 ? 'sidebar-pinned-scrollable' : ''}`}
-          >
-            {pinnedCollections.map((g) => {
-              const isActive = view === 'library' && activeCollection === g.id;
-              // Playlists get a hover play-button overlay on their cover that
-              // queues every track in the collection — mirrors the secondary
-              // panel's "play all", but inline on the sidebar pin.
-              const canPlay = g.kind === 'playlist' && !!onPlayPlaylist;
-              return (
-                <button
-                  key={g.id}
-                  data-collection-id={g.id}
-                  className={`sidebar-item sidebar-pinned-item ${isActive ? 'active' : ''} ${g.id === dragOverId ? 'sidebar-drag-over' : ''}`}
-                  onClick={() => {
-                    if (isActive) return;
-                    onCollectionClick?.(g.id);
-                    onSecondaryPanel(null);
-                    onViewChange('library');
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setPinCtx({ id: g.id, x: e.clientX, y: e.clientY });
-                  }}
-                  title={collapsed ? g.name : t('panel.unpin')}
-                >
-                  <span className={`sidebar-pin-cover${canPlay ? ' sidebar-pin-playable' : ''}`}>
-                    <CollectionAvatar
-                      group={g}
-                      allItems={allItems}
-                      size={15}
-                      radius={4}
-                      draggable={false}
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onDragStart={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    />
-                    {canPlay && (
-                      <span
-                        className="sidebar-pin-play"
-                        role="button"
-                        tabIndex={-1}
-                        title={t('panel.playAll')}
-                        onClick={(e) => {
+          {!collapsed && (
+            <button
+              type="button"
+              className="sidebar-pinned-header"
+              onClick={togglePinnedSection}
+              aria-expanded={pinnedSectionOpen}
+            >
+              <span className="sidebar-section-label sidebar-pinned-header-label">
+                {t('panel.pinned', 'Pinned')}
+              </span>
+              <ChevronDown
+                size={12}
+                className={`sidebar-pinned-chevron ${pinnedSectionOpen ? 'open' : ''}`}
+              />
+            </button>
+          )}
+          {(collapsed || pinnedSectionOpen) &&
+            (() => {
+              const pinnedRows = pinnedCollections.map((g) => {
+                const isActive = view === 'library' && activeCollection === g.id;
+                // Playlists get a hover play-button overlay on their cover that
+                // queues every track in the collection — mirrors the secondary
+                // panel's "play all", but inline on the sidebar pin.
+                const canPlay = g.kind === 'playlist' && !!onPlayPlaylist;
+                return (
+                  <button
+                    key={g.id}
+                    data-collection-id={g.id}
+                    className={`sidebar-item sidebar-pinned-item ${isActive ? 'active' : ''} ${g.id === dragOverId ? 'sidebar-drag-over' : ''}`}
+                    onClick={() => {
+                      if (isActive) return;
+                      onCollectionClick?.(g.id);
+                      onSecondaryPanel(null);
+                      onViewChange('library');
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setPinCtx({ id: g.id, x: e.clientX, y: e.clientY });
+                    }}
+                    title={collapsed ? g.name : t('panel.unpin')}
+                  >
+                    <span className={`sidebar-pin-cover${canPlay ? ' sidebar-pin-playable' : ''}`}>
+                      <CollectionAvatar
+                        group={g}
+                        allItems={allItems}
+                        size={15}
+                        radius={4}
+                        draggable={false}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDragStart={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          onPlayPlaylist(
-                            allItems.filter((i) => i.collection_id === g.id),
-                            g.name,
-                          );
                         }}
-                      >
-                        <Play size={11} fill="currentColor" />
-                      </span>
-                    )}
-                  </span>
-                  {!collapsed && <span className="sidebar-item-label">{g.name}</span>}
-                </button>
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      />
+                      {canPlay && (
+                        <span
+                          className="sidebar-pin-play"
+                          role="button"
+                          tabIndex={-1}
+                          title={t('panel.playAll')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPlayPlaylist(
+                              allItems.filter((i) => i.collection_id === g.id),
+                              g.name,
+                            );
+                          }}
+                        >
+                          <Play size={11} fill="currentColor" />
+                        </span>
+                      )}
+                    </span>
+                    {!collapsed && <span className="sidebar-item-label">{g.name}</span>}
+                  </button>
+                );
+              });
+
+              return !collapsed ? (
+                <div className="sidebar-pinned-resizable" style={{ height: effectivePinnedHeight }}>
+                  <ScrollArea
+                    className="sidebar-pinned-scroll"
+                    innerClassName="sidebar-nav sidebar-pinned-nav"
+                  >
+                    {pinnedRows}
+                  </ScrollArea>
+                </div>
+              ) : (
+                <nav className="sidebar-nav sidebar-pinned-nav">{pinnedRows}</nav>
               );
-            })}
-          </nav>
+            })()}
         </>
       )}
 
@@ -294,7 +387,15 @@ export default function Sidebar({
         </>
       )}
 
-      <div className="sidebar-divider" />
+      {pinnedCollections.length > 0 && !collapsed && pinnedSectionOpen ? (
+        <div
+          className="sidebar-pinned-resize-handle"
+          onMouseDown={handlePinnedResizeStart}
+          title={t('sidebar.resizePinned')}
+        />
+      ) : (
+        <div className="sidebar-divider" />
+      )}
 
       {/* Meta panels */}
       <nav className="sidebar-nav">

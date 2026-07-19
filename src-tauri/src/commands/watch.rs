@@ -40,8 +40,9 @@ impl WatchState {
 /// Emitted when the active workspace's folder becomes unavailable (removed,
 /// unmounted, or otherwise unreachable) while Vivid is running. The frontend
 /// shows a warning and, on confirmation, relaunches back to the workspace
-/// picker — `resolve_startup_workspace` then correctly falls back since the
-/// path no longer resolves.
+/// picker (`.setup()` never eager-loads, so this always lands there) — the
+/// now-unreachable workspace shows up marked invalid (`list_workspaces`
+/// computes `path_exists()` live) rather than silently disappearing.
 #[derive(Clone, Serialize)]
 struct WorkspaceUnavailable {
     name: String,
@@ -120,6 +121,18 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
                 let _ = db::remove_missing(&conn, &[id.clone()]);
                 drop(conn);
                 let _ = app.emit("media-removed", MediaRemoved { ids: vec![id] });
+                continue;
+            }
+            // Not a tracked file — a *folder* may have been removed instead
+            // (Finder, or any tool outside Vivid). Prune its row (and any
+            // descendants) so it doesn't linger in the tree forever; nothing
+            // else ever revisits the `folders` table once a folder's adopted.
+            let rel = rel_dir(&p, mdir);
+            let is_folder = !rel.is_empty()
+                && db::folder_id_by_rel_path(&conn, &rel).ok().flatten().is_some();
+            if is_folder && db::delete_folder_subtree(&conn, &rel).is_ok() {
+                drop(conn);
+                let _ = app.emit("folders-changed", ());
             }
             continue;
         }

@@ -12,9 +12,13 @@ import {
   StepBack,
   StepForward,
   SkipForward,
+  BoxSelect,
+  EyeOff,
+  Eye,
 } from 'lucide-react';
 import MapGL, { Marker, NavigationControl, AttributionControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import useDismiss from '../../hooks/useDismiss';
 import './WorldMapView.css';
 
 // OpenFreeMap Liberty — free vector tiles, natural terrain colors (forests, water, mountains)
@@ -288,15 +292,47 @@ export default function WorldMapView({
   const [travelPath, setTravelPath] = useState(false);
   const [stepIndex, setStepIndex] = useState(null);
 
+  // ── Multi-select (marquee-drag / ctrl-click) to show/hide pins from the
+  // current view — client-side only, never persisted or sent to the
+  // backend. `hiddenIds` removes items from geoItems (and therefore from
+  // clustering) entirely; `selectedIds` is just the highlight ring shown
+  // while picking what to hide next.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [hiddenIds, setHiddenIds] = useState(() => new Set());
+  const [dragBox, setDragBox] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const contextMenuRef = useRef(null);
+
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode((v) => {
+      const next = !v;
+      if (!next) {
+        setSelectedIds(new Set());
+        setContextMenu(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const showAllHidden = useCallback(() => setHiddenIds(new Set()), []);
+
   const geoItems = useMemo(
-    () => items.filter((i) => i.gps_lat != null && i.gps_lng != null),
-    [items],
+    () => items.filter((i) => i.gps_lat != null && i.gps_lng != null && !hiddenIds.has(i.id)),
+    [items, hiddenIds],
   );
 
   const clusters = useMemo(
     () => clusterItems(geoItems, clusterZoom, mapConfig.cluster_px),
     [geoItems, clusterZoom, mapConfig.cluster_px],
   );
+  // Read by the marquee-drag mouseup handler below via ref, not as an effect
+  // dependency — clusters gets a new array on every pan/zoom and the drag
+  // effect only needs to (re)attach when selectMode toggles, not on that.
+  const clustersRef = useRef(clusters);
+  useEffect(() => {
+    clustersRef.current = clusters;
+  }, [clusters]);
 
   // Visible longitude range (unwrapped — e.g. -540..540 when zoomed out far
   // enough to see more than one world copy), recomputed on every pan/zoom.
@@ -594,6 +630,95 @@ export default function WorldMapView({
   );
   const stepForward = useCallback(() => stepTo((stepIndex ?? -1) + 1), [stepIndex, stepTo]);
 
+  // While a selection is highlighted, Escape clears it first; pressed again
+  // (nothing left highlighted) it drops out of select mode entirely.
+  useEffect(() => {
+    if (!selectMode) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      setSelectedIds((prev) => {
+        if (prev.size > 0) return new Set();
+        setSelectMode(false);
+        return prev;
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectMode]);
+
+  // OS-folder-style marquee select: click-drag on empty map background draws
+  // a rectangle, and on release every pin whose projected screen position
+  // falls inside it gets selected. Implemented on the raw maplibre map
+  // instance (not React DOM handlers) so hit-testing can use map.project(),
+  // and gated to only attach while select mode is on — dragPan/dragRotate
+  // are disabled for that duration so a drag reliably means "select", not
+  // "pan the camera". Holding ctrl/cmd at drag-start adds to the existing
+  // selection instead of replacing it, matching ctrl-click below.
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !selectMode) return undefined;
+    map.dragPan.disable();
+    map.dragRotate.disable();
+
+    let dragging = false;
+    let start = null;
+    let additive = false;
+
+    const onDown = (e) => {
+      if (e.originalEvent.button !== 0) return; // left button only
+      dragging = true;
+      additive = e.originalEvent.ctrlKey || e.originalEvent.metaKey;
+      start = e.point;
+      setDragBox({ x0: e.point.x, y0: e.point.y, x1: e.point.x, y1: e.point.y });
+    };
+    const onMoveMap = (e) => {
+      if (!dragging) return;
+      setDragBox((prev) => (prev ? { ...prev, x1: e.point.x, y1: e.point.y } : prev));
+    };
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const { x: ex, y: ey } = e.point;
+      const minX = Math.min(start.x, ex);
+      const maxX = Math.max(start.x, ex);
+      const minY = Math.min(start.y, ey);
+      const maxY = Math.max(start.y, ey);
+      setDragBox(null);
+      if (maxX - minX < 4 && maxY - minY < 4) {
+        // Negligible movement — treat as a plain click on empty space
+        // (Finder-style: clears the current selection).
+        if (!additive) setSelectedIds(new Set());
+        return;
+      }
+      const hitIds = new Set();
+      for (const c of clustersRef.current) {
+        const p = map.project([c.lng, c.lat]);
+        if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+          for (const it of c.items) hitIds.add(it.id);
+        }
+      }
+      setSelectedIds((prev) => {
+        if (!additive) return hitIds;
+        const next = new Set(prev);
+        hitIds.forEach((id) => next.add(id));
+        return next;
+      });
+    };
+
+    map.on('mousedown', onDown);
+    map.on('mousemove', onMoveMap);
+    map.on('mouseup', onUp);
+    return () => {
+      map.dragPan.enable();
+      map.dragRotate.enable();
+      map.off('mousedown', onDown);
+      map.off('mousemove', onMoveMap);
+      map.off('mouseup', onUp);
+    };
+  }, [selectMode]);
+
+  useDismiss(contextMenuRef, () => setContextMenu(null), { enabled: !!contextMenu });
+
   return (
     <div className={`world-map-container${pickable ? ' world-map-pickable' : ''}`}>
       <MapGL
@@ -636,6 +761,8 @@ export default function WorldMapView({
                 </Marker>
               );
             }
+            const clusterIds = clItems.map((i) => i.id);
+            const isSelected = selectMode && clusterIds.some((id) => selectedIds.has(id));
             return (
               <Marker
                 key={`${lat},${lng},${offset}`}
@@ -644,10 +771,34 @@ export default function WorldMapView({
                 anchor="center"
                 onClick={(e) => {
                   e.originalEvent.stopPropagation();
-                  selectMarker(first, clItems);
+                  if (!selectMode) {
+                    selectMarker(first, clItems);
+                    return;
+                  }
+                  if (e.originalEvent.ctrlKey || e.originalEvent.metaKey) {
+                    setSelectedIds((prev) => {
+                      const allIn = clusterIds.every((id) => prev.has(id));
+                      const next = new Set(prev);
+                      clusterIds.forEach((id) => (allIn ? next.delete(id) : next.add(id)));
+                      return next;
+                    });
+                  } else {
+                    setSelectedIds(new Set(clusterIds));
+                  }
                 }}
               >
-                <div className="map-thumb-outer">
+                <div
+                  className={`map-thumb-outer${isSelected ? ' selected' : ''}`}
+                  onContextMenu={(e) => {
+                    if (!selectMode) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const alreadyIncluded = clusterIds.some((id) => selectedIds.has(id));
+                    const effective = alreadyIncluded ? Array.from(selectedIds) : clusterIds;
+                    setSelectedIds(new Set(effective));
+                    setContextMenu({ x: e.clientX, y: e.clientY, ids: effective });
+                  }}
+                >
                   {count > 1 && <div className="map-cluster-badge">{count}</div>}
                   <div
                     className={`map-thumb-wrap${first.media_type !== 'image' ? ' map-thumb-generic' : ''}`}
@@ -677,6 +828,52 @@ export default function WorldMapView({
         )}
       </MapGL>
 
+      {dragBox && (
+        <div
+          className="map-marquee"
+          style={{
+            left: Math.min(dragBox.x0, dragBox.x1),
+            top: Math.min(dragBox.y0, dragBox.y1),
+            width: Math.abs(dragBox.x1 - dragBox.x0),
+            height: Math.abs(dragBox.y1 - dragBox.y0),
+          }}
+        />
+      )}
+
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="map-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setHiddenIds((prev) => {
+                const next = new Set(prev);
+                contextMenu.ids.forEach((id) => next.add(id));
+                return next;
+              });
+              setSelectedIds(new Set());
+              setContextMenu(null);
+            }}
+          >
+            <EyeOff size={13} />
+            {t('map.hideSelected', { count: contextMenu.ids.length })}
+          </button>
+        </div>
+      )}
+
+      {!pickable && hiddenIds.size > 0 && (
+        <div className="map-hidden-banner">
+          <span>{t('map.hiddenCount', { count: hiddenIds.size })}</span>
+          <button type="button" onClick={showAllHidden}>
+            <Eye size={12} />
+            {t('map.showAll')}
+          </button>
+        </div>
+      )}
+
       {/* Feature menu + travel path controls — left */}
       {showMapTools && (
         <div className="map-left-menus">
@@ -701,6 +898,13 @@ export default function WorldMapView({
               title={t('map.travelPath')}
             >
               <Route size={14} />
+            </button>
+            <button
+              className={`map-feature-btn${selectMode ? ' active' : ''}`}
+              onClick={toggleSelectMode}
+              title={t('map.selectMode')}
+            >
+              <BoxSelect size={14} />
             </button>
           </div>
 

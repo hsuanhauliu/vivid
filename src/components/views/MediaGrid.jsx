@@ -5,7 +5,7 @@ import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'luci
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { thumbSrcOf } from '../../utils/path';
-import { formatDuration } from '../../utils/format';
+import { formatBytes, formatDate, formatDuration } from '../../utils/format';
 import { groupByMonth } from '../../utils/timeline';
 import ScrollArea from '../common/ScrollArea';
 import './MediaGrid.css';
@@ -264,9 +264,14 @@ const ListRow = memo(function ListRow({
     onOpen(item);
   }, [item, onOpen, isSelecting]);
 
+  // Only audio tracks get a hover play button in the index column — images
+  // and videos don't "play" inline in a list row, so the overlay there was
+  // just a misleading affordance.
+  const playable = item.media_type === 'audio';
+
   return (
     <div
-      className={`media-list-row ${checked ? 'checked' : ''} ${highlighted ? 'highlighted' : ''} ${isSelecting ? 'selecting' : ''}`}
+      className={`media-list-row ${checked ? 'checked' : ''} ${highlighted ? 'highlighted' : ''} ${isSelecting ? 'selecting' : ''} ${playable ? 'playable' : ''}`}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={(e) => {
@@ -291,18 +296,20 @@ const ListRow = memo(function ListRow({
         {checked && <Check size={11} strokeWidth={3} />}
       </button>
       <span className="list-row-index">{index + 1}</span>
-      <button
-        className="list-row-play"
-        title="Play"
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen(item);
-        }}
-      >
-        <span className="list-row-play-circle">
-          <Play size={13} />
-        </span>
-      </button>
+      {playable && (
+        <button
+          className="list-row-play"
+          title="Play"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(item);
+          }}
+        >
+          <span className="list-row-play-circle">
+            <Play size={13} />
+          </span>
+        </button>
+      )}
       <span className="list-row-cover">
         <ListRowCover item={item} />
       </span>
@@ -310,8 +317,14 @@ const ListRow = memo(function ListRow({
         <span className="list-row-title">{item.audio_title || item.display_name}</span>
         {item.audio_artist && <span className="list-row-artist">{item.audio_artist}</span>}
       </span>
-      <span className="list-row-album">{item.audio_album ?? ''}</span>
-      <span className="list-row-dur">{formatDuration(item.audio_duration)}</span>
+      <span className="list-row-album">
+        {item.media_type === 'audio' ? (item.audio_album ?? '') : formatBytes(item.file_size)}
+      </span>
+      <span className="list-row-dur">
+        {item.media_type === 'audio'
+          ? formatDuration(item.audio_duration)
+          : formatDate(item.created_at)}
+      </span>
       <button
         className={`list-row-star ${item.starred ? 'starred' : ''}`}
         title={item.starred ? 'Unstar' : 'Star'}

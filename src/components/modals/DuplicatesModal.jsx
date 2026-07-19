@@ -5,11 +5,19 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { Trash2, CheckCircle, Image, Video, Music, HardDrive, Loader } from 'lucide-react';
 import Modal from '../common/Modal';
 import { formatBytes } from '../../utils/format';
+import { thumbSrcOf } from '../../utils/path';
 import './DuplicatesModal.css';
 
 function ItemCard({ item, isKept, onToggleKeep }) {
   const { t } = useTranslation();
-  const src = item.media_type === 'image' ? convertFileSrc(item.file_path) : null;
+  // Prefer the cached thumbnail (covers video poster frames too, not just
+  // images) — only images without one yet fall back to the raw file; audio
+  // and thumbnail-less video get the placeholder icon below.
+  const src = item.thumb_path
+    ? thumbSrcOf(item.thumb_path)
+    : item.media_type === 'image'
+      ? convertFileSrc(item.file_path)
+      : null;
   const TypeIcon =
     item.media_type === 'video' ? Video : item.media_type === 'audio' ? Music : Image;
 

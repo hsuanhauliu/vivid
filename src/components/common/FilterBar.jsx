@@ -20,6 +20,7 @@ import {
   Layers,
   Camera,
   ChevronsRight,
+  Maximize2,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { captureDate } from '../../utils/sort';
@@ -69,6 +70,17 @@ const FILE_SIZES = [
   { value: 'small', labelKey: 'filterBar.fileSize.small' },
   { value: 'medium', labelKey: 'filterBar.fileSize.medium' },
   { value: 'large', labelKey: 'filterBar.fileSize.large' },
+];
+
+// Classified by long edge (max of width/height) rather than orientation-
+// specific width or height, so a portrait 1080×1920 photo/video and a
+// landscape 1920×1080 one both land in the same "Full HD" bucket — matches
+// how these terms are used colloquially, independent of orientation.
+const RESOLUTIONS = [
+  { value: 'sd', labelKey: 'filterBar.resolution.sd' }, // < 1280px long edge
+  { value: 'hd', labelKey: 'filterBar.resolution.hd' }, // 1280–1919 (720p)
+  { value: 'fhd', labelKey: 'filterBar.resolution.fhd' }, // 1920–3839 (1080p)
+  { value: 'uhd', labelKey: 'filterBar.resolution.uhd' }, // 3840+ (4K and up)
 ];
 
 // ── Dropdown helper ───────────────────────────────────────────────────────────
@@ -219,9 +231,11 @@ export default function FilterBar({
     hasText,
     orientation,
     fileSize,
+    resolution,
     collection,
     cameras = [],
   } = filters;
+  const activeResolutions = Array.isArray(resolution) ? resolution : resolution ? [resolution] : [];
   const [tagSearch, setTagSearch] = useState('');
 
   const allTags = useMemo(() => {
@@ -282,6 +296,7 @@ export default function FilterBar({
     hasText ||
     orientation ||
     fileSize ||
+    activeResolutions.length > 0 ||
     collection ||
     activeCameras.length > 0 ||
     !!moodFilter;
@@ -323,6 +338,13 @@ export default function FilterBar({
     set({ colorLabel: next });
   }
 
+  function toggleResolution(value) {
+    const next = activeResolutions.includes(value)
+      ? activeResolutions.filter((x) => x !== value)
+      : [...activeResolutions, value];
+    set({ resolution: next });
+  }
+
   function clearAll() {
     onChange({
       colorLabel: [],
@@ -338,6 +360,7 @@ export default function FilterBar({
       hasText: null,
       orientation: null,
       fileSize: null,
+      resolution: [],
       collection: null,
       cameras: [],
     });
@@ -371,6 +394,13 @@ export default function FilterBar({
       : activeCameras.length === 1
         ? (allCameras.find((c) => c.key === activeCameras[0])?.label ?? t('filterBar.camera'))
         : t('filterBar.camerasCount', { count: activeCameras.length });
+
+  const resolutionLabel =
+    activeResolutions.length === 0
+      ? t('filterBar.resolution.label')
+      : activeResolutions.length === 1
+        ? t(RESOLUTIONS.find((r) => r.value === activeResolutions[0])?.labelKey ?? '')
+        : t('filterBar.resolutionsCount', { count: activeResolutions.length });
 
   const activeDateRange = DATE_RANGES.find((d) => d.value === dateRange);
   const customRangeLabel =
@@ -580,6 +610,27 @@ export default function FilterBar({
             </MenuList>
           </Dropdown>
 
+          {/* Resolution (long edge) — multi-select */}
+          <Dropdown
+            label={resolutionLabel}
+            active={activeResolutions.length > 0}
+            onClear={() => set({ resolution: [] })}
+          >
+            <MenuList>
+              {RESOLUTIONS.map(({ value, labelKey }) => (
+                <MenuItem
+                  key={value}
+                  active={activeResolutions.includes(value)}
+                  icon={Maximize2}
+                  multi
+                  onClick={() => toggleResolution(value)}
+                >
+                  {t(labelKey)}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Dropdown>
+
           {/* Camera device — multi-select */}
           <Dropdown
             label={cameraLabel}
@@ -775,7 +826,31 @@ export function applyFilters(items, filters) {
       return true;
     });
   }
+  const resolutions = Array.isArray(filters.resolution)
+    ? filters.resolution
+    : filters.resolution
+      ? [filters.resolution]
+      : [];
+  if (resolutions.length > 0) {
+    out = out.filter((i) => resolutions.includes(resolutionBucket(i.width, i.height)));
+  }
   return out;
+}
+
+/**
+ * Classify a media item's resolution by its long edge (max of width/height),
+ * independent of orientation — a portrait 1080×1920 and a landscape
+ * 1920×1080 both land in "fhd". Returns `null` for missing/invalid
+ * dimensions (audio, or an image/video whose size was never recorded),
+ * which the filter then excludes rather than guessing.
+ */
+export function resolutionBucket(width, height) {
+  if (!width || !height) return null;
+  const longEdge = Math.max(width, height);
+  if (longEdge < 1280) return 'sd';
+  if (longEdge < 1920) return 'hd';
+  if (longEdge < 3840) return 'fhd';
+  return 'uhd';
 }
 
 /**
@@ -834,6 +909,7 @@ export function hasActiveFilterFields(filters, moodFilter) {
     filters.hasText ||
     filters.orientation ||
     filters.fileSize ||
+    filters.resolution?.length > 0 ||
     filters.collection ||
     filters.cameras?.length > 0 ||
     moodFilter

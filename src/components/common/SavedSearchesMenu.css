@@ -1,0 +1,72 @@
+/* ── Saved search menu ───────────────────────────────────────────────────── */
+.saved-search-wrap {
+  position: relative;
+}
+
+.saved-search-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.saved-search-save-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+.saved-search-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.saved-search-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.saved-search-save-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.saved-search-save-btn:hover {
+  background: var(--accent-hover);
+}
+.saved-search-save-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: var(--accent);
+}
+
+.saved-search-empty {
+  padding: 12px 10px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  text-align: center;
+}

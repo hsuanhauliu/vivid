@@ -213,32 +213,25 @@ pub fn run() {
             // ── LAN upload server (off until the user starts it) ────────────────
             app.manage(commands::UploadState::new());
 
+            // Never eager-load here, regardless of how many workspaces are
+            // registered — not even when there's exactly one. `DbState`/
+            // `WorkspaceState`/`ClipState`/`SyncState` simply aren't managed
+            // until the frontend's pre-mount gate (`WorkspaceGate.jsx`)
+            // resolves a choice and calls `open_workspace` (existing
+            // workspace) or `add_default_workspace`/`add_workspace` +
+            // `open_workspace` (first run, nothing registered yet). Always
+            // showing that landing page — even for a single registered
+            // workspace — is deliberate: the user might want to add or link
+            // another workspace before continuing, not just re-open the one
+            // they already have. This is also how a user who wants to use
+            // only their own folder, never Vivid's managed library, is
+            // honored: nothing about the default workspace is ever created
+            // unless they explicitly ask for it.
             let registry = workspace::load(&data_dir);
-            if registry.workspaces.len() == 1 {
-                // Exactly one registered workspace — nothing to choose between,
-                // load it immediately.
-                let active_workspace = workspace::resolve_startup_workspace(&registry);
-                initialize_workspace(&app.handle(), active_workspace, &data_dir)?;
-            } else {
-                // Either 2+ registered workspaces, or none at all (a fresh
-                // install, or every workspace has been unlinked) — in both
-                // cases, deliberately don't load or create anything yet.
-                // `DbState`/`WorkspaceState`/`ClipState`/`SyncState` simply
-                // aren't managed until the frontend's pre-mount gate resolves
-                // a choice and calls `open_workspace` (existing workspace) or
-                // `add_default_workspace`/`add_workspace` + `open_workspace`
-                // (first run, nothing registered yet) — any command that
-                // needs them errors cleanly if invoked before that (which the
-                // frontend is responsible for not doing; see
-                // `WorkspaceGate.jsx`). This is also how a user who wants to
-                // use only their own folder — never Vivid's managed library —
-                // is honored: nothing about the default workspace is ever
-                // created unless they explicitly ask for it.
-                tracing::info!(
-                    count = registry.workspaces.len(),
-                    "Deferring workspace load until the frontend resolves a choice"
-                );
-            }
+            tracing::info!(
+                count = registry.workspaces.len(),
+                "Deferring workspace load until the frontend resolves a choice"
+            );
 
             // ── Hide native traffic lights (we render custom ones in HTML) ─────
             #[cfg(target_os = "macos")]

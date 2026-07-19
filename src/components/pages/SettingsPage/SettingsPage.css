@@ -73,12 +73,13 @@
 }
 
 /* ── Pane wrapper ── */
+.settings-body-wrap {
+  flex: 1;
+}
 .settings-body {
   padding: 20px 28px;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  flex: 1;
 }
 
 /* ── About pane ── */
@@ -947,11 +948,11 @@
 .workspace-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
-  padding: 2px 9px;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 600;
   border: 1px solid var(--border);
   white-space: nowrap;

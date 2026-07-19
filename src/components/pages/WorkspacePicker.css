@@ -109,7 +109,9 @@
 }
 .workspace-picker-add-btn {
   display: inline-flex;
+  flex: 1;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 7px 11px;
   font-size: 12px;

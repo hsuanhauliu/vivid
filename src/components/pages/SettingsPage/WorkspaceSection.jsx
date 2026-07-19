@@ -276,17 +276,17 @@ export default function WorkspaceSection({ onRequestConfirm }) {
                       <span className="workspace-row-name">{w.name}</span>
                       {isRunning && (
                         <span className="workspace-badge workspace-badge-active">
-                          <CheckCircle2 size={12} /> {t('settings.workspace.active')}
+                          <CheckCircle2 size={10} /> {t('settings.workspace.active')}
                         </span>
                       )}
                       {isPending && (
                         <span className="workspace-badge workspace-badge-pending">
-                          <RotateCcw size={12} /> {t('settings.workspace.pendingRestart')}
+                          <RotateCcw size={10} /> {t('settings.workspace.pendingRestart')}
                         </span>
                       )}
                       {isInvalid && (
                         <span className="workspace-badge workspace-badge-invalid">
-                          <AlertTriangle size={12} /> {t('settings.workspace.invalid')}
+                          <AlertTriangle size={10} /> {t('settings.workspace.invalid')}
                         </span>
                       )}
                     </span>

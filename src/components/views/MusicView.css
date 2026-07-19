@@ -2,6 +2,7 @@
 .media-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   max-width: 920px;
   margin: 0 auto;
 }
@@ -21,6 +22,11 @@
   cursor: default;
   user-select: none;
   border: 1px solid transparent;
+  /* Idle rows previously had no fill at all — just bare text floating on
+     whatever the page background happened to be, inconsistent with every
+     other surface in the app (cards, panels, menus) which all sit on a real
+     var(--surface) box. */
+  background: var(--surface);
 }
 
 .media-list-row:hover {
@@ -116,10 +122,10 @@
 .list-row-play:focus {
   outline: none;
 }
-.media-list-row:hover .list-row-index {
+.media-list-row.playable:hover .list-row-index {
   opacity: 0;
 }
-.media-list-row:hover .list-row-play {
+.media-list-row.playable:hover .list-row-play {
   opacity: 1;
   visibility: visible;
 }

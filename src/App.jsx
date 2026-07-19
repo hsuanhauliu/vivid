@@ -46,6 +46,8 @@ import AudioPlayer from './components/common/AudioPlayer';
 import KeyboardHelpModal from './components/modals/KeyboardHelpModal';
 import ExportModal from './components/modals/ExportModal';
 import FilterBar, { applyAllFilters, hasActiveFilterFields } from './components/common/FilterBar';
+import SearchScopeMenu, { DEFAULT_SEARCH_SCOPE } from './components/common/SearchScopeMenu';
+import SavedSearchesMenu from './components/common/SavedSearchesMenu';
 import WorldMapView from './components/views/WorldMapView';
 import MusicView from './components/views/MusicView';
 import CommandPalette from './components/common/CommandPalette';
@@ -107,6 +109,7 @@ const EMPTY_FILTERS = {
   hasText: false,
   orientation: null,
   fileSize: null,
+  resolution: [],
   collection: false,
   cameras: [],
 };
@@ -123,6 +126,23 @@ export default function App() {
   const [activeTag, setActiveTag] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [search, setSearch] = useState('');
+  // Which fields keyword search checks (name/tags/description/OCR) — all on
+  // by default, narrowed via the toggle menu next to the search bar.
+  const [searchScope, setSearchScope] = usePersistentState(
+    'vivid-search-scope',
+    DEFAULT_SEARCH_SCOPE,
+    jsonParse(DEFAULT_SEARCH_SCOPE),
+    JSON.stringify,
+  );
+  // Named search text + search-scope + filter-bar snapshots the user can
+  // re-apply later — distinct from searchHistory below, which auto-records
+  // recent plain-text queries rather than a deliberately named bookmark.
+  const [savedSearches, setSavedSearches] = usePersistentState(
+    'vivid-saved-searches',
+    [],
+    jsonParse([]),
+    JSON.stringify,
+  );
   const [sortBy, setSortBy] = useState('date-desc');
   // Manual sort + drag-reorder is only offered on playlist pages.
   const isPlaylistView = collections.find((g) => g.id === activeCollection)?.kind === 'playlist';
@@ -287,21 +307,12 @@ export default function App() {
     audio: 'grid',
     playlist: 'list',
   });
-  // The line-by-line "list" mode is a music-player layout, offered only where the
-  // content is songs: playlists and the audio filter.
-  const supportsList = isPlaylistView || filter === 'audio';
   // Playlists get their own view-mode slot ('playlist') so the choice doesn't
   // bleed into the shared 'all' library page (a playlist sets filter='all').
   const viewKey = isPlaylistView ? 'playlist' : filter;
   const rawViewMode = viewModeMap[viewKey] ?? 'masonry';
-  // Map old 'timeline' value to 'grid' — timeline is now a separate toggle. A
-  // stored 'list' choice falls back to cards where list isn't supported.
-  const viewMode =
-    rawViewMode === 'timeline'
-      ? 'grid'
-      : rawViewMode === 'list' && !supportsList
-        ? 'grid'
-        : rawViewMode;
+  // Map old 'timeline' value to 'grid' — timeline is now a separate toggle.
+  const viewMode = rawViewMode === 'timeline' ? 'grid' : rawViewMode;
   const setViewMode = (mode) => setViewModeMap((m) => ({ ...m, [viewKey]: mode }));
   // false | 'desc' (newest first) | 'asc' (oldest first)
   const [timelineGrouping, setTimelineGrouping] = usePersistentState(
@@ -961,6 +972,32 @@ export default function App() {
     setSearchHistory((prev) => prev.filter((h) => h !== term));
   }, []);
 
+  const handleSaveSearch = useCallback(
+    (name, snapshot) => {
+      setSavedSearches((prev) => [
+        { id: crypto.randomUUID(), name, ...snapshot },
+        ...prev.filter((s) => s.name !== name),
+      ]);
+    },
+    [setSavedSearches],
+  );
+
+  const handleApplySavedSearch = useCallback(
+    (entry) => {
+      setSearch(entry.search ?? '');
+      setSearchScope(entry.searchScope ?? DEFAULT_SEARCH_SCOPE);
+      setFilters(entry.filters ?? EMPTY_FILTERS);
+      setSemanticMode(false);
+      setMoodFilter(null);
+      if (hasActiveFilterFields(entry.filters ?? EMPTY_FILTERS, null)) setShowFilterBar(true);
+    },
+    [setSearchScope, setFilters],
+  );
+
+  const handleDeleteSavedSearch = useCallback((id) => {
+    setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
   const handleSearchGo = useCallback(() => {
     if (!search.trim()) return;
     searchInputRef.current?.blur();
@@ -1545,16 +1582,17 @@ export default function App() {
 
       // Text search (debounced) — skipped in semantic mode, where the same
       // search box is the AI query rather than a literal substring match.
+      // Each field only participates when its toggle in searchScope is on.
       if (
         !isSemantic &&
         q &&
         !(
-          i.display_name.toLowerCase().includes(q) ||
-          i.file_name.toLowerCase().includes(q) ||
-          i.description?.toLowerCase().includes(q) ||
-          i.ocr_text?.toLowerCase().includes(q) ||
-          i.tags?.some((t) => t.includes(q)) ||
-          i.auto_tags?.some((t) => t.includes(q))
+          (searchScope.name &&
+            (i.display_name.toLowerCase().includes(q) || i.file_name.toLowerCase().includes(q))) ||
+          (searchScope.description && i.description?.toLowerCase().includes(q)) ||
+          (searchScope.ocr && i.ocr_text?.toLowerCase().includes(q)) ||
+          (searchScope.tags &&
+            (i.tags?.some((t) => t.includes(q)) || i.auto_tags?.some((t) => t.includes(q))))
         )
       )
         return false;
@@ -1576,6 +1614,7 @@ export default function App() {
     activeCollection,
     activeTag,
     debouncedSearch,
+    searchScope,
     sortBy,
     filters,
     semanticMode,
@@ -1797,6 +1836,11 @@ export default function App() {
             )}
           </div>
 
+          {/* Search scope toggles — which fields keyword search checks.
+              Doesn't apply to semantic search (an AI query, not a per-field
+              match), so it's hidden while that's active. */}
+          {!semanticMode && <SearchScopeMenu scope={searchScope} onChange={setSearchScope} />}
+
           {/* Semantic search toggle */}
           {multilingualLoaded && (
             <button
@@ -1822,6 +1866,20 @@ export default function App() {
             >
               <Filter size={15} />
             </button>
+          )}
+
+          {/* Saved searches — bookmark the current search text + scope +
+              filters, reachable wherever the Filter toggle is (search/filters
+              only drive the library and world-map item lists). */}
+          {(view === 'library' || view === 'worldmap') && (
+            <SavedSearchesMenu
+              current={{ search, searchScope, filters }}
+              hasCurrent={!!search.trim() || hasActiveFilterFields(filters, null)}
+              saved={savedSearches}
+              onSave={handleSaveSearch}
+              onApply={handleApplySavedSearch}
+              onDelete={handleDeleteSavedSearch}
+            />
           )}
 
           {/* Separator between filter and view group */}
@@ -2362,16 +2420,14 @@ export default function App() {
                         <LayoutGrid size={13} />
                         <span>{t('viewMode.cards')}</span>
                       </button>
-                      {supportsList && (
-                        <button
-                          className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
-                          onClick={() => setViewMode('list')}
-                          title={t('viewMode.listTitle')}
-                        >
-                          <List size={13} />
-                          <span>{t('viewMode.list')}</span>
-                        </button>
-                      )}
+                      <button
+                        className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
+                        onClick={() => setViewMode('list')}
+                        title={t('viewMode.listTitle')}
+                      >
+                        <List size={13} />
+                        <span>{t('viewMode.list')}</span>
+                      </button>
                     </div>
                     {filter !== 'audio' && viewMode !== 'list' && (
                       <button

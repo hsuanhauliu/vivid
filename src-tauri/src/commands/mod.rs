@@ -1051,16 +1051,55 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
 
     let added = adopt_files(app, &state, &mdir, new_candidates)?;
 
-    tracing::info!(added, removed, modified, skipped_type, "Workspace reconciliation complete");
+    // Prune folder rows whose on-disk directory is gone — mirrors the same
+    // self-healing already done for individual files above. A folder deleted
+    // outside Vivid (Finder, another tool) while the app wasn't running would
+    // otherwise linger in the tree forever, since nothing else ever revisits
+    // the `folders` table once a folder's been adopted.
+    let pruned_folders = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        prune_missing_folders(&conn, &mdir).map_err(|e| e.to_string())?
+    };
+
+    tracing::info!(added, removed, modified, skipped_type, pruned_folders, "Workspace reconciliation complete");
     if added > 0 || modified > 0 {
         trigger_embed_if_ready(app);
         let _ = generate_thumbnails_all(app.clone());
         let _ = ocr::run_ocr_all(app.clone());
     }
-    if removed > 0 || modified > 0 {
-        let _ = app.emit("media-changed", ());
+    if pruned_folders > 0 {
+        let _ = app.emit("folders-changed", ());
     }
     Ok(ReconcileResult { added, removed, modified, skipped_type })
+}
+
+/// Delete every folder row whose on-disk directory (`mdir.join(rel_path)`) no
+/// longer exists — a folder removed outside Vivid (Finder, another tool)
+/// while the app wasn't running has no other way to leave the `folders`
+/// table. Returns how many rows were removed. The virtual "Other" bucket
+/// (`db::UNCATEGORIZED_ID`) is never a real row and is skipped.
+fn prune_missing_folders(conn: &rusqlite::Connection, mdir: &Path) -> Result<usize, rusqlite::Error> {
+    let mut real: Vec<_> = db::list_folders(conn)?
+        .into_iter()
+        .filter(|f| f.id != db::UNCATEGORIZED_ID)
+        .collect();
+    // Shortest rel_path first — a parent's subtree delete also drops its
+    // descendants, so `gone` lets the loop skip the redundant existence
+    // check (and no-op delete) for children already covered by it.
+    real.sort_by_key(|f| f.rel_path.len());
+    let mut gone: Vec<String> = Vec::new();
+    let mut pruned = 0usize;
+    for f in &real {
+        if gone.iter().any(|g| f.rel_path == *g || f.rel_path.starts_with(&format!("{g}/"))) {
+            continue;
+        }
+        if !mdir.join(&f.rel_path).is_dir() {
+            db::delete_folder_subtree(conn, &f.rel_path)?;
+            pruned += 1;
+            gone.push(f.rel_path.clone());
+        }
+    }
+    Ok(pruned)
 }
 
 /// Adopt a batch of newly-discovered files in place (index where they already
@@ -1300,6 +1339,56 @@ mod workspace_scan_tests {
 
         assert_eq!(first_id, second_id);
         assert!(!created_again, "second call should reuse the existing folder row");
+    }
+
+    // ── prune_missing_folders ────────────────────────────────────────────
+
+    #[test]
+    fn prune_removes_folder_whose_directory_is_gone() {
+        let conn = open_db();
+        let dir = tempdir().unwrap();
+        db::create_folder(&conn, "Trip", None, "Trip").unwrap();
+        // Never actually created on disk — simulates it having been deleted
+        // outside Vivid while the app wasn't running.
+        let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
+        assert_eq!(pruned, 1);
+        assert!(db::list_folders(&conn).unwrap().iter().all(|f| f.rel_path != "Trip"));
+    }
+
+    #[test]
+    fn prune_keeps_folder_whose_directory_still_exists() {
+        let conn = open_db();
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("Trip")).unwrap();
+        db::create_folder(&conn, "Trip", None, "Trip").unwrap();
+
+        let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
+        assert_eq!(pruned, 0);
+        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.rel_path == "Trip"));
+    }
+
+    #[test]
+    fn prune_drops_descendants_of_a_removed_parent_in_one_pass() {
+        let conn = open_db();
+        let dir = tempdir().unwrap();
+        // "Trip" and "Trip/Beach" both missing on disk; only "Trip" itself
+        // needs an explicit subtree delete — its child should be swept up
+        // by that same call, not need a redundant one of its own.
+        let trip = db::create_folder(&conn, "Trip", None, "Trip").unwrap();
+        db::create_folder(&conn, "Beach", Some(&trip.id), "Trip/Beach").unwrap();
+
+        let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
+        assert_eq!(pruned, 1, "parent's subtree delete covers the child in one pass");
+        assert!(db::list_folders(&conn).unwrap().iter().all(|f| !f.rel_path.starts_with("Trip")));
+    }
+
+    #[test]
+    fn prune_never_touches_the_virtual_other_bucket() {
+        let conn = open_db();
+        let dir = tempdir().unwrap();
+        let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
+        assert_eq!(pruned, 0);
+        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.id == db::UNCATEGORIZED_ID));
     }
 }
 
