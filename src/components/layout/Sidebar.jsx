@@ -127,12 +127,15 @@ export default function Sidebar({
     const n = Number(localStorage.getItem('vivid-sidebar-pinned-height'));
     return Number.isFinite(n) && n > 0 ? n : PINNED_DEFAULT_ROWS * PINNED_ROW_HEIGHT;
   });
-  // Clamped to the section's actual content height so it can never show a
-  // gap below the last item, and capped at the 8-row default so a long
-  // pinned list still scrolls instead of growing without bound.
-  const pinnedContentHeight = pinnedCollections.length * PINNED_ROW_HEIGHT;
-  const pinnedMaxHeight = Math.min(PINNED_DEFAULT_ROWS * PINNED_ROW_HEIGHT, pinnedContentHeight);
-  const pinnedMinHeight = Math.min(PINNED_MIN_ROWS * PINNED_ROW_HEIGHT, pinnedContentHeight);
+
+  // Rendered as `max-height`, not `height`, below — a cap, not a forced
+  // size. That's what makes a short pinned list shrink-wrap to its content
+  // with zero gap before the divider, regardless of whether
+  // PINNED_ROW_HEIGHT exactly matches the real (font-rendering-dependent)
+  // row height: max-height only ever clips content that's *taller* than
+  // it, it never pads content that's shorter.
+  const pinnedMaxHeight = PINNED_DEFAULT_ROWS * PINNED_ROW_HEIGHT;
+  const pinnedMinHeight = PINNED_MIN_ROWS * PINNED_ROW_HEIGHT;
   const effectivePinnedHeight = Math.min(Math.max(pinnedHeight, pinnedMinHeight), pinnedMaxHeight);
 
   // Drag the divider below the pinned section to resize it — tracked on
@@ -306,7 +309,6 @@ export default function Sidebar({
                       e.preventDefault();
                       setPinCtx({ id: g.id, x: e.clientX, y: e.clientY });
                     }}
-                    title={collapsed ? g.name : t('panel.unpin')}
                   >
                     <span className={`sidebar-pin-cover${canPlay ? ' sidebar-pin-playable' : ''}`}>
                       <CollectionAvatar
@@ -350,7 +352,10 @@ export default function Sidebar({
               });
 
               return !collapsed ? (
-                <div className="sidebar-pinned-resizable" style={{ height: effectivePinnedHeight }}>
+                <div
+                  className="sidebar-pinned-resizable"
+                  style={{ maxHeight: effectivePinnedHeight }}
+                >
                   <ScrollArea
                     className="sidebar-pinned-scroll"
                     innerClassName="sidebar-nav sidebar-pinned-nav"

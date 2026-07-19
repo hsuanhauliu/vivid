@@ -163,6 +163,13 @@
   cursor: crosshair;
 }
 
+/* Select mode disables map dragPan (see the marquee-drag effect), so the
+   canvas shouldn't keep showing its normal drag-to-pan "grab" cursor —
+   a plain arrow better signals "click/drag to select" instead. */
+.world-map-selecting .maplibregl-canvas {
+  cursor: default;
+}
+
 /* Map marker thumbnail */
 .map-thumb-icon {
   background: transparent !important;

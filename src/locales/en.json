@@ -615,6 +615,7 @@
     "stepForward": "Next stop",
     "stepLast": "Last stop",
     "selectMode": "Select pins (drag to box-select, ctrl+click to toggle)",
+    "isolateSelected": "Isolate {{count}} (hide the rest)",
     "hideSelected": "Hide {{count}} from view",
     "hiddenCount": "{{count}} hidden",
     "showAll": "Show all"

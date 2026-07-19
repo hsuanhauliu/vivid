@@ -15,6 +15,7 @@ import {
   BoxSelect,
   EyeOff,
   Eye,
+  Focus,
 } from 'lucide-react';
 import MapGL, { Marker, NavigationControl, AttributionControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -720,7 +721,9 @@ export default function WorldMapView({
   useDismiss(contextMenuRef, () => setContextMenu(null), { enabled: !!contextMenu });
 
   return (
-    <div className={`world-map-container${pickable ? ' world-map-pickable' : ''}`}>
+    <div
+      className={`world-map-container${pickable ? ' world-map-pickable' : ''}${selectMode ? ' world-map-selecting' : ''}`}
+    >
       <MapGL
         ref={mapRef}
         {...viewState}
@@ -846,6 +849,24 @@ export default function WorldMapView({
           className="map-context-menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          <button
+            type="button"
+            onClick={() => {
+              const keep = new Set(contextMenu.ids);
+              setHiddenIds(
+                new Set(
+                  items
+                    .filter((i) => i.gps_lat != null && i.gps_lng != null && !keep.has(i.id))
+                    .map((i) => i.id),
+                ),
+              );
+              setSelectedIds(new Set());
+              setContextMenu(null);
+            }}
+          >
+            <Focus size={13} />
+            {t('map.isolateSelected', { count: contextMenu.ids.length })}
+          </button>
           <button
             type="button"
             onClick={() => {

@@ -182,9 +182,12 @@
   color: var(--text-muted);
 }
 
-/* The wrapper carries the actual (user-resizable, via the drag handle
-   below) pixel height; ScrollArea just needs to fill it and let its own
-   inner content handle the scrolling/overflow. */
+/* The wrapper carries the section's (user-resizable, via the drag handle
+   below) `max-height` cap — deliberately a max, not a forced height, so a
+   pinned list shorter than the cap shrink-wraps with no gap before the
+   divider instead of leaving dead space. ScrollArea just needs to fill it
+   and let its own inner content handle the scrolling/overflow once the
+   list *is* taller than the cap. */
 .sidebar-pinned-resizable {
   display: flex;
   flex-direction: column;
