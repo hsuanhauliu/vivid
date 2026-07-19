@@ -57,6 +57,7 @@
     "browse": "대신 파일 선택…"
   },
   "sidebar": {
+    "resizePinned": "드래그하여 크기 조절",
     "allMedia": "전체 미디어",
     "starred": "별표 표시",
     "favorites": "즐겨찾기",
@@ -476,6 +477,7 @@
     "formatsCount": "형식 {{count}}개",
     "camera": "카메라",
     "camerasCount": "카메라 {{count}}대",
+    "resolutionsCount": "해상도 {{count}}개",
     "colorsCount": "라벨 {{count}}개",
     "color": {
       "red": "빨강",
@@ -506,6 +508,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "해상도",
+      "sd": "SD (720p 미만)",
+      "hd": "HD (720p)",
+      "fhd": "풀 HD (1080p)",
+      "uhd": "4K 이상"
+    },
     "inCollection": "컬렉션에 포함됨"
   },
   "panel": {
@@ -533,6 +542,7 @@
     "setCover": "커버 설정…",
     "unpin": "고정 해제",
     "pin": "고정",
+    "pinned": "고정됨",
     "maxPinned": "(최대 5개)",
     "delete": "삭제",
     "noFolders": "아직 폴더가 없습니다",
@@ -579,7 +589,12 @@
     "stepFirst": "첫 번째 지점",
     "stepBack": "이전 지점",
     "stepForward": "다음 지점",
-    "stepLast": "마지막 지점"
+    "stepLast": "마지막 지점",
+    "selectMode": "핀 선택 (드래그로 영역 선택, Ctrl+클릭으로 전환)",
+    "isolateSelected": "{{count}}개만 표시 (나머지 숨기기)",
+    "hideSelected": "{{count}}개 숨기기",
+    "hiddenCount": "{{count}}개 숨김",
+    "showAll": "모두 표시"
   },
   "stats": {
     "empty": "파일을 가져오면 라이브러리 통계를 볼 수 있습니다.",
@@ -793,7 +808,21 @@
   },
   "search": {
     "aiPlaceholder": "찾고 있는 것을 설명해 보세요…",
-    "placeholder": "이름, 태그, 설명으로 검색…"
+    "placeholder": "이름, 태그, 설명으로 검색…",
+    "scope": {
+      "title": "검색 범위",
+      "name": "파일 이름",
+      "tags": "태그",
+      "description": "설명",
+      "ocr": "이미지 속 텍스트 (OCR)"
+    },
+    "saved": {
+      "title": "저장된 검색",
+      "namePlaceholder": "이 검색의 이름을 입력하세요…",
+      "save": "저장",
+      "delete": "삭제",
+      "empty": "저장된 검색이 아직 없습니다."
+    }
   },
   "detail": {
     "title": "세부 정보",

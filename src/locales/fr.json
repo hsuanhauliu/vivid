@@ -57,6 +57,7 @@
     "browse": "Choisir un autre fichier…"
   },
   "sidebar": {
+    "resizePinned": "Glisser pour redimensionner",
     "allMedia": "Tous les médias",
     "starred": "Favoris (étoile)",
     "favorites": "Favoris",
@@ -490,6 +491,8 @@
     "camera": "Appareil photo",
     "camerasCount_one": "{{count}} appareil",
     "camerasCount_other": "{{count}} appareils",
+    "resolutionsCount_one": "{{count}} résolution",
+    "resolutionsCount_other": "{{count}} résolutions",
     "colorsCount_one": "{{count}} étiquette",
     "colorsCount_other": "{{count}} étiquettes",
     "color": {
@@ -521,6 +524,13 @@
       "medium": "1 – 10 Mo",
       "large": "> 10 Mo"
     },
+    "resolution": {
+      "label": "Résolution",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K et plus"
+    },
     "inCollection": "Dans une collection"
   },
   "panel": {
@@ -548,6 +558,7 @@
     "setCover": "Définir la couverture…",
     "unpin": "Désépingler",
     "pin": "Épingler",
+    "pinned": "Épinglés",
     "maxPinned": "(max 5)",
     "delete": "Supprimer",
     "noFolders": "Aucun dossier pour l'instant",
@@ -595,7 +606,12 @@
     "stepFirst": "Première étape",
     "stepBack": "Étape précédente",
     "stepForward": "Étape suivante",
-    "stepLast": "Dernière étape"
+    "stepLast": "Dernière étape",
+    "selectMode": "Sélectionner des repères (glisser pour une sélection rectangulaire, ctrl+clic pour basculer)",
+    "isolateSelected": "Isoler {{count}} (masquer le reste)",
+    "hideSelected": "Masquer {{count}}",
+    "hiddenCount": "{{count}} masqués",
+    "showAll": "Tout afficher"
   },
   "stats": {
     "empty": "Importez des fichiers pour voir les statistiques de la bibliothèque.",
@@ -822,7 +838,21 @@
   },
   "search": {
     "aiPlaceholder": "Décrivez ce que vous cherchez…",
-    "placeholder": "Rechercher par nom, tag ou description…"
+    "placeholder": "Rechercher par nom, tag ou description…",
+    "scope": {
+      "title": "Rechercher dans",
+      "name": "Nom de fichier",
+      "tags": "Tags",
+      "description": "Description",
+      "ocr": "Texte dans l'image (OCR)"
+    },
+    "saved": {
+      "title": "Recherches enregistrées",
+      "namePlaceholder": "Nommer cette recherche…",
+      "save": "Enregistrer",
+      "delete": "Supprimer",
+      "empty": "Aucune recherche enregistrée pour l'instant."
+    }
   },
   "detail": {
     "title": "Détails",

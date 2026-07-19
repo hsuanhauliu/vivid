@@ -57,6 +57,7 @@
     "browse": "इसके बजाय फ़ाइल चुनें…"
   },
   "sidebar": {
+    "resizePinned": "आकार बदलने के लिए खींचें",
     "allMedia": "सभी मीडिया",
     "starred": "स्टार किया गया",
     "favorites": "पसंदीदा",
@@ -490,6 +491,8 @@
     "camera": "कैमरा",
     "camerasCount_one": "{{count}} कैमरा",
     "camerasCount_other": "{{count}} कैमरे",
+    "resolutionsCount_one": "{{count}} रिज़ॉल्यूशन",
+    "resolutionsCount_other": "{{count}} रिज़ॉल्यूशन",
     "colorsCount_one": "{{count}} लेबल",
     "colorsCount_other": "{{count}} लेबल",
     "color": {
@@ -521,6 +524,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "रिज़ॉल्यूशन",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "फुल HD (1080p)",
+      "uhd": "4K और उससे ऊपर"
+    },
     "inCollection": "किसी संग्रह में मौजूद"
   },
   "panel": {
@@ -548,6 +558,7 @@
     "setCover": "कवर सेट करें…",
     "unpin": "अनपिन करें",
     "pin": "पिन करें",
+    "pinned": "पिन किए गए",
     "maxPinned": "(अधिकतम 5)",
     "delete": "हटाएं",
     "noFolders": "अभी तक कोई फ़ोल्डर नहीं",
@@ -595,7 +606,12 @@
     "stepFirst": "पहला पड़ाव",
     "stepBack": "पिछला पड़ाव",
     "stepForward": "अगला पड़ाव",
-    "stepLast": "आखिरी पड़ाव"
+    "stepLast": "आखिरी पड़ाव",
+    "selectMode": "पिन चुनें (बॉक्स-चयन के लिए खींचें, टॉगल के लिए ctrl+क्लिक करें)",
+    "isolateSelected": "{{count}} को अलग करें (बाकी छिपाएं)",
+    "hideSelected": "{{count}} छिपाएं",
+    "hiddenCount": "{{count}} छिपे हुए",
+    "showAll": "सभी दिखाएं"
   },
   "stats": {
     "empty": "लाइब्रेरी के आँकड़े देखने के लिए कुछ फ़ाइलें इम्पोर्ट करें।",
@@ -822,7 +838,21 @@
   },
   "search": {
     "aiPlaceholder": "आप जो ढूंढ रहे हैं उसका वर्णन करें…",
-    "placeholder": "नाम, टैग या विवरण से खोजें…"
+    "placeholder": "नाम, टैग या विवरण से खोजें…",
+    "scope": {
+      "title": "यहां खोजें",
+      "name": "फ़ाइल नाम",
+      "tags": "टैग",
+      "description": "विवरण",
+      "ocr": "छवि में टेक्स्ट (OCR)"
+    },
+    "saved": {
+      "title": "सहेजी गई खोजें",
+      "namePlaceholder": "इस खोज को नाम दें…",
+      "save": "सहेजें",
+      "delete": "हटाएं",
+      "empty": "अभी तक कोई सहेजी गई खोज नहीं है।"
+    }
   },
   "detail": {
     "title": "विवरण",

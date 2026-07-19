@@ -57,6 +57,7 @@
     "browse": "ファイルから選択…"
   },
   "sidebar": {
+    "resizePinned": "ドラッグしてサイズ変更",
     "allMedia": "すべてのメディア",
     "starred": "スター付き",
     "favorites": "お気に入り",
@@ -484,6 +485,7 @@
     "formatsCount": "{{count}} 形式",
     "camera": "カメラ",
     "camerasCount": "{{count}} 台のカメラ",
+    "resolutionsCount": "解像度 {{count}} 件",
     "colorsCount": "{{count}} 個のラベル",
     "color": {
       "red": "赤",
@@ -514,6 +516,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "解像度",
+      "sd": "SD（720p未満）",
+      "hd": "HD（720p）",
+      "fhd": "フルHD（1080p）",
+      "uhd": "4K以上"
+    },
     "inCollection": "コレクションに含む"
   },
   "panel": {
@@ -541,6 +550,7 @@
     "setCover": "カバーを設定…",
     "unpin": "固定解除",
     "pin": "固定",
+    "pinned": "固定済み",
     "maxPinned": "（最大30件）",
     "delete": "削除",
     "noFolders": "フォルダがありません",
@@ -587,7 +597,12 @@
     "stepFirst": "最初の地点",
     "stepBack": "前の地点",
     "stepForward": "次の地点",
-    "stepLast": "最後の地点"
+    "stepLast": "最後の地点",
+    "selectMode": "ピンを選択（ドラッグで範囲選択、Ctrl+クリックで切り替え）",
+    "isolateSelected": "{{count}}件を分離（他を非表示）",
+    "hideSelected": "{{count}}件を非表示",
+    "hiddenCount": "{{count}}件を非表示中",
+    "showAll": "すべて表示"
   },
   "stats": {
     "empty": "ライブラリ統計を表示するにはファイルをインポートしてください。",
@@ -718,7 +733,21 @@
   },
   "search": {
     "aiPlaceholder": "探しているものを説明してください…",
-    "placeholder": "名前、タグ、または説明で検索…"
+    "placeholder": "名前、タグ、または説明で検索…",
+    "scope": {
+      "title": "検索対象",
+      "name": "ファイル名",
+      "tags": "タグ",
+      "description": "説明",
+      "ocr": "画像内のテキスト（OCR）"
+    },
+    "saved": {
+      "title": "保存された検索",
+      "namePlaceholder": "この検索に名前を付ける…",
+      "save": "保存",
+      "delete": "削除",
+      "empty": "保存された検索はまだありません。"
+    }
   },
   "import": {
     "importFiles": "ファイルをインポート",

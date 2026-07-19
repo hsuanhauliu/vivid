@@ -57,6 +57,7 @@
     "browse": "改用檔案選擇…"
   },
   "sidebar": {
+    "resizePinned": "拖曳以調整大小",
     "allMedia": "所有媒體",
     "starred": "已加星號",
     "favorites": "最愛",
@@ -484,6 +485,7 @@
     "formatsCount": "{{count}} 種格式",
     "camera": "相機",
     "camerasCount": "{{count}} 台相機",
+    "resolutionsCount": "{{count}} 種解析度",
     "colorsCount": "{{count}} 個標籤",
     "color": {
       "red": "紅色",
@@ -514,6 +516,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "解析度",
+      "sd": "SD（720p 以下）",
+      "hd": "HD（720p）",
+      "fhd": "Full HD（1080p）",
+      "uhd": "4K 及以上"
+    },
     "inCollection": "已在收藏中"
   },
   "panel": {
@@ -541,6 +550,7 @@
     "setCover": "設定封面…",
     "unpin": "取消固定",
     "pin": "固定",
+    "pinned": "已固定",
     "maxPinned": "（最多 30 個）",
     "delete": "刪除",
     "noFolders": "尚無資料夾",
@@ -587,7 +597,12 @@
     "stepFirst": "第一站",
     "stepBack": "上一站",
     "stepForward": "下一站",
-    "stepLast": "最後一站"
+    "stepLast": "最後一站",
+    "selectMode": "選取圖釘（拖曳進行框選，Ctrl+點按可切換）",
+    "isolateSelected": "僅顯示所選 {{count}} 項（隱藏其餘）",
+    "hideSelected": "隱藏所選 {{count}} 項",
+    "hiddenCount": "已隱藏 {{count}} 項",
+    "showAll": "顯示全部"
   },
   "stats": {
     "empty": "匯入一些檔案以查看媒體庫統計。",
@@ -718,7 +733,21 @@
   },
   "search": {
     "aiPlaceholder": "描述您要尋找的內容…",
-    "placeholder": "依名稱、標籤或描述搜尋…"
+    "placeholder": "依名稱、標籤或描述搜尋…",
+    "scope": {
+      "title": "搜尋範圍",
+      "name": "檔案名稱",
+      "tags": "標籤",
+      "description": "描述",
+      "ocr": "圖片中的文字（OCR）"
+    },
+    "saved": {
+      "title": "已儲存的搜尋",
+      "namePlaceholder": "為此搜尋命名…",
+      "save": "儲存",
+      "delete": "刪除",
+      "empty": "尚無已儲存的搜尋。"
+    }
   },
   "import": {
     "importFiles": "匯入檔案",

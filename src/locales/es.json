@@ -57,6 +57,7 @@
     "browse": "Elegir un archivo en su lugar…"
   },
   "sidebar": {
+    "resizePinned": "Arrastrar para ajustar",
     "allMedia": "Todo el contenido",
     "starred": "Destacados",
     "favorites": "Favoritos",
@@ -490,6 +491,8 @@
     "camera": "Cámara",
     "camerasCount_one": "{{count}} cámara",
     "camerasCount_other": "{{count}} cámaras",
+    "resolutionsCount_one": "{{count}} resolución",
+    "resolutionsCount_other": "{{count}} resoluciones",
     "colorsCount_one": "{{count}} etiqueta",
     "colorsCount_other": "{{count}} etiquetas",
     "color": {
@@ -521,6 +524,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Resolución",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K y superior"
+    },
     "inCollection": "En una colección"
   },
   "panel": {
@@ -548,6 +558,7 @@
     "setCover": "Establecer portada…",
     "unpin": "Dejar de fijar",
     "pin": "Fijar",
+    "pinned": "Fijados",
     "maxPinned": "(máx. 5)",
     "delete": "Eliminar",
     "noFolders": "Aún no hay carpetas",
@@ -595,7 +606,12 @@
     "stepFirst": "Primera parada",
     "stepBack": "Parada anterior",
     "stepForward": "Siguiente parada",
-    "stepLast": "Última parada"
+    "stepLast": "Última parada",
+    "selectMode": "Seleccionar puntos (arrastra para selección por área, ctrl+clic para alternar)",
+    "isolateSelected": "Aislar {{count}} (ocultar el resto)",
+    "hideSelected": "Ocultar {{count}}",
+    "hiddenCount": "{{count}} ocultos",
+    "showAll": "Mostrar todo"
   },
   "stats": {
     "empty": "Importa algunos archivos para ver las estadísticas de la biblioteca.",
@@ -822,7 +838,21 @@
   },
   "search": {
     "aiPlaceholder": "Describe lo que buscas…",
-    "placeholder": "Buscar por nombre, etiqueta o descripción…"
+    "placeholder": "Buscar por nombre, etiqueta o descripción…",
+    "scope": {
+      "title": "Buscar en",
+      "name": "Nombre de archivo",
+      "tags": "Etiquetas",
+      "description": "Descripción",
+      "ocr": "Texto en la imagen (OCR)"
+    },
+    "saved": {
+      "title": "Búsquedas guardadas",
+      "namePlaceholder": "Nombra esta búsqueda…",
+      "save": "Guardar",
+      "delete": "Eliminar",
+      "empty": "Aún no hay búsquedas guardadas."
+    }
   },
   "detail": {
     "title": "Detalles",

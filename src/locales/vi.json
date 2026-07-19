@@ -57,6 +57,7 @@
     "browse": "Chọn tệp khác…"
   },
   "sidebar": {
+    "resizePinned": "Kéo để thay đổi kích thước",
     "allMedia": "Tất cả",
     "starred": "Đã đánh dấu sao",
     "favorites": "Yêu thích",
@@ -476,6 +477,7 @@
     "formatsCount": "{{count}} định dạng",
     "camera": "Máy ảnh",
     "camerasCount": "{{count}} máy ảnh",
+    "resolutionsCount": "{{count}} độ phân giải",
     "colorsCount": "{{count}} nhãn",
     "color": {
       "red": "Đỏ",
@@ -506,6 +508,13 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Độ phân giải",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K trở lên"
+    },
     "inCollection": "Trong một bộ sưu tập"
   },
   "panel": {
@@ -533,6 +542,7 @@
     "setCover": "Đặt ảnh bìa…",
     "unpin": "Bỏ ghim",
     "pin": "Ghim",
+    "pinned": "Đã ghim",
     "maxPinned": "(tối đa 5)",
     "delete": "Xóa",
     "noFolders": "Chưa có thư mục nào",
@@ -579,7 +589,12 @@
     "stepFirst": "Điểm dừng đầu tiên",
     "stepBack": "Điểm dừng trước",
     "stepForward": "Điểm dừng tiếp theo",
-    "stepLast": "Điểm dừng cuối cùng"
+    "stepLast": "Điểm dừng cuối cùng",
+    "selectMode": "Chọn ghim (kéo để chọn theo vùng, ctrl+nhấp để bật/tắt)",
+    "isolateSelected": "Chỉ hiện {{count}} (ẩn phần còn lại)",
+    "hideSelected": "Ẩn {{count}}",
+    "hiddenCount": "Đã ẩn {{count}}",
+    "showAll": "Hiện tất cả"
   },
   "stats": {
     "empty": "Nhập một số tệp để xem thống kê thư viện.",
@@ -797,7 +812,21 @@
   },
   "search": {
     "aiPlaceholder": "Mô tả điều bạn đang tìm…",
-    "placeholder": "Tìm theo tên, thẻ hoặc mô tả…"
+    "placeholder": "Tìm theo tên, thẻ hoặc mô tả…",
+    "scope": {
+      "title": "Tìm trong",
+      "name": "Tên tệp",
+      "tags": "Thẻ",
+      "description": "Mô tả",
+      "ocr": "Văn bản trong ảnh (OCR)"
+    },
+    "saved": {
+      "title": "Tìm kiếm đã lưu",
+      "namePlaceholder": "Đặt tên cho tìm kiếm này…",
+      "save": "Lưu",
+      "delete": "Xóa",
+      "empty": "Chưa có tìm kiếm nào được lưu."
+    }
   },
   "detail": {
     "title": "Chi tiết",
