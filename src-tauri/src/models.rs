@@ -32,7 +32,7 @@ pub struct MediaItem {
     pub description: String,
     pub tags: Vec<String>,
     pub starred: bool,
-    pub collection_id: Option<String>,
+    pub collection_ids: Vec<String>, // an item may belong to any number of collections
     pub folder_id: Option<String>, // the on-disk folder this item lives in
     pub color_label: Option<String>,
     pub gps_lat: Option<f64>,

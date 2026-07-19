@@ -337,7 +337,7 @@ export default function Sidebar({
                           onClick={(e) => {
                             e.stopPropagation();
                             onPlayPlaylist(
-                              allItems.filter((i) => i.collection_id === g.id),
+                              allItems.filter((i) => i.collection_ids?.includes(g.id)),
                               g.name,
                             );
                           }}

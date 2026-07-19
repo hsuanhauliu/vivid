@@ -176,5 +176,7 @@ pub fn items_under(conn: &Connection, rel_path: &str, root: &str) -> Result<Vec<
         "{SELECT_MEDIA} WHERE deleted_at IS NULL AND (file_path = ?1 || '/' || file_name OR file_path LIKE ?1 || '/%')"
     ))?;
     let rows = stmt.query_map(params![abs], row_to_item)?;
-    rows.collect()
+    let mut items: Vec<MediaItem> = rows.collect::<Result<_>>()?;
+    super::attach_collections(conn, &mut items)?;
+    Ok(items)
 }

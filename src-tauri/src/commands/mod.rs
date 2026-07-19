@@ -255,7 +255,7 @@ pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<Med
         description: String::new(),
         tags: Vec::new(),
         starred: false,
-        collection_id: None,
+        collection_ids: Vec::new(),
         folder_id: None,
         color_label: None,
         gps_lat: None,
@@ -792,7 +792,7 @@ pub(crate) fn run_import(
                 _          => true,
             };
             drop(conn);
-            if compatible { item.collection_id = Some(gid.clone()); }
+            if compatible { item.collection_ids.push(gid.clone()); }
         }
         item.folder_id = leaf_id.clone();
         chunk.push(item);
@@ -1411,25 +1411,35 @@ pub fn toggle_star(id: String, state: State<DbState>) -> Result<MediaItem, Strin
 }
 
 #[tauri::command]
-pub fn set_collection(
+pub fn add_to_collection(
     id: String,
-    collection_id: Option<String>,
+    collection_id: String,
     state: State<DbState>,
 ) -> Result<MediaItem, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    if let Some(ref cid) = collection_id {
-        let item = db::fetch_one(&conn, &id).map_err(|e| e.to_string())?;
-        let kind = db::collection_kind(&conn, cid).map_err(|e| e.to_string())?;
-        let compatible = match kind.as_str() {
-            "album"    => item.media_type == "image" || item.media_type == "video",
-            "playlist" => item.media_type == "audio" || item.media_type == "video",
-            _          => true,
-        };
-        if !compatible {
-            return Err(format!("INCOMPATIBLE_COLLECTION: {} cannot be added to a {} collection", item.media_type, kind));
-        }
+    let item = db::fetch_one(&conn, &id).map_err(|e| e.to_string())?;
+    let kind = db::collection_kind(&conn, &collection_id).map_err(|e| e.to_string())?;
+    let compatible = match kind.as_str() {
+        "album"    => item.media_type == "image" || item.media_type == "video",
+        "playlist" => item.media_type == "audio" || item.media_type == "video",
+        _          => true,
+    };
+    if !compatible {
+        return Err(format!("INCOMPATIBLE_COLLECTION: {} cannot be added to a {} collection", item.media_type, kind));
     }
-    db::set_collection(&conn, &id, collection_id.as_deref()).map_err(|e| e.to_string())
+    db::add_to_collection(&conn, &id, &collection_id).map_err(|e| e.to_string())?;
+    db::fetch_one(&conn, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn remove_from_collection(
+    id: String,
+    collection_id: String,
+    state: State<DbState>,
+) -> Result<MediaItem, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    db::remove_from_collection(&conn, &id, &collection_id).map_err(|e| e.to_string())?;
+    db::fetch_one(&conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

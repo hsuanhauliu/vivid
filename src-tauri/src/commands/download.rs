@@ -271,7 +271,7 @@ pub async fn start_ytdlp_bg(
                     Some(g.id)
                 } else { None }
             } else { None };
-            if let Some(cid) = resolved_cid { item.collection_id = Some(cid); }
+            if let Some(cid) = resolved_cid { item.collection_ids.push(cid); }
             insert_imported(&conn, &mut item, &app2)
         }.await;
 
@@ -376,7 +376,7 @@ pub async fn start_playlist_bg(
                 });
 
                 if let Ok(mut item) = build_item(path, None) {
-                    if let Some(ref g) = gid { item.collection_id = Some(g.clone()); }
+                    if let Some(ref g) = gid { item.collection_ids.push(g.clone()); }
                     item.folder_id = folder_id.clone();
                     if format2 == "audio" { apply_audio_meta(&mut item, path); }
                     if insert_imported(&conn, &mut item, &app2).is_ok() { count += 1; }

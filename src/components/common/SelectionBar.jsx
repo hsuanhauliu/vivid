@@ -107,12 +107,6 @@ function MoveToCollectionMenu({ collections, allItems, selectedItems, onMassColl
             </div>
           )}
           <div className="sel-collection-list">
-            <button
-              className="sel-collection-item sel-collection-none"
-              onClick={() => pick('__none__')}
-            >
-              <X size={12} /> {t('selection.noCollection')}
-            </button>
             {sections.map(({ key, label, icon: Icon, items }) => {
               const rows = items.slice(0, budget);
               budget -= rows.length;

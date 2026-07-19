@@ -90,11 +90,11 @@ pub fn collection_kind(conn: &Connection, id: &str) -> Result<String> {
     conn.query_row("SELECT kind FROM collections WHERE id=?1", params![id], |r| r.get(0))
 }
 
-/// Deletes a group and nullifies its members atomically via a savepoint.
+/// Deletes a group and drops its membership rows atomically via a savepoint.
 pub fn delete_collection(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("SAVEPOINT delete_collection", [])?;
     let result = (|| -> Result<()> {
-        conn.execute("UPDATE media_items SET collection_id=NULL WHERE collection_id=?1", params![id])?;
+        conn.execute("DELETE FROM collection_items WHERE collection_id=?1", params![id])?;
         conn.execute("DELETE FROM collections WHERE id=?1", params![id])?;
         Ok(())
     })();

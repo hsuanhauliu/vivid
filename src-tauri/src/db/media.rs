@@ -1,7 +1,7 @@
 //! Media item persistence: insert/update/query, audio metadata, color
 //! labels, GPS, OCR, and thumbnail bookkeeping.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
 use rusqlite::{params, Connection, Result};
 
@@ -18,16 +18,16 @@ pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
     conn.execute(
         "INSERT OR IGNORE INTO media_items
          (id, file_path, source_path, file_name, display_name, media_type, file_size,
-          description, tags, starred, collection_id, color_label, gps_lat, gps_lng,
+          description, tags, starred, color_label, gps_lat, gps_lng,
           created_at, updated_at, sort_order,
           audio_title, audio_artist, audio_album, audio_track, audio_duration_secs, audio_year,
           date_taken, favorited, audio_cover, width, height, folder_id, camera_make, camera_model)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30)",
         params![
             item.id, item.file_path, item.source_path, item.file_name, item.display_name,
             item.media_type, item.file_size, item.description,
             serde_json::to_string(&item.tags).unwrap_or_else(|_| "[]".into()),
-            item.starred as i64, item.collection_id, item.color_label,
+            item.starred as i64, item.color_label,
             item.gps_lat, item.gps_lng, item.created_at, item.updated_at, item.sort_order,
             item.audio_title, item.audio_artist, item.audio_album,
             item.audio_track, item.audio_duration, item.audio_year,
@@ -35,6 +35,11 @@ pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
             item.width, item.height, item.folder_id, item.camera_make, item.camera_model,
         ],
     )?;
+    if !item.collection_ids.is_empty() {
+        for cid in &item.collection_ids {
+            add_to_collection(conn, &item.id, cid)?;
+        }
+    }
     Ok(())
 }
 
@@ -189,10 +194,11 @@ pub fn get_ocr_counts(conn: &Connection) -> Result<(i64, i64)> {
 pub fn get_all(conn: &Connection) -> Result<Vec<MediaItem>> {
     let sql = format!("{SELECT_MEDIA} WHERE deleted_at IS NULL ORDER BY created_at DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map([], row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
@@ -202,13 +208,18 @@ pub fn get_audio_tracks(conn: &Connection) -> Result<Vec<MediaItem>> {
          ORDER BY audio_album ASC, audio_track ASC, display_name ASC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt.query_map([], row_to_item)?.filter_map(|r| r.ok()).collect();
+    let mut items: Vec<MediaItem> =
+        stmt.query_map([], row_to_item)?.filter_map(|r| r.ok()).collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
 pub fn fetch_one(conn: &Connection, id: &str) -> Result<MediaItem> {
     let sql = format!("{SELECT_MEDIA} WHERE id=?1");
-    conn.query_row(&sql, params![id], row_to_item)
+    let item = conn.query_row(&sql, params![id], row_to_item)?;
+    let mut items = vec![item];
+    attach_collections(conn, &mut items)?;
+    Ok(items.into_iter().next().unwrap())
 }
 
 pub fn update(
@@ -269,13 +280,24 @@ pub fn toggle_star(conn: &Connection, id: &str) -> Result<MediaItem> {
     fetch_one(conn, id)
 }
 
-pub fn set_collection(conn: &Connection, id: &str, collection_id: Option<&str>) -> Result<MediaItem> {
+/// Add an item to a collection — idempotent, and additive: unlike the old
+/// single-`collection_id` model this doesn't touch the item's membership in
+/// any other collection.
+pub fn add_to_collection(conn: &Connection, id: &str, collection_id: &str) -> Result<()> {
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
-        "UPDATE media_items SET collection_id=?1, updated_at=?2 WHERE id=?3",
-        params![collection_id, now, id],
+        "INSERT OR IGNORE INTO collection_items (collection_id, item_id, added_at) VALUES (?1,?2,?3)",
+        params![collection_id, id, now],
     )?;
-    fetch_one(conn, id)
+    Ok(())
+}
+
+pub fn remove_from_collection(conn: &Connection, id: &str, collection_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM collection_items WHERE collection_id=?1 AND item_id=?2",
+        params![collection_id, id],
+    )?;
+    Ok(())
 }
 
 // ── Workspace reconciliation ─────────────────────────────────────────────────

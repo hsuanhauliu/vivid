@@ -22,9 +22,9 @@ export function resolveCoverItem(group, items, { allowAny = false } = {}) {
     const chosen = items.find((i) => i.id === group.cover_item_id);
     if (chosen) return chosen;
   }
-  const image = items.find((i) => i.collection_id === group.id && i.media_type === 'image');
+  const image = items.find((i) => i.collection_ids?.includes(group.id) && i.media_type === 'image');
   if (image || !allowAny) return image ?? null;
-  return items.find((i) => i.collection_id === group.id) ?? null;
+  return items.find((i) => i.collection_ids?.includes(group.id)) ?? null;
 }
 
 /**

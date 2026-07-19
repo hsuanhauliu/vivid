@@ -20,6 +20,7 @@ import {
   Columns2,
   ShieldOff,
   FolderInput,
+  FolderMinus,
   FolderOpen,
   FolderTree,
   ChevronLeft,
@@ -200,15 +201,6 @@ export default function ContextMenu({
           <span>{t('contextMenu.moveToCollTitle')}</span>
         </div>
         <div className="context-separator" />
-        <button
-          className="context-subitem context-subitem-none"
-          onClick={() => {
-            onSetCollection(item.id, null);
-            onClose();
-          }}
-        >
-          — {t('contextMenu.removeFromCollection')} —
-        </button>
         {visibleCollections.map((g, i) =>
           g._header ? (
             <div key={`h-${i}`} className="context-submenu-label">
@@ -217,15 +209,14 @@ export default function ContextMenu({
           ) : (
             <button
               key={g.id}
-              className={`context-subitem ${item.collection_id === g.id ? 'active' : ''}`}
+              className={`context-subitem ${item.collection_ids?.includes(g.id) ? 'active' : ''}`}
               onClick={() => {
-                onSetCollection(item.id, g.id);
-                onClose();
+                onSetCollection(item.id, g.id, !!item.collection_ids?.includes(g.id));
               }}
             >
               <CollectionAvatar group={g} allItems={allItems} size={18} radius="round" />
               <span style={{ flex: 1 }}>{g.name}</span>
-              {item.collection_id === g.id && <Check size={12} />}
+              {item.collection_ids?.includes(g.id) && <Check size={12} />}
             </button>
           ),
         )}
@@ -451,6 +442,18 @@ export default function ContextMenu({
         <button className="context-item" onClick={() => setMode('move')}>
           <FolderInput size={14} />
           {t('contextMenu.moveToCollection')}
+        </button>
+      )}
+      {onSetCollection && activeCollection && item.collection_ids?.includes(activeCollection) && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onSetCollection(item.id, activeCollection, true);
+            onClose();
+          }}
+        >
+          <FolderMinus size={14} />
+          {t('contextMenu.removeFromCollection')}
         </button>
       )}
       {onMoveToFolder && diskFolders?.length > 0 && (

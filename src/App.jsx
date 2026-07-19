@@ -667,8 +667,14 @@ export default function App() {
     return updated;
   }, []);
 
-  const handleSetCollection = useCallback(async (id, collectionId) => {
-    const updated = await invoke('set_collection', { id, collectionId: collectionId ?? null });
+  // Toggles a single collection's membership for one item — `isMember` tells
+  // it which way to flip. An item can belong to any number of collections at
+  // once, so this only ever touches the one collection being clicked.
+  const handleSetCollection = useCallback(async (id, collectionId, isMember) => {
+    const updated = await invoke(isMember ? 'remove_from_collection' : 'add_to_collection', {
+      id,
+      collectionId,
+    });
     setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
     setSelected((prev) => (prev?.id === id ? updated : prev));
   }, []);
@@ -738,15 +744,16 @@ export default function App() {
     [checkedIds, allItems],
   );
 
+  // Adds every checked item to a collection — additive, doesn't disturb
+  // membership in any collection they're already in.
   const handleMassCollection = useCallback(
     async (collectionId) => {
       const ids = [...checkedIds];
-      const gid = collectionId === '__none__' ? null : collectionId;
       // allSettled (not all): one incompatible item must not abort the whole
       // batch mid-flight or skip applying the state update for the others
       // that already succeeded in the DB.
       const results = await Promise.allSettled(
-        ids.map((id) => invoke('set_collection', { id, collectionId: gid })),
+        ids.map((id) => invoke('add_to_collection', { id, collectionId })),
       );
       const updated = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
       const failed = results.filter((r) => r.status === 'rejected');
@@ -785,7 +792,7 @@ export default function App() {
 
   const handleAddResultsToCollection = useCallback(async (collectionId, items) => {
     const updated = await Promise.all(
-      items.map((i) => invoke('set_collection', { id: i.id, collectionId })),
+      items.map((i) => invoke('add_to_collection', { id: i.id, collectionId })),
     );
     setAllItems((prev) => {
       const map = Object.fromEntries(updated.map((it) => [it.id, it]));
@@ -809,7 +816,7 @@ export default function App() {
       }
       if (collectionId) {
         const updated = await Promise.all(
-          ids.map((id) => invoke('set_collection', { id, collectionId: collectionId })),
+          ids.map((id) => invoke('add_to_collection', { id, collectionId })),
         );
         setAllItems((prev) => {
           const map = Object.fromEntries(updated.map((it) => [it.id, it]));
@@ -1426,7 +1433,7 @@ export default function App() {
         }
       }
       if (dest.collectionId) {
-        updated = await invoke('set_collection', {
+        updated = await invoke('add_to_collection', {
           id: updated.id,
           collectionId: dest.collectionId,
         });
@@ -1572,7 +1579,7 @@ export default function App() {
 
       // Group / album filter
       if (activeCollection) {
-        if (i.collection_id !== activeCollection) return false;
+        if (!i.collection_ids?.includes(activeCollection)) return false;
         if (albumScope && i.media_type !== 'image' && i.media_type !== 'video') return false;
       }
 

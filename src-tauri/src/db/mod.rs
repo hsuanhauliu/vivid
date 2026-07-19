@@ -41,7 +41,6 @@ pub fn init(conn: &Connection) -> Result<()> {
             starred             INTEGER NOT NULL DEFAULT 0,
             favorited           INTEGER NOT NULL DEFAULT 0,
             color_label         TEXT,
-            collection_id       TEXT,
             sort_order          INTEGER NOT NULL DEFAULT 0,
             gps_lat             REAL,
             gps_lng             REAL,
@@ -88,6 +87,14 @@ pub fn init(conn: &Connection) -> Result<()> {
             parent_id   TEXT REFERENCES folders(id),
             rel_path    TEXT NOT NULL UNIQUE,
             created_at  TEXT NOT NULL
+        );
+        -- Many-to-many membership: a media item can belong to any number of
+        -- collections (albums/playlists) at once, unlike `folder_id` above.
+        CREATE TABLE IF NOT EXISTS collection_items (
+            collection_id TEXT NOT NULL,
+            item_id       TEXT NOT NULL,
+            added_at      TEXT NOT NULL,
+            PRIMARY KEY (collection_id, item_id)
         );",
     )?;
 
@@ -119,8 +126,8 @@ pub fn init(conn: &Connection) -> Result<()> {
              ON media_items(deleted_at);
          CREATE INDEX IF NOT EXISTS idx_media_type_del
              ON media_items(media_type, deleted_at);
-         CREATE INDEX IF NOT EXISTS idx_media_collection
-             ON media_items(collection_id);
+         CREATE INDEX IF NOT EXISTS idx_collection_items_item
+             ON collection_items(item_id);
          CREATE INDEX IF NOT EXISTS idx_media_folder
              ON media_items(folder_id);
          CREATE INDEX IF NOT EXISTS idx_media_source
@@ -149,19 +156,23 @@ fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool> {
 
 // Column order in SELECT_MEDIA:
 //   0:id  1:file_path  2:source_path  3:file_name  4:display_name  5:media_type
-//   6:file_size  7:description  8:tags  9:starred  10:collection_id
-//   11:color_label  12:gps_lat  13:gps_lng  14:created_at  15:updated_at
-//   16:sort_order  17:deleted_at  18:auto_tags
-//   19:audio_title  20:audio_artist  21:audio_album  22:audio_track
-//   23:audio_duration_secs  24:audio_year  25:date_taken  26:favorited  27:audio_cover
-//   28:width  29:height  30:ocr_text  31:thumb_path  32:folder_id
-//   33:camera_make  34:camera_model
+//   6:file_size  7:description  8:tags  9:starred
+//   10:color_label  11:gps_lat  12:gps_lng  13:created_at  14:updated_at
+//   15:sort_order  16:deleted_at  17:auto_tags
+//   18:audio_title  19:audio_artist  20:audio_album  21:audio_track
+//   22:audio_duration_secs  23:audio_year  24:date_taken  25:favorited  26:audio_cover
+//   27:width  28:height  29:ocr_text  30:thumb_path  31:folder_id
+//   32:camera_make  33:camera_model
+//
+// `collection_ids` is NOT selected here — it lives in the `collection_items`
+// junction table, not on `media_items`, so it can't be read off a single row.
+// Callers must run the result through `attach_collections` afterward.
 pub(crate) fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<MediaItem> {
     let tags_json: String = row.get(8)?;
     let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
     let starred_int: i64 = row.get(9)?;
-    let favorited_int: i64 = row.get(26).unwrap_or(0);
-    let auto_tags_json: String = row.get(18).unwrap_or_else(|_| "[]".into());
+    let favorited_int: i64 = row.get(25).unwrap_or(0);
+    let auto_tags_json: String = row.get(17).unwrap_or_else(|_| "[]".into());
     let auto_tags: Vec<String> = serde_json::from_str(&auto_tags_json).unwrap_or_default();
     Ok(MediaItem {
         id: row.get(0)?,
@@ -174,42 +185,70 @@ pub(crate) fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<MediaItem> {
         description: row.get(7)?,
         tags,
         starred: starred_int != 0,
-        collection_id: row.get(10)?,
-        folder_id: row.get(32).ok(),
-        color_label: row.get(11)?,
-        gps_lat: row.get(12)?,
-        gps_lng: row.get(13)?,
-        created_at: row.get(14)?,
-        updated_at: row.get(15)?,
-        sort_order: row.get(16).unwrap_or(0),
-        deleted_at: row.get(17).ok(),
+        collection_ids: Vec::new(),
+        folder_id: row.get(31).ok(),
+        color_label: row.get(10)?,
+        gps_lat: row.get(11)?,
+        gps_lng: row.get(12)?,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
+        sort_order: row.get(15).unwrap_or(0),
+        deleted_at: row.get(16).ok(),
         auto_tags,
-        audio_title:    row.get(19).ok(),
-        audio_artist:   row.get(20).ok(),
-        audio_album:    row.get(21).ok(),
-        audio_track:    row.get(22).ok(),
-        audio_duration: row.get(23).ok(),
-        audio_year:     row.get(24).ok(),
-        date_taken:     row.get(25).ok(),
+        audio_title:    row.get(18).ok(),
+        audio_artist:   row.get(19).ok(),
+        audio_album:    row.get(20).ok(),
+        audio_track:    row.get(21).ok(),
+        audio_duration: row.get(22).ok(),
+        audio_year:     row.get(23).ok(),
+        date_taken:     row.get(24).ok(),
         favorited:      favorited_int != 0,
-        audio_cover:    row.get(27).ok(),
-        width:          row.get(28).ok(),
-        height:         row.get(29).ok(),
-        ocr_text:       row.get(30).ok(),
-        thumb_path:     row.get(31).ok(),
-        camera_make:    row.get(33).ok(),
-        camera_model:   row.get(34).ok(),
+        audio_cover:    row.get(26).ok(),
+        width:          row.get(27).ok(),
+        height:         row.get(28).ok(),
+        ocr_text:       row.get(29).ok(),
+        thumb_path:     row.get(30).ok(),
+        camera_make:    row.get(32).ok(),
+        camera_model:   row.get(33).ok(),
     })
 }
 
 pub(crate) const SELECT_MEDIA: &str =
     "SELECT id, file_path, source_path, file_name, display_name, media_type, \
-     file_size, description, tags, starred, collection_id, color_label, gps_lat, gps_lng, \
+     file_size, description, tags, starred, color_label, gps_lat, gps_lng, \
      created_at, updated_at, sort_order, deleted_at, auto_tags, \
      audio_title, audio_artist, audio_album, audio_track, audio_duration_secs, audio_year, \
      date_taken, favorited, audio_cover, width, height, ocr_text, thumb_path, folder_id, \
      camera_make, camera_model \
      FROM media_items";
+
+/// Populate `collection_ids` on already-fetched items via one batch query
+/// against the junction table — `row_to_item` only sees a single row and
+/// can't join, so every `SELECT_MEDIA` call site runs its results through
+/// this afterward. A full scan of `collection_items`, not filtered to the
+/// given items: simpler than building a dynamic IN-list, and cheap at the
+/// scale a single-user local library operates at.
+pub(crate) fn attach_collections(conn: &Connection, items: &mut [MediaItem]) -> Result<()> {
+    if items.is_empty() {
+        return Ok(());
+    }
+    use std::collections::HashMap;
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    {
+        let mut stmt = conn.prepare("SELECT item_id, collection_id FROM collection_items")?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+        for row in rows {
+            let (item_id, collection_id) = row?;
+            map.entry(item_id).or_default().push(collection_id);
+        }
+    }
+    for item in items.iter_mut() {
+        if let Some(ids) = map.remove(&item.id) {
+            item.collection_ids = ids;
+        }
+    }
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests;

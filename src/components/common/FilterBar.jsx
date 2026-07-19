@@ -876,7 +876,7 @@ export function applyAllFilters(items, filters) {
     if (!matchesTri(filters.starred, !!i.starred)) return false;
     if (!matchesTri(filters.hasGps, i.gps_lat != null && i.gps_lng != null)) return false;
     if (!matchesTri(filters.hasText, !!(i.ocr_text && i.ocr_text.trim()))) return false;
-    if (!matchesTri(filters.collection, !!i.collection_id)) return false;
+    if (!matchesTri(filters.collection, i.collection_ids?.length > 0)) return false;
     if (
       filters.cameras?.length &&
       !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)

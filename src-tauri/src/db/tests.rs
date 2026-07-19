@@ -287,12 +287,12 @@ fn set_collection_clears_on_delete() {
     let conn = open();
     let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
-    set_collection(&conn, "id-1", Some(g.id.as_str())).unwrap();
+    add_to_collection(&conn, "id-1", &g.id).unwrap();
 
     delete_collection(&conn, &g.id).unwrap();
 
     let fetched = fetch_one(&conn, "id-1").unwrap();
-    assert!(fetched.collection_id.is_none());
+    assert!(fetched.collection_ids.is_empty());
 }
 
 // ── Embeddings / AI ─────────────────────────────────────────────────────
@@ -449,7 +449,7 @@ fn delete_collection_is_atomic() {
     let conn = open();
     let g = create_collection(&conn, "G", "#fff", None, "folder").unwrap();
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
-    set_collection(&conn, "id-1", Some(g.id.as_str())).unwrap();
+    add_to_collection(&conn, "id-1", &g.id).unwrap();
 
     delete_collection(&conn, &g.id).unwrap();
 
@@ -457,7 +457,27 @@ fn delete_collection_is_atomic() {
     assert!(get_collections(&conn).unwrap().is_empty());
     // Member item still exists but is ungrouped
     let fetched = fetch_one(&conn, "id-1").unwrap();
-    assert!(fetched.collection_id.is_none());
+    assert!(fetched.collection_ids.is_empty());
+}
+
+#[test]
+fn item_can_belong_to_multiple_collections() {
+    let conn = open();
+    let a = create_collection(&conn, "A", "#fff", None, "album").unwrap();
+    let b = create_collection(&conn, "B", "#fff", None, "album").unwrap();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+
+    add_to_collection(&conn, "id-1", &a.id).unwrap();
+    add_to_collection(&conn, "id-1", &b.id).unwrap();
+
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.collection_ids.len(), 2);
+    assert!(fetched.collection_ids.contains(&a.id));
+    assert!(fetched.collection_ids.contains(&b.id));
+
+    remove_from_collection(&conn, "id-1", &a.id).unwrap();
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.collection_ids, vec![b.id.clone()]);
 }
 
 // ── Folders (on-disk directory tree) ─────────────────────────────────────

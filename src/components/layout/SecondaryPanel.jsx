@@ -146,7 +146,9 @@ function CollectionList({
   const counts = useMemo(() => {
     const m = {};
     items.forEach((i) => {
-      if (i.collection_id) m[i.collection_id] = (m[i.collection_id] || 0) + 1;
+      (i.collection_ids ?? []).forEach((cid) => {
+        m[cid] = (m[cid] || 0) + 1;
+      });
     });
     return m;
   }, [items]);
@@ -448,7 +450,7 @@ function CollectionList({
                   onClick={(e) => {
                     e.stopPropagation();
                     onPlayAll(
-                      items.filter((i) => i.collection_id === g.id),
+                      items.filter((i) => i.collection_ids?.includes(g.id)),
                       g.name,
                     );
                   }}

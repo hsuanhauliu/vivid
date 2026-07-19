@@ -121,7 +121,11 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}
       >
         <span>{t('exif.location')}</span>
-        <button className="icon-btn retag-btn" onClick={onOpenPicker} title={t('detail.setLocationTitle')}>
+        <button
+          className="icon-btn retag-btn"
+          onClick={onOpenPicker}
+          title={t('detail.setLocationTitle')}
+        >
           {hasGps ? <MapPin size={12} /> : <MapPinOff size={12} />}
         </button>
       </p>
@@ -312,7 +316,7 @@ export default function DetailPanel({
   }
 
   const ext = item.file_name.split('.').pop()?.toUpperCase() ?? '';
-  const activeCollection = collections?.find((g) => g.id === item.collection_id);
+  const itemCollections = (collections ?? []).filter((g) => item.collection_ids?.includes(g.id));
   const itemFolder = folders?.find((f) => f.id === folderIdOf(item));
   const visibleAutoTags = (item.auto_tags || []).filter((tag) => !removedAutoTags.includes(tag));
 
@@ -372,25 +376,21 @@ export default function DetailPanel({
           />
         </div>
 
-        {activeCollection && (
+        {itemCollections.length > 0 && (
           <div className="field">
-            <label>
-              {activeCollection.kind === 'album'
-                ? t('detail.albumLabel')
-                : activeCollection.kind === 'playlist'
-                  ? t('detail.playlistLabel')
-                  : t('detail.albumLabel')}
-            </label>
-            <div className="collection-badge">
-              <CollectionAvatar
-                group={activeCollection}
-                allItems={allItems ?? []}
-                size={22}
-                radius={5}
-                allowAny
-              />
-              <span>{activeCollection.name}</span>
-            </div>
+            <label>{t('detail.collectionsLabel')}</label>
+            {itemCollections.map((g) => (
+              <div className="collection-badge" key={g.id}>
+                <CollectionAvatar
+                  group={g}
+                  allItems={allItems ?? []}
+                  size={22}
+                  radius={5}
+                  allowAny
+                />
+                <span>{g.name}</span>
+              </div>
+            ))}
           </div>
         )}
 
