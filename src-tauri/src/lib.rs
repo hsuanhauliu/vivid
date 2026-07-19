@@ -298,6 +298,7 @@ pub fn run() {
             commands::create_collection,
             commands::delete_collection,
             commands::rename_collection,
+            commands::set_collection_parent,
             commands::pin_collection,
             commands::set_collection_description,
             commands::set_sidebar_pin,

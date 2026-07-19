@@ -72,3 +72,14 @@ export const SORT_OPTIONS = [
   { value: 'size-asc', labelKey: 'sort.sizeAsc' },
   { value: 'manual', labelKey: 'sort.manual' },
 ];
+
+// Collections (albums/playlists/groups) only have a name and a created-at
+// timestamp — no file size or "date added vs. date taken" distinction — so
+// pages that sort collections (e.g. the album group page) pass this reduced
+// set into <SortDropdown options={...}> instead of the full media SORT_OPTIONS.
+export const COLLECTION_SORT_OPTIONS = [
+  { value: 'name-asc', labelKey: 'sort.nameAz' },
+  { value: 'name-desc', labelKey: 'sort.nameZa' },
+  { value: 'date-desc', labelKey: 'sort.dateNewest' },
+  { value: 'date-asc', labelKey: 'sort.dateOldest' },
+];

@@ -111,6 +111,17 @@ pub fn init(conn: &Connection) -> Result<()> {
         conn.execute("ALTER TABLE collections ADD COLUMN description TEXT", [])?;
     }
 
+    // Which "album_group" collection (a container that only holds other
+    // albums, never media items directly) a regular album currently sits
+    // in — NULL means top-level. Only ever set on kind='album' rows,
+    // pointing at a kind='album_group' row; enforced in the command layer.
+    if !column_exists(conn, "collections", "parent_id")? {
+        conn.execute(
+            "ALTER TABLE collections ADD COLUMN parent_id TEXT REFERENCES collections(id)",
+            [],
+        )?;
+    }
+
     // Last-seen on-disk modification time (unix seconds), used by workspace
     // reconciliation to detect files that changed outside Vivid without
     // re-hashing/re-reading every file on every launch. NULL for rows written

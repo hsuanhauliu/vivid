@@ -1419,6 +1419,9 @@ pub fn add_to_collection(
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let item = db::fetch_one(&conn, &id).map_err(|e| e.to_string())?;
     let kind = db::collection_kind(&conn, &collection_id).map_err(|e| e.to_string())?;
+    if kind == "album_group" {
+        return Err("INCOMPATIBLE_COLLECTION: album groups can only contain other albums, not files".into());
+    }
     let compatible = match kind.as_str() {
         "album"    => item.media_type == "image" || item.media_type == "video",
         "playlist" => item.media_type == "audio" || item.media_type == "video",
@@ -1532,6 +1535,29 @@ pub fn create_collection(
 pub fn delete_collection(id: String, state: State<DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::delete_collection(&conn, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_collection_parent(
+    id: String,
+    parent_id: Option<String>,
+    state: State<DbState>,
+) -> Result<Collection, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    if id == parent_id.as_deref().unwrap_or_default() {
+        return Err("A collection can't be its own group".into());
+    }
+    let kind = db::collection_kind(&conn, &id).map_err(|e| e.to_string())?;
+    if kind != "album" {
+        return Err("Only albums can be moved into an album group".into());
+    }
+    if let Some(ref pid) = parent_id {
+        let parent_kind = db::collection_kind(&conn, pid).map_err(|e| e.to_string())?;
+        if parent_kind != "album_group" {
+            return Err("Target is not an album group".into());
+        }
+    }
+    db::set_collection_parent(&conn, &id, parent_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

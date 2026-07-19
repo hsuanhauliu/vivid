@@ -69,12 +69,16 @@ pub struct Collection {
     pub pinned: bool,
     pub cover_item_id: Option<String>,
     pub created_at: String,
-    /// "album" (images + videos) | "playlist" (audio). Collections only —
+    /// "album" (images + videos) | "playlist" (audio) | "album_group" (holds
+    /// other albums, never media items directly). Collections only —
     /// on-disk organization lives in `Folder`.
     pub kind: String,
     pub sidebar_pin: bool,
     /// Optional free-text description shown on the collection page.
     pub description: Option<String>,
+    /// The album_group this album currently sits in, if any. Only ever set
+    /// on kind="album" rows, pointing at a kind="album_group" row.
+    pub parent_id: Option<String>,
 }
 
 /// A node in the on-disk folder tree under the managed library root. Distinct

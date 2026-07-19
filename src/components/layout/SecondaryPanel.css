@@ -526,6 +526,56 @@
   margin-top: 1px;
 }
 
+/* Album-group nesting: twisty on the group row, indented children below it.
+   Twisty is a fixed 16px box (matches the Folders panel's .ft-twisty) so its
+   footprint is predictable — child rows indent by exactly that box's width
+   (+ the row's own left padding + gap) so a child's avatar lines up under
+   the group's avatar rather than sitting further left. */
+.sp-group-twisty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.sp-group-twisty.collapsed {
+  transform: rotate(-90deg);
+}
+.sp-group-children {
+  display: flex;
+  flex-direction: column;
+}
+.sp-group-row-child {
+  padding-left: 37px; /* 12 (row padding) + 16 (twisty box) + 9 (row gap) */
+}
+
+/* Album vs Album Group toggle in the inline create form */
+.sp-create-type-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sp-create-type-toggle button {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sp-create-type-toggle button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
 /* Tag rows */
 /* Play button on sp group rows */
 .sp-play-btn {

@@ -111,7 +111,17 @@
   "collection": {
     "addDescription": "Adicionar descrição",
     "editDescription": "Editar descrição",
-    "descriptionPlaceholder": "Adicionar uma descrição… (⌘↵ para salvar, Esc para cancelar)"
+    "descriptionPlaceholder": "Adicionar uma descrição… (⌘↵ para salvar, Esc para cancelar)",
+    "albumGroup": "Grupo de álbuns",
+    "albumCount_one": "{{count}} álbum",
+    "albumCount_other": "{{count}} álbuns",
+    "newAlbum": "Novo álbum",
+    "newAlbumPlaceholder": "Nome do álbum…",
+    "newGroupPlaceholder": "Nome do grupo…",
+    "emptyGroup": "Ainda não há álbuns neste grupo.",
+    "moveToGroup": "Mover para o grupo…",
+    "removeFromGroup": "Remover do grupo",
+    "noOtherGroups": "Nenhum outro grupo"
   },
   "contextMenu": {
     "viewDetails": "Ver detalhes",
@@ -839,6 +849,7 @@
   "search": {
     "aiPlaceholder": "Descreva o que você está procurando…",
     "placeholder": "Pesquisar por nome, tag ou descrição…",
+    "placeholderAlbums": "Pesquisar álbuns…",
     "scope": {
       "title": "Pesquisar em",
       "name": "Nome do arquivo",
@@ -851,7 +862,10 @@
       "namePlaceholder": "Nomeie esta pesquisa…",
       "save": "Salvar",
       "delete": "Excluir",
-      "empty": "Nenhuma pesquisa salva ainda."
+      "empty": "Nenhuma pesquisa salva ainda.",
+      "deleteTitle": "Excluir pesquisa salva",
+      "deleteMsg": "Excluir a pesquisa salva \"{{name}}\"? Isso não pode ser desfeito.",
+      "deleteConfirm": "Excluir"
     }
   },
   "detail": {

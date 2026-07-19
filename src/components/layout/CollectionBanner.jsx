@@ -14,6 +14,7 @@ import {
   Image,
   AlignLeft,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import CollectionAvatar from '../common/CollectionAvatar';
 import useDismiss from '../../hooks/useDismiss';
@@ -107,16 +108,22 @@ export default function CollectionBanner({
   onSetCover,
   onDelete,
   onSetDescription,
+  onCreateChildAlbum = null,
+  childAlbumCount = 0,
 }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
+  const [creatingAlbum, setCreatingAlbum] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState('');
   const menuRef = useRef(null);
   useDismiss(menuRef, () => setMenuOpen(false), { enabled: menuOpen, escape: true });
 
-  const typeLabel =
-    group.kind === 'album'
+  const isGroup = group.kind === 'album_group';
+  const typeLabel = isGroup
+    ? t('collection.albumGroup')
+    : group.kind === 'album'
       ? t('common.album')
       : group.kind === 'playlist'
         ? t('common.playlist')
@@ -179,6 +186,14 @@ export default function CollectionBanner({
     },
   ];
 
+  function submitCreateAlbum(e) {
+    e.preventDefault();
+    const name = newAlbumName.trim();
+    setCreatingAlbum(false);
+    setNewAlbumName('');
+    if (name) onCreateChildAlbum(name);
+  }
+
   return (
     <div className="collection-banner">
       <CollectionAvatar
@@ -211,7 +226,9 @@ export default function CollectionBanner({
           <h2 className="collection-banner-name">{group.name}</h2>
         )}
         <span className="collection-banner-count">
-          {t('common.item', { count: visible.length })}
+          {isGroup
+            ? t('collection.albumCount', { count: childAlbumCount })
+            : t('common.item', { count: visible.length })}
           {totalDuration && <span className="collection-banner-duration"> · {totalDuration}</span>}
         </span>
       </div>
@@ -236,6 +253,33 @@ export default function CollectionBanner({
         )}
       </div>
       <div className="collection-banner-actions">
+        {isGroup &&
+          onCreateChildAlbum &&
+          (creatingAlbum ? (
+            <form className="collection-banner-new-album-form" onSubmit={submitCreateAlbum}>
+              <input
+                autoFocus
+                className="collection-banner-new-album-input"
+                value={newAlbumName}
+                placeholder={t('collection.newAlbumPlaceholder')}
+                onChange={(e) => setNewAlbumName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setCreatingAlbum(false);
+                    setNewAlbumName('');
+                  }
+                }}
+                onBlur={submitCreateAlbum}
+              />
+            </form>
+          ) : (
+            <button
+              className="btn btn-primary collection-banner-btn"
+              onClick={() => setCreatingAlbum(true)}
+            >
+              <Plus size={13} /> {t('collection.newAlbum')}
+            </button>
+          ))}
         {hasAudio && (
           <>
             <button

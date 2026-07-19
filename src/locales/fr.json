@@ -111,7 +111,17 @@
   "collection": {
     "addDescription": "Ajouter une description",
     "editDescription": "Modifier la description",
-    "descriptionPlaceholder": "Ajouter une description… (⌘↵ pour enregistrer, Échap pour annuler)"
+    "descriptionPlaceholder": "Ajouter une description… (⌘↵ pour enregistrer, Échap pour annuler)",
+    "albumGroup": "Groupe d'albums",
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} albums",
+    "newAlbum": "Nouvel album",
+    "newAlbumPlaceholder": "Nom de l'album…",
+    "newGroupPlaceholder": "Nom du groupe…",
+    "emptyGroup": "Aucun album dans ce groupe pour l'instant.",
+    "moveToGroup": "Déplacer vers le groupe…",
+    "removeFromGroup": "Retirer du groupe",
+    "noOtherGroups": "Aucun autre groupe"
   },
   "contextMenu": {
     "viewDetails": "Voir les détails",
@@ -839,6 +849,7 @@
   "search": {
     "aiPlaceholder": "Décrivez ce que vous cherchez…",
     "placeholder": "Rechercher par nom, tag ou description…",
+    "placeholderAlbums": "Rechercher des albums…",
     "scope": {
       "title": "Rechercher dans",
       "name": "Nom de fichier",
@@ -851,7 +862,10 @@
       "namePlaceholder": "Nommer cette recherche…",
       "save": "Enregistrer",
       "delete": "Supprimer",
-      "empty": "Aucune recherche enregistrée pour l'instant."
+      "empty": "Aucune recherche enregistrée pour l'instant.",
+      "deleteTitle": "Supprimer la recherche enregistrée",
+      "deleteMsg": "Supprimer la recherche enregistrée « {{name}} » ? Cette action est irréversible.",
+      "deleteConfirm": "Supprimer"
     }
   },
   "detail": {

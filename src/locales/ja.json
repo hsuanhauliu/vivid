@@ -111,7 +111,16 @@
   "collection": {
     "addDescription": "説明を追加",
     "editDescription": "説明を編集",
-    "descriptionPlaceholder": "説明を追加…（⌘↵ で保存、Esc でキャンセル）"
+    "descriptionPlaceholder": "説明を追加…（⌘↵ で保存、Esc でキャンセル）",
+    "albumGroup": "アルバムグループ",
+    "albumCount": "アルバム{{count}}件",
+    "newAlbum": "新規アルバム",
+    "newAlbumPlaceholder": "アルバム名…",
+    "newGroupPlaceholder": "グループ名…",
+    "emptyGroup": "このグループにはまだアルバムがありません。",
+    "moveToGroup": "グループに移動…",
+    "removeFromGroup": "グループから削除",
+    "noOtherGroups": "他のグループはありません"
   },
   "contextMenu": {
     "viewDetails": "詳細を表示",
@@ -734,6 +743,7 @@
   "search": {
     "aiPlaceholder": "探しているものを説明してください…",
     "placeholder": "名前、タグ、または説明で検索…",
+    "placeholderAlbums": "アルバムを検索…",
     "scope": {
       "title": "検索対象",
       "name": "ファイル名",
@@ -746,7 +756,10 @@
       "namePlaceholder": "この検索に名前を付ける…",
       "save": "保存",
       "delete": "削除",
-      "empty": "保存された検索はまだありません。"
+      "empty": "保存された検索はまだありません。",
+      "deleteTitle": "保存された検索を削除",
+      "deleteMsg": "保存された検索「{{name}}」を削除しますか？元に戻せません。",
+      "deleteConfirm": "削除"
     }
   },
   "import": {

@@ -480,6 +480,35 @@ fn item_can_belong_to_multiple_collections() {
     assert_eq!(fetched.collection_ids, vec![b.id.clone()]);
 }
 
+#[test]
+fn set_collection_parent_moves_album_into_and_out_of_group() {
+    let conn = open();
+    let group = create_collection(&conn, "Trips", "#fff", None, "album_group").unwrap();
+    let album = create_collection(&conn, "Japan", "#fff", None, "album").unwrap();
+    assert!(album.parent_id.is_none());
+
+    let moved = set_collection_parent(&conn, &album.id, Some(&group.id)).unwrap();
+    assert_eq!(moved.parent_id.as_deref(), Some(group.id.as_str()));
+
+    let ungrouped = set_collection_parent(&conn, &album.id, None).unwrap();
+    assert!(ungrouped.parent_id.is_none());
+}
+
+#[test]
+fn deleting_album_group_ungroups_its_children_instead_of_orphaning() {
+    let conn = open();
+    let group = create_collection(&conn, "Trips", "#fff", None, "album_group").unwrap();
+    let album = create_collection(&conn, "Japan", "#fff", None, "album").unwrap();
+    set_collection_parent(&conn, &album.id, Some(&group.id)).unwrap();
+
+    delete_collection(&conn, &group.id).unwrap();
+
+    let collections = get_collections(&conn).unwrap();
+    assert!(collections.iter().all(|g| g.id != group.id));
+    let surviving_album = collections.iter().find(|g| g.id == album.id).unwrap();
+    assert!(surviving_album.parent_id.is_none());
+}
+
 // ── Folders (on-disk directory tree) ─────────────────────────────────────
 
 #[test]

@@ -34,6 +34,14 @@
   background: rgba(239, 68, 68, 0.1) !important;
   color: #ef4444 !important;
 }
+.sp-ctx-item-disabled {
+  color: var(--text-dim);
+  cursor: default;
+  font-style: italic;
+}
+.sp-ctx-item-disabled:hover {
+  background: none;
+}
 .sp-ctx-sep {
   height: 1px;
   background: var(--border);

@@ -5,11 +5,18 @@ import { SORT_OPTIONS } from '../../utils/sort';
 import useDismiss from '../../hooks/useDismiss';
 import './SortDropdown.css';
 
-export default function SortDropdown({ value, onChange, allowManual = false, onSaveManualOrder }) {
+export default function SortDropdown({
+  value,
+  onChange,
+  allowManual = false,
+  onSaveManualOrder,
+  options: optionsProp,
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const options = allowManual ? SORT_OPTIONS : SORT_OPTIONS.filter((o) => o.value !== 'manual');
+  const options =
+    optionsProp ?? (allowManual ? SORT_OPTIONS : SORT_OPTIONS.filter((o) => o.value !== 'manual'));
   const current = options.find((o) => o.value === value) ?? options[0];
 
   useDismiss(ref, () => setOpen(false), { enabled: open, escape: false });

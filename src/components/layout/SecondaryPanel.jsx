@@ -5,7 +5,7 @@ import { translateTag } from '../../utils/translateTag';
 import { COLLECTION_NAME_MAX_LEN } from '../../utils/limits';
 import FolderTree from '../common/FolderTree';
 import CollectionAvatar from '../common/CollectionAvatar';
-import SimpleMenu from '../common/SimpleMenu';
+import CollectionContextMenu from '../common/CollectionContextMenu';
 import ScrollArea from '../common/ScrollArea';
 import {
   FolderOpen,
@@ -24,16 +24,14 @@ import {
   Star,
   Layers,
   Sparkles,
-  Pencil,
   ArrowDownAZ,
   ArrowUpAZ,
   GripVertical,
   ListOrdered,
   Play,
-  Pin,
-  Trash2,
   Search,
   ScanText,
+  ChevronDown,
 } from 'lucide-react';
 import { formatBytes } from '../../utils/format';
 import './SecondaryPanel.css';
@@ -89,6 +87,11 @@ function CollectionList({
   onDelete,
   onSetCover,
   dragOverId,
+  // Album-only: album_group rows nest their child albums, collapsible like
+  // the Folders panel. `onSetParent(albumId, groupId|null)` moves an album
+  // into/out of a group.
+  groupable = false,
+  onSetParent,
 }) {
   const { t } = useTranslation();
   const storageKey = `vivid-sp-sort-${sortKey}`;
@@ -116,7 +119,16 @@ function CollectionList({
   const [renamingId, setRenamingId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newKind, setNewKind] = useState('album');
   const newInputRef = useRef(null);
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  const toggleGroupCollapsed = (id) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Pointer-based drag state
   const [dragId, setDragId] = useState(null); // id being dragged
@@ -154,7 +166,11 @@ function CollectionList({
   }, [items]);
 
   const sorted = useMemo(() => {
-    let list = [...collections].filter(
+    // Searching flattens the hierarchy (matches at any level, top-level or
+    // nested in a group) rather than trying to keep the tree shape — a
+    // search result you have to expand a group to see isn't really "found".
+    const base = groupable && !search ? collections.filter((g) => !g.parent_id) : collections;
+    let list = [...base].filter(
       (g) => !search || g.name.toLowerCase().includes(search.toLowerCase()),
     );
     if (sortMode === 'az') list.sort((a, b) => a.name.localeCompare(b.name));
@@ -164,7 +180,7 @@ function CollectionList({
       list.sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999));
     }
     return list;
-  }, [collections, search, sortMode, customOrder]);
+  }, [collections, search, sortMode, customOrder, groupable]);
 
   // ── Pointer-based drag reorder ────────────────────────────────────────────────
 
@@ -352,15 +368,42 @@ function CollectionList({
           onSubmit={(e) => {
             e.preventDefault();
             const n = newName.trim();
-            if (n) onCreateCollection(n);
+            if (n) onCreateCollection(n, groupable ? newKind : undefined);
             setCreating(false);
             setNewName('');
+            setNewKind('album');
           }}
         >
+          {groupable && (
+            <div className="sp-create-type-toggle">
+              <button
+                type="button"
+                className={newKind === 'album' ? 'active' : ''}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setNewKind('album')}
+              >
+                {t('common.album')}
+              </button>
+              <button
+                type="button"
+                className={newKind === 'album_group' ? 'active' : ''}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setNewKind('album_group')}
+              >
+                {t('collection.albumGroup')}
+              </button>
+            </div>
+          )}
           <input
             ref={newInputRef}
             className="sp-rename-input"
-            placeholder={createPlaceholderKey ? t(createPlaceholderKey) : t('panel.collectionName')}
+            placeholder={
+              groupable && newKind === 'album_group'
+                ? t('collection.newGroupPlaceholder')
+                : createPlaceholderKey
+                  ? t(createPlaceholderKey)
+                  : t('panel.collectionName')
+            }
             value={newName}
             maxLength={COLLECTION_NAME_MAX_LEN}
             onChange={(e) => setNewName(e.target.value)}
@@ -368,11 +411,13 @@ function CollectionList({
               if (e.key === 'Escape') {
                 setCreating(false);
                 setNewName('');
+                setNewKind('album');
               }
             }}
             onBlur={() => {
               setCreating(false);
               setNewName('');
+              setNewKind('album');
             }}
           />
         </form>
@@ -383,11 +428,19 @@ function CollectionList({
       )}
 
       {sorted.map((g, idx) => {
-        const count = counts[g.id] || 0;
         const isDragging = g.id === dragId;
         const showLineBefore = editMode && insertIdx === idx && dragId && !isDragging;
         const showLineAfter =
           editMode && insertIdx === sorted.length && idx === sorted.length - 1 && dragId;
+        const isGroupKind = g.kind === 'album_group';
+        const children =
+          groupable && isGroupKind && !search
+            ? collections
+                .filter((c) => c.parent_id === g.id)
+                .sort((a, b) => a.name.localeCompare(b.name))
+            : [];
+        const collapsed = collapsedGroups.has(g.id);
+        const count = isGroupKind ? children.length : counts[g.id] || 0;
         return (
           <div key={g.id}>
             {showLineBefore && <div className="sp-drop-line" />}
@@ -415,10 +468,20 @@ function CollectionList({
                   onPointerDown={(e) => handleDragHandleDown(e, g.id)}
                 />
               )}
+              {isGroupKind && (
+                <ChevronDown
+                  size={11}
+                  className={`sp-group-twisty ${collapsed ? 'collapsed' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleGroupCollapsed(g.id);
+                  }}
+                />
+              )}
               <CollectionAvatar
                 group={g}
                 allItems={allItems ?? items}
-                size={32}
+                size={isGroupKind ? 28 : 32}
                 radius={7}
                 style={{ isolation: 'isolate' }}
                 draggable={false}
@@ -440,11 +503,15 @@ function CollectionList({
                 ) : (
                   <>
                     <span className="sp-group-name">{g.name}</span>
-                    <span className="sp-group-count">{t('panel.item', { count })}</span>
+                    <span className="sp-group-count">
+                      {isGroupKind
+                        ? t('collection.albumCount', { count })
+                        : t('panel.item', { count })}
+                    </span>
                   </>
                 )}
               </div>
-              {onPlayAll && count > 0 && !editMode && (
+              {onPlayAll && !isGroupKind && count > 0 && !editMode && (
                 <button
                   className="sp-play-btn"
                   onClick={(e) => {
@@ -461,74 +528,82 @@ function CollectionList({
               )}
             </div>
             {showLineAfter && <div className="sp-drop-line" />}
+
+            {isGroupKind && !collapsed && children.length > 0 && (
+              <div className="sp-group-children">
+                {children.map((child) => {
+                  const childCount = counts[child.id] || 0;
+                  return (
+                    <div
+                      key={child.id}
+                      role="button"
+                      tabIndex={0}
+                      data-collection-id={child.id}
+                      className={`sp-group-row sp-group-row-child ${child.id === activeCollectionId ? 'sp-group-active' : ''} ${child.id === dragOverId ? 'sp-drag-over' : ''}`}
+                      onClick={() => renamingId !== child.id && onCollectionClick(child.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renamingId !== child.id)
+                          onCollectionClick(child.id);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setCtxMenu({ x: e.clientX, y: e.clientY, group: child });
+                      }}
+                    >
+                      <CollectionAvatar
+                        group={child}
+                        allItems={allItems ?? items}
+                        size={28}
+                        radius={6}
+                        style={{ isolation: 'isolate' }}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      />
+                      <div className="sp-group-info">
+                        {renamingId === child.id ? (
+                          <RenameInline
+                            name={child.name}
+                            onConfirm={(val) => {
+                              setRenamingId(null);
+                              onRename?.(child.id, val);
+                            }}
+                            onCancel={() => setRenamingId(null)}
+                          />
+                        ) : (
+                          <>
+                            <span className="sp-group-name">{child.name}</span>
+                            <span className="sp-group-count">
+                              {t('panel.item', { count: childCount })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
 
       {ctxMenu && (
-        <SimpleMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
-          <button
-            className="sp-ctx-item"
-            onClick={() => {
-              setRenamingId(ctxMenu.group.id);
-              setCtxMenu(null);
-            }}
-          >
-            <Pencil size={12} />
-            <span>{t('panel.rename')}</span>
-          </button>
-          {onSetCover && (
-            <button
-              className="sp-ctx-item"
-              onClick={() => {
-                onSetCover(ctxMenu.group);
-                setCtxMenu(null);
-              }}
-            >
-              <Image size={12} />
-              <span>{t('panel.setCover')}</span>
-            </button>
-          )}
-          {onSidebarPin && (
-            <button
-              className="sp-ctx-item"
-              onClick={() => {
-                const g = ctxMenu.group;
-                const pinnedCount = collections.filter((x) => x.sidebar_pin).length;
-                if (!g.sidebar_pin && pinnedCount >= 5) {
-                  setCtxMenu(null);
-                  return;
-                }
-                onSidebarPin(g.id, !g.sidebar_pin);
-                setCtxMenu(null);
-              }}
-            >
-              <Pin size={12} />
-              <span>{ctxMenu.group.sidebar_pin ? t('panel.unpin') : t('panel.pin')}</span>
-              {!ctxMenu.group.sidebar_pin &&
-                collections.filter((x) => x.sidebar_pin).length >= 5 && (
-                  <span style={{ fontSize: 10, color: 'var(--fg-dim)', marginLeft: 4 }}>
-                    {t('panel.maxPinned')}
-                  </span>
-                )}
-            </button>
-          )}
-          {onDelete && (
-            <>
-              <div className="sp-ctx-sep" />
-              <button
-                className="sp-ctx-item sp-ctx-item-danger"
-                onClick={() => {
-                  onDelete(ctxMenu.group.id, ctxMenu.group.name);
-                  setCtxMenu(null);
-                }}
-              >
-                <Trash2 size={12} />
-                <span>{t('panel.delete')}</span>
-              </button>
-            </>
-          )}
-        </SimpleMenu>
+        <CollectionContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          target={ctxMenu.group}
+          collections={collections}
+          onRename={() => setRenamingId(ctxMenu.group.id)}
+          onSetCover={onSetCover}
+          onSidebarPin={onSidebarPin}
+          onSetParent={groupable ? onSetParent : undefined}
+          onDelete={onDelete}
+        />
       )}
     </div>
   );
@@ -794,6 +869,7 @@ export default function SecondaryPanel({
   onRenameFolder,
   onDeleteFolder,
   onMoveFolder,
+  onSetCollectionParent,
 }) {
   const { t } = useTranslation();
   const Icon = PANEL_ICONS[type] || BarChart2;
@@ -809,7 +885,7 @@ export default function SecondaryPanel({
   }, [type]);
 
   const albumCollections = useMemo(
-    () => collections.filter((g) => g.kind === 'album'),
+    () => collections.filter((g) => g.kind === 'album' || g.kind === 'album_group'),
     [collections],
   );
   const playlistCollections = useMemo(
@@ -858,7 +934,9 @@ export default function SecondaryPanel({
             onCollectionClick={onCollectionClick}
             onRename={onRenameCollection}
             onCreateCollection={
-              onCreateCollection ? (name) => onCreateCollection(name, '', null, 'album') : undefined
+              onCreateCollection
+                ? (name, kind) => onCreateCollection(name, '', null, kind || 'album')
+                : undefined
             }
             emptyTextKey="panel.noAlbums"
             sortKey="albums"
@@ -870,6 +948,8 @@ export default function SecondaryPanel({
             onDelete={onDeleteCollection}
             onSetCover={onSetCollectionCover}
             dragOverId={dragOverId}
+            groupable
+            onSetParent={onSetCollectionParent}
           />
         )}
         {type === 'playlists' && (

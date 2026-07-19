@@ -31,6 +31,7 @@ import SecondaryPanel from './components/layout/SecondaryPanel';
 import MediaGrid from './components/views/MediaGrid';
 import DetailPanel from './components/layout/DetailPanel';
 import CollectionBanner from './components/layout/CollectionBanner';
+import AlbumGroupView from './components/views/AlbumGroupView';
 import FileViewer from './components/views/FileViewer';
 import ContextMenu from './components/common/ContextMenu';
 import SelectionBar from './components/common/SelectionBar';
@@ -145,7 +146,11 @@ export default function App() {
   );
   const [sortBy, setSortBy] = useState('date-desc');
   // Manual sort + drag-reorder is only offered on playlist pages.
-  const isPlaylistView = collections.find((g) => g.id === activeCollection)?.kind === 'playlist';
+  const activeCollectionObj = collections.find((g) => g.id === activeCollection);
+  const isPlaylistView = activeCollectionObj?.kind === 'playlist';
+  // Album groups hold other albums, not media items — their page shows a
+  // grid of child albums instead of the normal media grid/toolbar.
+  const isAlbumGroupView = activeCollectionObj?.kind === 'album_group';
   useEffect(() => {
     if (!isPlaylistView && sortBy === 'manual') setSortBy('date-desc');
   }, [isPlaylistView, sortBy]);
@@ -677,6 +682,7 @@ export default function App() {
     });
     setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
     setSelected((prev) => (prev?.id === id ? updated : prev));
+    setViewerItem((prev) => (prev?.id === id ? updated : prev));
   }, []);
 
   const handleRemove = useCallback(
@@ -814,7 +820,9 @@ export default function App() {
         });
         return;
       }
-      if (collectionId) {
+      // Album groups only organize other albums — dropping media files onto
+      // one isn't a valid target, unlike a regular album/playlist row.
+      if (collectionId && collections.find((g) => g.id === collectionId)?.kind !== 'album_group') {
         const updated = await Promise.all(
           ids.map((id) => invoke('add_to_collection', { id, collectionId })),
         );
@@ -826,7 +834,7 @@ export default function App() {
       // No notification: the items visibly move. The messages page is for
       // warnings/errors only, not routine success confirmations.
     },
-    [setAllItems],
+    [setAllItems, collections],
   );
 
   const { drag: collectionDrag, beginCollectionDrag } = useCollectionDrag(handleCollectionDrop);
@@ -869,6 +877,23 @@ export default function App() {
     const updated = await invoke('set_collection_cover', { collectionId, coverItemId });
     setCollections((prev) => prev.map((g) => (g.id === collectionId ? updated : g)));
   }, []);
+
+  // Moves an album into an album_group (or, passing null, back out to
+  // top-level) — used by the secondary panel's "Move to Group…"/"Remove from
+  // Group" context menu actions.
+  const handleSetCollectionParent = useCallback(
+    async (id, parentId) => {
+      try {
+        const updated = await invoke('set_collection_parent', { id, parentId: parentId ?? null });
+        setCollections((prev) => prev.map((g) => (g.id === id ? updated : g)));
+        return updated;
+      } catch (e) {
+        showToast('error', String(e));
+        return null;
+      }
+    },
+    [showToast],
+  );
 
   const handleSetCollectionDescription = useCallback(async (id, description) => {
     const updated = await invoke('set_collection_description', { id, description });
@@ -1001,9 +1026,21 @@ export default function App() {
     [setSearchScope, setFilters],
   );
 
-  const handleDeleteSavedSearch = useCallback((id) => {
-    setSavedSearches((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+  const handleDeleteSavedSearch = useCallback(
+    (id) => {
+      const entry = savedSearches.find((s) => s.id === id);
+      setConfirm({
+        title: t('search.saved.deleteTitle'),
+        message: t('search.saved.deleteMsg', { name: entry?.name ?? '' }),
+        confirmLabel: t('search.saved.deleteConfirm'),
+        onConfirm: () => {
+          setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+          setConfirm(null);
+        },
+      });
+    },
+    [savedSearches, t],
+  );
 
   const handleSearchGo = useCallback(() => {
     if (!search.trim()) return;
@@ -1784,7 +1821,13 @@ export default function App() {
             <input
               ref={searchInputRef}
               className={`search-input${semanticMode ? ' semantic-mode' : ''}${search ? ' has-text' : ''}`}
-              placeholder={semanticMode ? t('search.aiPlaceholder') : t('search.placeholder')}
+              placeholder={
+                isAlbumGroupView
+                  ? t('search.placeholderAlbums')
+                  : semanticMode
+                    ? t('search.aiPlaceholder')
+                    : t('search.placeholder')
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
@@ -1845,11 +1888,14 @@ export default function App() {
 
           {/* Search scope toggles — which fields keyword search checks.
               Doesn't apply to semantic search (an AI query, not a per-field
-              match), so it's hidden while that's active. */}
-          {!semanticMode && <SearchScopeMenu scope={searchScope} onChange={setSearchScope} />}
+              match) or the album group page (a plain name filter over
+              albums, not a per-field media search), so it's hidden then. */}
+          {!semanticMode && !isAlbumGroupView && (
+            <SearchScopeMenu scope={searchScope} onChange={setSearchScope} />
+          )}
 
           {/* Semantic search toggle */}
-          {multilingualLoaded && (
+          {multilingualLoaded && !isAlbumGroupView && (
             <button
               className={`icon-btn toolbar-ai-btn ${semanticMode ? 'active' : ''}`}
               title={semanticMode ? t('toolbar.switchToKeyword') : t('toolbar.switchToAI')}
@@ -1865,7 +1911,7 @@ export default function App() {
 
           {/* Filter toggle — right of search bar, visually separated from view buttons.
               Shared as-is by the World Map view: same button, same filters state. */}
-          {(view === 'library' || view === 'worldmap') && (
+          {(view === 'library' || view === 'worldmap') && !isAlbumGroupView && (
             <button
               className={`icon-btn toolbar-view-btn ${showFilterBar || hasActiveFilterFields(filters, moodFilter) ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
@@ -1878,7 +1924,7 @@ export default function App() {
           {/* Saved searches — bookmark the current search text + scope +
               filters, reachable wherever the Filter toggle is (search/filters
               only drive the library and world-map item lists). */}
-          {(view === 'library' || view === 'worldmap') && (
+          {(view === 'library' || view === 'worldmap') && !isAlbumGroupView && (
             <SavedSearchesMenu
               current={{ search, searchScope, filters }}
               hasCurrent={!!search.trim() || hasActiveFilterFields(filters, null)}
@@ -1964,6 +2010,7 @@ export default function App() {
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
               onMoveFolder={handleMoveFolder}
+              onSetCollectionParent={handleSetCollectionParent}
             />
           )}
 
@@ -2004,6 +2051,7 @@ export default function App() {
 
             {/* Filter bar */}
             {(view === 'library' || view === 'worldmap') &&
+              !isAlbumGroupView &&
               (showFilterBar || filters.exactDay || moodFilter) && (
                 <FilterBar
                   filters={filters}
@@ -2037,7 +2085,8 @@ export default function App() {
                 const compatibleCollections = collections.filter((g) => {
                   if (g.kind === 'album') return !hasAudio;
                   if (g.kind === 'playlist') return !hasNonAudio;
-                  return true; // folders accept anything
+                  if (g.kind === 'album_group') return false; // holds albums, not files
+                  return true;
                 });
                 return (
                   <ResultsBar
@@ -2121,6 +2170,19 @@ export default function App() {
                     onSetCover={(group) => setCollectionCoverTarget(group)}
                     onDelete={handleDeleteCollection}
                     onSetDescription={handleSetCollectionDescription}
+                    onCreateChildAlbum={
+                      grp.kind === 'album_group'
+                        ? async (name) => {
+                            const album = await handleCreateCollection(name, '', null, 'album');
+                            if (album) await handleSetCollectionParent(album.id, grp.id);
+                          }
+                        : null
+                    }
+                    childAlbumCount={
+                      grp.kind === 'album_group'
+                        ? collections.filter((g) => g.parent_id === grp.id).length
+                        : 0
+                    }
                   />
                 );
               })()}
@@ -2282,6 +2344,19 @@ export default function App() {
                   onNewItem={handleNewItem}
                   onItemUpdated={handleItemUpdated}
                   initialSrc={freshUrls[editorItem.id] || null}
+                />
+              ) : view === 'library' && isAlbumGroupView ? (
+                <AlbumGroupView
+                  group={activeCollectionObj}
+                  collections={collections}
+                  allItems={allItems}
+                  search={search}
+                  onOpenCollection={handleCollectionClick}
+                  onRenameCollection={handleRenameCollection}
+                  onSetCollectionCover={(group) => setCollectionCoverTarget(group)}
+                  onSidebarPin={handleSidebarPin}
+                  onSetCollectionParent={handleSetCollectionParent}
+                  onDeleteCollection={handleDeleteCollection}
                 />
               ) : (
                 <>
@@ -2572,7 +2647,12 @@ export default function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          item={contextMenu.item}
+          // Look up the live item rather than rendering the snapshot taken
+          // when the menu opened — otherwise toggling collection membership
+          // (or starring, etc.) from the menu itself doesn't visibly update
+          // until it's closed and reopened, since `allItems` changes but
+          // this stored reference doesn't.
+          item={allItems.find((i) => i.id === contextMenu.item.id) ?? contextMenu.item}
           onClose={() => setContextMenu(null)}
           onOpen={handleCardOpen}
           onViewDetails={setSelected}

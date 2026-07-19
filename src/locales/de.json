@@ -111,7 +111,17 @@
   "collection": {
     "addDescription": "Beschreibung hinzufügen",
     "editDescription": "Beschreibung bearbeiten",
-    "descriptionPlaceholder": "Beschreibung hinzufügen… (⌘↵ zum Speichern, Esc zum Abbrechen)"
+    "descriptionPlaceholder": "Beschreibung hinzufügen… (⌘↵ zum Speichern, Esc zum Abbrechen)",
+    "albumGroup": "Album-Gruppe",
+    "albumCount_one": "{{count}} Album",
+    "albumCount_other": "{{count}} Alben",
+    "newAlbum": "Neues Album",
+    "newAlbumPlaceholder": "Albumname…",
+    "newGroupPlaceholder": "Gruppenname…",
+    "emptyGroup": "Noch keine Alben in dieser Gruppe.",
+    "moveToGroup": "Zu Gruppe hinzufügen…",
+    "removeFromGroup": "Aus Gruppe entfernen",
+    "noOtherGroups": "Keine weiteren Gruppen"
   },
   "contextMenu": {
     "viewDetails": "Details anzeigen",
@@ -839,6 +849,7 @@
   "search": {
     "aiPlaceholder": "Beschreiben Sie, wonach Sie suchen…",
     "placeholder": "Nach Name, Tag oder Beschreibung suchen…",
+    "placeholderAlbums": "Alben durchsuchen…",
     "scope": {
       "title": "Suchen in",
       "name": "Dateiname",
@@ -851,7 +862,10 @@
       "namePlaceholder": "Suche benennen…",
       "save": "Speichern",
       "delete": "Löschen",
-      "empty": "Noch keine gespeicherten Suchen."
+      "empty": "Noch keine gespeicherten Suchen.",
+      "deleteTitle": "Gespeicherte Suche löschen",
+      "deleteMsg": "Die gespeicherte Suche „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+      "deleteConfirm": "Löschen"
     }
   },
   "detail": {

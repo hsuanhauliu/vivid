@@ -110,7 +110,16 @@
   "collection": {
     "addDescription": "Thêm mô tả",
     "editDescription": "Sửa mô tả",
-    "descriptionPlaceholder": "Thêm mô tả… (⌘↵ để lưu, Esc để hủy)"
+    "descriptionPlaceholder": "Thêm mô tả… (⌘↵ để lưu, Esc để hủy)",
+    "albumGroup": "Nhóm album",
+    "albumCount": "{{count}} album",
+    "newAlbum": "Album mới",
+    "newAlbumPlaceholder": "Tên album…",
+    "newGroupPlaceholder": "Tên nhóm…",
+    "emptyGroup": "Chưa có album nào trong nhóm này.",
+    "moveToGroup": "Chuyển vào nhóm…",
+    "removeFromGroup": "Xóa khỏi nhóm",
+    "noOtherGroups": "Không có nhóm nào khác"
   },
   "contextMenu": {
     "viewDetails": "Xem chi tiết",
@@ -813,6 +822,7 @@
   "search": {
     "aiPlaceholder": "Mô tả điều bạn đang tìm…",
     "placeholder": "Tìm theo tên, thẻ hoặc mô tả…",
+    "placeholderAlbums": "Tìm album…",
     "scope": {
       "title": "Tìm trong",
       "name": "Tên tệp",
@@ -825,7 +835,10 @@
       "namePlaceholder": "Đặt tên cho tìm kiếm này…",
       "save": "Lưu",
       "delete": "Xóa",
-      "empty": "Chưa có tìm kiếm nào được lưu."
+      "empty": "Chưa có tìm kiếm nào được lưu.",
+      "deleteTitle": "Xóa tìm kiếm đã lưu",
+      "deleteMsg": "Xóa tìm kiếm đã lưu \"{{name}}\"? Không thể hoàn tác.",
+      "deleteConfirm": "Xóa"
     }
   },
   "detail": {

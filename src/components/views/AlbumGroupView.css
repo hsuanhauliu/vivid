@@ -1,0 +1,63 @@
+/* ── Card grid ───────────────────────────────────────────────────────────
+   `align-content`/`align-items: start` are the whole fix here — grid's
+   default `stretch` would otherwise inflate the (single, usually short) row
+   to fill all remaining vertical space, which then stretched every card
+   inside it too (visible as an oversized hover outline reaching the bottom
+   of the window). */
+.album-group-grid {
+  display: grid;
+  align-content: start;
+  align-items: start;
+  gap: 18px;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.album-group-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.album-group-card:hover {
+  background: var(--surface-hover);
+}
+
+.album-group-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.album-group-card-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.agv-rename-form {
+  width: 100%;
+  margin: 0;
+}
+.agv-rename-input {
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 2px 6px;
+  outline: none;
+}

@@ -110,7 +110,16 @@
   "collection": {
     "addDescription": "설명 추가",
     "editDescription": "설명 편집",
-    "descriptionPlaceholder": "설명 추가… (⌘↵ 저장, Esc 취소)"
+    "descriptionPlaceholder": "설명 추가… (⌘↵ 저장, Esc 취소)",
+    "albumGroup": "앨범 그룹",
+    "albumCount": "앨범 {{count}}개",
+    "newAlbum": "새 앨범",
+    "newAlbumPlaceholder": "앨범 이름…",
+    "newGroupPlaceholder": "그룹 이름…",
+    "emptyGroup": "이 그룹에는 아직 앨범이 없습니다.",
+    "moveToGroup": "그룹으로 이동…",
+    "removeFromGroup": "그룹에서 제거",
+    "noOtherGroups": "다른 그룹이 없습니다"
   },
   "contextMenu": {
     "viewDetails": "세부 정보 보기",
@@ -809,6 +818,7 @@
   "search": {
     "aiPlaceholder": "찾고 있는 것을 설명해 보세요…",
     "placeholder": "이름, 태그, 설명으로 검색…",
+    "placeholderAlbums": "앨범 검색…",
     "scope": {
       "title": "검색 범위",
       "name": "파일 이름",
@@ -821,7 +831,10 @@
       "namePlaceholder": "이 검색의 이름을 입력하세요…",
       "save": "저장",
       "delete": "삭제",
-      "empty": "저장된 검색이 아직 없습니다."
+      "empty": "저장된 검색이 아직 없습니다.",
+      "deleteTitle": "저장된 검색 삭제",
+      "deleteMsg": "저장된 검색 \"{{name}}\"을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.",
+      "deleteConfirm": "삭제"
     }
   },
   "detail": {

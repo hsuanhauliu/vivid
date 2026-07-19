@@ -111,7 +111,17 @@
   "collection": {
     "addDescription": "Add description",
     "editDescription": "Edit description",
-    "descriptionPlaceholder": "Add a description… (⌘↵ to save, Esc to cancel)"
+    "descriptionPlaceholder": "Add a description… (⌘↵ to save, Esc to cancel)",
+    "albumGroup": "Album Group",
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} albums",
+    "newAlbum": "New Album",
+    "newAlbumPlaceholder": "Album name…",
+    "newGroupPlaceholder": "Group name…",
+    "emptyGroup": "No albums in this group yet.",
+    "moveToGroup": "Move to Group…",
+    "removeFromGroup": "Remove from Group",
+    "noOtherGroups": "No other groups"
   },
   "contextMenu": {
     "viewDetails": "View Details",
@@ -846,6 +856,7 @@
   "search": {
     "aiPlaceholder": "Describe what you're looking for…",
     "placeholder": "Search by name, tag, or description…",
+    "placeholderAlbums": "Search albums…",
     "scope": {
       "title": "Search in",
       "name": "File name",
@@ -858,7 +869,10 @@
       "namePlaceholder": "Name this search…",
       "save": "Save",
       "delete": "Delete",
-      "empty": "No saved searches yet."
+      "empty": "No saved searches yet.",
+      "deleteTitle": "Delete Saved Search",
+      "deleteMsg": "Delete the saved search \"{{name}}\"? This can't be undone.",
+      "deleteConfirm": "Delete"
     }
   },
   "detail": {

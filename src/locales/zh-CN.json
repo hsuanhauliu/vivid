@@ -110,7 +110,16 @@
   "collection": {
     "addDescription": "添加描述",
     "editDescription": "编辑描述",
-    "descriptionPlaceholder": "添加描述…（⌘↵ 保存，Esc 取消）"
+    "descriptionPlaceholder": "添加描述…（⌘↵ 保存，Esc 取消）",
+    "albumGroup": "相册分组",
+    "albumCount": "{{count}} 个相册",
+    "newAlbum": "新建相册",
+    "newAlbumPlaceholder": "相册名称…",
+    "newGroupPlaceholder": "分组名称…",
+    "emptyGroup": "此分组内暂无相册。",
+    "moveToGroup": "移动到分组…",
+    "removeFromGroup": "从分组中移除",
+    "noOtherGroups": "没有其他分组"
   },
   "contextMenu": {
     "viewDetails": "查看详情",
@@ -809,6 +818,7 @@
   "search": {
     "aiPlaceholder": "描述你要查找的内容…",
     "placeholder": "按名称、标签或描述搜索…",
+    "placeholderAlbums": "搜索相册…",
     "scope": {
       "title": "搜索范围",
       "name": "文件名",
@@ -821,7 +831,10 @@
       "namePlaceholder": "为此搜索命名…",
       "save": "保存",
       "delete": "删除",
-      "empty": "暂无已保存的搜索。"
+      "empty": "暂无已保存的搜索。",
+      "deleteTitle": "删除已保存的搜索",
+      "deleteMsg": "删除已保存的搜索“{{name}}”？此操作无法撤销。",
+      "deleteConfirm": "删除"
     }
   },
   "detail": {

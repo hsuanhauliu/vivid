@@ -111,7 +111,17 @@
   "collection": {
     "addDescription": "विवरण जोड़ें",
     "editDescription": "विवरण बदलें",
-    "descriptionPlaceholder": "विवरण जोड़ें… (⌘↵ सहेजने के लिए, Esc रद्द करने के लिए)"
+    "descriptionPlaceholder": "विवरण जोड़ें… (⌘↵ सहेजने के लिए, Esc रद्द करने के लिए)",
+    "albumGroup": "एल्बम समूह",
+    "albumCount_one": "{{count}} एल्बम",
+    "albumCount_other": "{{count}} एल्बम",
+    "newAlbum": "नया एल्बम",
+    "newAlbumPlaceholder": "एल्बम का नाम…",
+    "newGroupPlaceholder": "समूह का नाम…",
+    "emptyGroup": "इस समूह में अभी तक कोई एल्बम नहीं है।",
+    "moveToGroup": "समूह में ले जाएं…",
+    "removeFromGroup": "समूह से हटाएं",
+    "noOtherGroups": "कोई अन्य समूह नहीं"
   },
   "contextMenu": {
     "viewDetails": "विवरण देखें",
@@ -839,6 +849,7 @@
   "search": {
     "aiPlaceholder": "आप जो ढूंढ रहे हैं उसका वर्णन करें…",
     "placeholder": "नाम, टैग या विवरण से खोजें…",
+    "placeholderAlbums": "एल्बम खोजें…",
     "scope": {
       "title": "यहां खोजें",
       "name": "फ़ाइल नाम",
@@ -851,7 +862,10 @@
       "namePlaceholder": "इस खोज को नाम दें…",
       "save": "सहेजें",
       "delete": "हटाएं",
-      "empty": "अभी तक कोई सहेजी गई खोज नहीं है।"
+      "empty": "अभी तक कोई सहेजी गई खोज नहीं है।",
+      "deleteTitle": "सहेजी गई खोज हटाएं",
+      "deleteMsg": "सहेजी गई खोज \"{{name}}\" हटाएं? इसे वापस नहीं लाया जा सकता।",
+      "deleteConfirm": "हटाएं"
     }
   },
   "detail": {
