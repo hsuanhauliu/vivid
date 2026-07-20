@@ -73,7 +73,7 @@ pub async fn download_url(
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
     let mdir = media_dir(&app)?;
     let dest_path = unique_path(&mdir, &fname);
-    fs::write(&dest_path, &bytes).map_err(|e| e.to_string())?;
+    super::write_bytes_durably(&dest_path, &bytes).map_err(|e| e.to_string())?;
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest_path, Some(url))?;
@@ -179,7 +179,7 @@ pub async fn start_download_bg(
             let bytes = response.bytes().await.map_err(|e| e.to_string())?;
             let mdir = media_dir(&app2)?;
             let dest = unique_path(&mdir, &fname);
-            fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+            super::write_bytes_durably(&dest, &bytes).map_err(|e| e.to_string())?;
             let db = app2.state::<DbState>();
             let conn = db.0.lock().map_err(|e| e.to_string())?;
             let mut item = build_item(&dest, Some(url.clone()))?;

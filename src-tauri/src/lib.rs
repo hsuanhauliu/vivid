@@ -91,6 +91,14 @@ fn initialize_workspace(
         }
     }
 
+    // Additive-only recovery for an import interrupted mid-flight (file
+    // copied, DB insert never committed) — see `adopt_orphaned_files`. Runs
+    // for every workspace kind, unlike the destructive half of
+    // reconciliation above which only makes sense for External workspaces.
+    if let Err(e) = commands::adopt_orphaned_files(app) {
+        tracing::warn!(error = %e, "orphaned file adoption failed");
+    }
+
     // Live filesystem watcher: keeps the DB in sync with the folder while
     // Vivid keeps running (a one-time reconcile above only covers drift that
     // happened while the app was closed). No-op for the Default workspace.

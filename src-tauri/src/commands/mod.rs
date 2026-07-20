@@ -166,6 +166,41 @@ pub(crate) fn media_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Sibling temp path for a durable write to `dest` — same directory (so the
+/// final `fs::rename` is same-filesystem and therefore atomic), hidden, and
+/// tagged so a leftover one is unambiguously ours to clean up (see
+/// `adopt_orphaned_files`).
+fn tmp_sibling(dest: &Path) -> PathBuf {
+    let name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+    dest.with_file_name(format!(".{name}.vividtmp"))
+}
+
+/// Write `contents` to `dest` durably: write to a hidden sibling temp file,
+/// then atomically rename it into place. A reader can never observe a
+/// partially-written file at `dest`, and a crash mid-write leaves only the
+/// stray temp file (cleaned up at next startup) rather than a truncated or
+/// corrupted file at the real path. `dest`'s parent directory must exist.
+pub(crate) fn write_bytes_durably(dest: &Path, contents: &[u8]) -> std::io::Result<()> {
+    let tmp = tmp_sibling(dest);
+    let result = fs::write(&tmp, contents).and_then(|_| fs::rename(&tmp, dest));
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
+}
+
+/// Copy `src` to `dest` durably — same guarantee as `write_bytes_durably`,
+/// via `fs::copy` into a temp sibling then an atomic rename, so a crash
+/// mid-copy can never leave a truncated file sitting at `dest`.
+pub(crate) fn copy_file_durably(src: &Path, dest: &Path) -> std::io::Result<u64> {
+    let tmp = tmp_sibling(dest);
+    let result = fs::copy(src, &tmp).and_then(|n| fs::rename(&tmp, dest).map(|_| n));
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
+}
+
 pub(crate) fn unique_path(dir: &Path, fname: &str) -> PathBuf {
     // Reduce to the final path component so a crafted name (e.g. "../../evil")
     // can't escape `dir`. This is the single choke point for all file writes
@@ -764,7 +799,7 @@ pub(crate) fn run_import(
 
         let (leaf_id, leaf_dir) = folder_cache.get(&d.sub).expect("sub-folder pre-created");
         let dest = unique_path(leaf_dir, &file_name);
-        if let Err(e) = fs::copy(&d.src, &dest) {
+        if let Err(e) = copy_file_durably(&d.src, &dest) {
             tracing::warn!(path = ?d.src, error = %e, "Import copy failed, skipping");
             failed += 1;
             continue;
@@ -1071,6 +1106,84 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
         let _ = app.emit("folders-changed", ());
     }
     Ok(ReconcileResult { added, removed, modified, skipped_type })
+}
+
+/// Additive-only self-heal, run for every workspace kind at startup: adopt
+/// any file physically present in the workspace root that has no matching
+/// `media_items` row, and delete any leftover `.vividtmp` files (see
+/// `copy_file_durably`/`write_bytes_durably`) from a copy that never
+/// finished renaming into place.
+///
+/// This exists to recover from an import interrupted between "file copied"
+/// and "DB insert committed" — e.g. the app crashed or was force-quit
+/// mid-chunk. Without it, a fully-copied file whose row never landed would
+/// sit on disk forever, invisible to the library. Deliberately does NOT
+/// remove rows for files that are missing — that destructive half of
+/// self-healing stays scoped to `reconcile_workspace`'s External-only path,
+/// where "the folder changed while Vivid wasn't running" is an expected,
+/// deliberate scenario rather than a bug to route around.
+///
+/// Includes trashed rows when checking what's already known, so a file the
+/// user deliberately trashed is never mistaken for a new orphan and
+/// re-imported.
+pub(crate) fn adopt_orphaned_files(app: &tauri::AppHandle) -> Result<usize, String> {
+    let mdir = media_dir(app)?;
+    remove_stale_tmp_files(&mdir);
+
+    let state = app.state::<DbState>();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT file_path FROM media_items")
+        .map_err(|e| e.to_string())?;
+    let known: std::collections::HashSet<String> = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    drop(stmt);
+    drop(conn);
+
+    let mut disk: Vec<Discovered> = Vec::new();
+    collect_workspace_root(&mdir, &mut disk);
+
+    let candidates: Vec<Discovered> = disk
+        .into_iter()
+        .filter(|d| {
+            if known.contains(&d.src.to_string_lossy().to_string()) {
+                return false;
+            }
+            let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
+            extension_to_media_type(ext).is_some()
+        })
+        .collect();
+
+    if candidates.is_empty() {
+        return Ok(0);
+    }
+    let n = candidates.len();
+    tracing::info!(count = n, "Adopting orphaned files with no matching library row");
+    adopt_files(app, &state, &mdir, candidates)?;
+    Ok(n)
+}
+
+/// Recursively remove leftover `.vividtmp` files (see `tmp_sibling`) — a
+/// durable copy/write that started but never finished renaming into place,
+/// most likely because the app was killed mid-operation. Always safe to
+/// delete: a `.vividtmp` file is never the real, complete file at its final
+/// path (that's the whole point of the temp-then-rename pattern).
+fn remove_stale_tmp_files(dir: &Path) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if path.file_name().and_then(|n| n.to_str()) == Some(workspace::VIVID_SUBDIR) {
+                continue;
+            }
+            remove_stale_tmp_files(&path);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("vividtmp") {
+            let _ = fs::remove_file(&path);
+        }
+    }
 }
 
 /// Delete every folder row whose on-disk directory (`mdir.join(rel_path)`) no
@@ -1977,9 +2090,82 @@ pub fn update_audio_meta(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_abs, unique_path};
+    use super::{copy_file_durably, normalize_abs, remove_stale_tmp_files, unique_path, write_bytes_durably};
     use std::path::{Path, PathBuf};
     use tempfile::tempdir;
+
+    // ── Durable copy/write ───────────────────────────────────────────────
+
+    #[test]
+    fn copy_file_durably_writes_full_contents_and_leaves_no_tmp_behind() {
+        let dir = tempdir().unwrap();
+        let src = dir.path().join("src.jpg");
+        std::fs::write(&src, b"hello world").unwrap();
+        let dest = dir.path().join("dest.jpg");
+
+        copy_file_durably(&src, &dest).unwrap();
+
+        assert_eq!(std::fs::read(&dest).unwrap(), b"hello world");
+        // No leftover `.dest.jpg.vividtmp` sibling.
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("vividtmp"))
+            .collect();
+        assert!(leftovers.is_empty());
+    }
+
+    #[test]
+    fn copy_file_durably_fails_cleanly_when_source_is_missing() {
+        let dir = tempdir().unwrap();
+        let result = copy_file_durably(&dir.path().join("nope.jpg"), &dir.path().join("dest.jpg"));
+        assert!(result.is_err());
+        assert!(!dir.path().join("dest.jpg").exists());
+    }
+
+    #[test]
+    fn write_bytes_durably_writes_full_contents_and_leaves_no_tmp_behind() {
+        let dir = tempdir().unwrap();
+        let dest = dir.path().join("manifest.json");
+
+        write_bytes_durably(&dest, b"{\"a\":1}").unwrap();
+
+        assert_eq!(std::fs::read(&dest).unwrap(), b"{\"a\":1}");
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("vividtmp"))
+            .collect();
+        assert!(leftovers.is_empty());
+    }
+
+    #[test]
+    fn write_bytes_durably_never_leaves_a_partial_file_at_dest() {
+        // Simulates the crash we're guarding against: a previous run's
+        // durable write got as far as the temp file but never renamed it
+        // into place. `dest` itself must never exist in that state.
+        let dir = tempdir().unwrap();
+        let dest = dir.path().join("manifest.json");
+        std::fs::write(dir.path().join(".manifest.json.vividtmp"), b"partial").unwrap();
+
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn remove_stale_tmp_files_deletes_leftover_vividtmp_recursively() {
+        let dir = tempdir().unwrap();
+        let sub = dir.path().join("Trip");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(dir.path().join(".a.jpg.vividtmp"), b"x").unwrap();
+        std::fs::write(sub.join(".b.jpg.vividtmp"), b"x").unwrap();
+        std::fs::write(dir.path().join("keep.jpg"), b"x").unwrap();
+
+        remove_stale_tmp_files(dir.path());
+
+        assert!(!dir.path().join(".a.jpg.vividtmp").exists());
+        assert!(!sub.join(".b.jpg.vividtmp").exists());
+        assert!(dir.path().join("keep.jpg").exists());
+    }
 
     #[test]
     fn normalize_resolves_dot_and_parent() {

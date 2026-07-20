@@ -488,7 +488,7 @@ impl TargetState {
             if force || is_stale(src, &dst) {
                 let existed = dst.exists();
                 if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
-                if fs::copy(src, &dst).is_ok() {
+                if super::copy_file_durably(src, &dst).is_ok() {
                     if existed { updated += 1; } else { copied += 1; }
                 }
             }
@@ -542,7 +542,7 @@ impl TargetState {
                 if is_stale(&p, &dst) {
                     let existed = dst.exists();
                     if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
-                    if fs::copy(&p, &dst).is_ok() {
+                    if super::copy_file_durably(&p, &dst).is_ok() {
                         if existed { updated += 1; } else { copied += 1; }
                     }
                 }
@@ -584,13 +584,13 @@ impl TargetState {
                     if !p.exists() {
                         // Deleted in the destination → restore (library wins).
                         if let Some(parent) = p.parent() { let _ = fs::create_dir_all(parent); }
-                        if fs::copy(&src, &p).is_ok() {
+                        if super::copy_file_durably(&src, &p).is_ok() {
                             self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "restored", &file_label(&rel));
                         }
                     } else if meta_of(&p).as_ref() != Some(&expected) {
                         // Differs from what we wrote → external edit → overwrite.
-                        if fs::copy(&src, &p).is_ok() {
+                        if super::copy_file_durably(&src, &p).is_ok() {
                             self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "reverted", &file_label(&rel));
                         }
@@ -784,7 +784,7 @@ fn load_config(app: &AppHandle) -> SyncConfig {
 fn save_config(app: &AppHandle, cfg: &SyncConfig) -> Result<(), String> {
     let p = config_path(app).ok_or("no app data dir")?;
     let s = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    fs::write(p, s).map_err(|e| e.to_string())
+    super::write_bytes_durably(&p, s.as_bytes()).map_err(|e| e.to_string())
 }
 
 fn load_manifests(app: &AppHandle) -> ManifestMap {
@@ -797,7 +797,7 @@ fn load_manifests(app: &AppHandle) -> ManifestMap {
 fn save_manifests(app: &AppHandle, m: &ManifestMap) {
     if let Some(p) = manifest_path(app) {
         if let Ok(s) = serde_json::to_string(m) {
-            let _ = fs::write(p, s);
+            let _ = super::write_bytes_durably(&p, s.as_bytes());
         }
     }
 }
