@@ -160,6 +160,73 @@ fn remove_hard_deletes() {
     assert!(get_all(&conn).unwrap().is_empty());
 }
 
+#[test]
+fn hard_deleting_an_item_cleans_up_its_collection_membership() {
+    // `collection_items.item_id` is `ON DELETE CASCADE` — a hard delete
+    // (trash purge, reconciliation removing a file gone from disk) must not
+    // leak an orphaned junction row referencing an item that no longer exists.
+    let conn = open();
+    let g = create_collection(&conn, "G", "#fff", None, "album").unwrap();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    add_to_collection(&conn, "id-1", &g.id).unwrap();
+
+    remove(&conn, "id-1").unwrap();
+
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM collection_items WHERE item_id='id-1'", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 0);
+}
+
+#[test]
+fn cover_item_id_clears_when_its_item_is_hard_deleted() {
+    // `collections.cover_item_id` is `ON DELETE SET NULL` — a collection
+    // shouldn't keep pointing at a cover image that no longer exists.
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    let g = create_collection(&conn, "G", "#fff", None, "album").unwrap();
+    set_collection_cover(&conn, &g.id, Some("id-1")).unwrap();
+
+    remove(&conn, "id-1").unwrap();
+
+    let fetched = get_collections(&conn).unwrap().into_iter().find(|c| c.id == g.id).unwrap();
+    assert!(fetched.cover_item_id.is_none());
+}
+
+#[test]
+fn file_path_lookup_by_id() {
+    let conn = open();
+    insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
+    assert_eq!(file_path(&conn, "id-1").unwrap(), "/tmp/a.jpg");
+}
+
+#[test]
+fn get_reconcile_snapshot_excludes_deleted_and_reports_identity() {
+    let conn = open();
+    insert(&conn, &item("a", "/lib/a.jpg")).unwrap();
+    insert(&conn, &item("b", "/lib/b.jpg")).unwrap();
+    trash_item(&conn, "b").unwrap();
+    mark_modified(&conn, "a", 100, 12345).unwrap();
+
+    let snapshot = get_reconcile_snapshot(&conn).unwrap();
+    assert_eq!(snapshot.len(), 1);
+    assert_eq!(snapshot[0].id, "a");
+    assert_eq!(snapshot[0].file_size, 100);
+    assert_eq!(snapshot[0].mtime, Some(12345));
+}
+
+#[test]
+fn active_identity_by_path_excludes_trashed_and_unknown() {
+    let conn = open();
+    insert(&conn, &item("a", "/lib/a.jpg")).unwrap();
+
+    assert!(active_identity_by_path(&conn, "/lib/a.jpg").unwrap().is_some());
+    assert!(active_identity_by_path(&conn, "/lib/nope.jpg").unwrap().is_none());
+
+    trash_item(&conn, "a").unwrap();
+    assert!(active_identity_by_path(&conn, "/lib/a.jpg").unwrap().is_none());
+}
+
 // ── Trash ───────────────────────────────────────────────────────────────
 
 #[test]
@@ -434,14 +501,13 @@ fn get_library_stats_counts_correctly() {
     // Index the image only
     set_embedding(&conn, "id-1", &[0u8; 4], &["mountain".to_string()]).unwrap();
 
-    let (images, videos, audio, indexed, unindexed, _tags, _size) =
-        get_library_stats(&conn).unwrap();
+    let stats = get_library_stats(&conn).unwrap();
 
-    assert_eq!(images,    1);
-    assert_eq!(videos,    1);
-    assert_eq!(audio,     1);
-    assert_eq!(indexed,   1); // only the image
-    assert_eq!(unindexed, 1); // the video
+    assert_eq!(stats.total_images,    1);
+    assert_eq!(stats.total_videos,    1);
+    assert_eq!(stats.total_audio,     1);
+    assert_eq!(stats.total_indexed,   1); // only the image
+    assert_eq!(stats.total_unindexed, 1); // the video
 }
 
 #[test]
@@ -656,22 +722,6 @@ fn items_under_including_trashed_finds_both() {
     assert_eq!(found.len(), 2);
     assert!(ids.contains(&"active"));
     assert!(ids.contains(&"trashed"));
-}
-
-#[test]
-fn init_clears_folder_id_dangling_at_a_nonexistent_folder() {
-    let conn = open();
-    insert(&conn, &item("a", "/lib/wherever/a.jpg")).unwrap();
-    // A dangling reference can't normally be created (foreign keys reject
-    // it) — simulates one already existing in a database from before this
-    // cleanup, or before `delete_folder` accounted for trashed items.
-    conn.execute_batch("PRAGMA foreign_keys = OFF").unwrap();
-    conn.execute("UPDATE media_items SET folder_id = 'ghost-id' WHERE id = 'a'", []).unwrap();
-
-    init(&conn).unwrap();
-
-    let fetched = fetch_one(&conn, "a").unwrap();
-    assert_eq!(fetched.folder_id, None);
 }
 
 #[test]

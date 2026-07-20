@@ -93,6 +93,18 @@ pub struct Folder {
     pub created_at: String,
 }
 
+/// Aggregate library counts for the About/Info tab.
+#[derive(Debug, Serialize)]
+pub struct LibraryStats {
+    pub total_images:    i64,
+    pub total_videos:    i64,
+    pub total_audio:     i64,
+    pub total_indexed:   i64,
+    pub total_unindexed: i64,
+    pub total_tags:      i64,
+    pub total_size_bytes: i64,
+}
+
 pub fn extension_to_media_type(ext: &str) -> Option<&'static str> {
     match ext.to_lowercase().as_str() {
         "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "bmp" | "tiff" | "tif"

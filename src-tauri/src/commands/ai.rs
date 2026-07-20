@@ -323,11 +323,7 @@ pub async fn embed_and_tag_image(
 ) -> Result<MediaItem, String> {
     let file_path: String = {
         let conn = db.0.lock().unwrap();
-        conn.query_row(
-            "SELECT file_path FROM media_items WHERE id=?1",
-            rusqlite::params![id],
-            |r| r.get(0),
-        ).map_err(|e| e.to_string())?
+        db::file_path(&conn, &id).map_err(|e| e.to_string())?
     };
 
     let ml = multilingual_model(&clip).ok_or("No AI model loaded")?;

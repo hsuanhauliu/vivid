@@ -62,13 +62,6 @@ fn initialize_workspace(
 
     let conn = Connection::open(&paths.db_path).map_err(|e| e.to_string())?;
     db::init(&conn).map_err(|e| e.to_string())?;
-    conn.execute_batch(
-        "PRAGMA journal_mode=WAL;
-         PRAGMA synchronous=NORMAL;
-         PRAGMA cache_size=-65536;
-         PRAGMA temp_store=MEMORY;
-         PRAGMA mmap_size=1073741824;",
-    ).map_err(|e| e.to_string())?;
     // Other is purely virtual (see `db::UNCATEGORIZED_ID`) — no row,
     // no on-disk directory, nothing to seed here. A file with no folder_id
     // simply lives at `paths.media_dir` itself.

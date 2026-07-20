@@ -3,7 +3,7 @@
 
 use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 
 pub fn source_path_exists(conn: &Connection, source_path: &str) -> Result<bool> {
     let count: i64 = conn.query_row(
@@ -12,6 +12,12 @@ pub fn source_path_exists(conn: &Connection, source_path: &str) -> Result<bool> 
         |r| r.get(0),
     )?;
     Ok(count > 0)
+}
+
+/// A tracked item's current file path — for callers that only need the path,
+/// not a full row (e.g. resolving a file to run AI inference on by id).
+pub fn file_path(conn: &Connection, id: &str) -> Result<String> {
+    conn.query_row("SELECT file_path FROM media_items WHERE id=?1", params![id], |r| r.get(0))
 }
 
 pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
@@ -308,24 +314,32 @@ pub fn remove_from_collection(conn: &Connection, id: &str, collection_id: &str) 
 // `mtime` is a backend-internal bookkeeping detail, not something the
 // frontend needs serialized on every item.
 
-/// Every non-deleted item's disk identity: `(id, file_path, file_size, mtime,
-/// thumb_path)`. Compared against a fresh directory walk to detect files that
-/// were added, removed, or modified since the last time Vivid ran.
-pub fn get_reconcile_snapshot(conn: &Connection) -> Result<Vec<(String, String, i64, Option<i64>, Option<String>)>> {
+/// A tracked file's disk identity, as last recorded in the database —
+/// compared against a fresh directory walk to detect files added, removed,
+/// or modified since Vivid last ran.
+pub struct FileIdentity {
+    pub id: String,
+    pub file_path: String,
+    pub file_size: i64,
+    /// `None` for a row reconciliation hasn't established a baseline for
+    /// yet — see `set_mtime`.
+    pub mtime: Option<i64>,
+}
+
+/// Every non-deleted item's disk identity.
+pub fn get_reconcile_snapshot(conn: &Connection) -> Result<Vec<FileIdentity>> {
     let mut stmt = conn.prepare(
-        "SELECT id, file_path, file_size, mtime, thumb_path FROM media_items WHERE deleted_at IS NULL",
+        "SELECT id, file_path, file_size, mtime FROM media_items WHERE deleted_at IS NULL",
     )?;
-    let rows = stmt
-        .query_map([], |r| Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, i64>(2)?,
-            r.get::<_, Option<i64>>(3)?,
-            r.get::<_, Option<String>>(4)?,
-        )))?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(rows)
+    let rows = stmt.query_map([], |r| {
+        Ok(FileIdentity {
+            id: r.get(0)?,
+            file_path: r.get(1)?,
+            file_size: r.get(2)?,
+            mtime: r.get(3)?,
+        })
+    })?;
+    rows.collect()
 }
 
 /// A file's size and/or mtime genuinely changed on disk since last seen —
@@ -341,13 +355,31 @@ pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) ->
     Ok(())
 }
 
-/// Backfill `mtime` on a row that predates the column, without treating it as
-/// a content change (no thumb/embedding invalidation) — only used the first
-/// reconciliation pass after upgrading, so existing libraries aren't blasted
-/// into a full reprocess just because their mtime baseline was unknown.
+/// Establish a row's `mtime` baseline without treating it as a content
+/// change (no thumb/embedding invalidation) — a freshly-adopted row has no
+/// baseline yet (`insert` doesn't set `mtime`), so the first reconciliation
+/// pass that sees it records one here instead of treating "no baseline" as
+/// "modified".
 pub fn set_mtime(conn: &Connection, id: &str, mtime: i64) -> Result<()> {
     conn.execute("UPDATE media_items SET mtime=?1 WHERE id=?2", params![mtime, id])?;
     Ok(())
+}
+
+/// The active (non-trashed) row currently tracked at `file_path`, if any.
+/// Used by the live filesystem watcher to tell whether a changed path is a
+/// known file (update) or brand new (adopt).
+pub fn active_identity_by_path(conn: &Connection, file_path: &str) -> Result<Option<FileIdentity>> {
+    conn.query_row(
+        "SELECT id, file_path, file_size, mtime FROM media_items WHERE file_path=?1 AND deleted_at IS NULL",
+        params![file_path],
+        |r| Ok(FileIdentity {
+            id: r.get(0)?,
+            file_path: r.get(1)?,
+            file_size: r.get(2)?,
+            mtime: r.get(3)?,
+        }),
+    )
+    .optional()
 }
 
 /// Hard-delete every row in `ids` in one statement. Used when reconciliation
@@ -358,10 +390,8 @@ pub fn remove_missing(conn: &Connection, ids: &[String]) -> Result<()> {
     if ids.is_empty() {
         return Ok(());
     }
-    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("DELETE FROM media_items WHERE id IN ({placeholders})");
-    let params: Vec<&dyn rusqlite::ToSql> = ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
-    conn.execute(&sql, params.as_slice())?;
+    let sql = format!("DELETE FROM media_items WHERE id IN ({})", super::in_placeholders(ids.len()));
+    conn.execute(&sql, rusqlite::params_from_iter(ids))?;
     Ok(())
 }
 

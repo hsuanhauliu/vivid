@@ -87,8 +87,14 @@ remove unused imports when you delete their last use. React hook rules
 ## Backend conventions
 
 - **Logging:** use `tracing` (`tracing::info!/warn!/error!`), never `println!`.
-- **No data duplication in the DB** — derive, don't copy. New columns are added
-  idempotently via the `column_exists` guard in `db/mod.rs`.
+- **No data duplication in the DB** — derive, don't copy.
+- **Schema lives entirely in `db::init()`'s `CREATE TABLE` statements** — one
+  schema, no upgrade path from an older shape. Pre-1.0, there's no installed
+  base to stay compatible with: add a column directly to the relevant
+  `CREATE TABLE`, don't write an `ALTER TABLE`/`column_exists`-guarded
+  migration. Foreign keys are enforced (`PRAGMA foreign_keys = ON`) and relied
+  on for referential integrity — prefer an `ON DELETE CASCADE`/`SET NULL`
+  clause over hand-rolled cleanup code where the constraint can express it.
 - **Commands** are thin: validate, call a `db::` function and/or a `commands::`
   helper, map errors to `String`. Register every new command in `lib.rs`'s
   `invoke_handler` (and it's re-exported via `commands::*`).
@@ -112,8 +118,10 @@ remove unused imports when you delete their last use. React hook rules
   - **Folder** = a real on-disk directory under the managed library root
     (`app_data_dir/media/<rel_path>/`). Files physically live in exactly one
     folder. Tree stored in the `folders` table (`parent_id` + unique `rel_path`).
-    Default root folder is **`Uncategorized`**. Moving a folder/file does
-    `fs::rename` + rewrites `file_path`/`rel_path`. UI: `FolderTree`/`SecondaryPanel`.
+    A file with no folder (`folder_id: null`) shows up under the virtual
+    **"Other"** bucket (`db::UNCATEGORIZED_ID` — never a real row or directory).
+    Moving a folder/file does `fs::rename` + rewrites `file_path`/`rel_path`.
+    UI: `FolderTree`/`SecondaryPanel`.
   - **Collection** = a metadata-only album (image/video) or playlist (audio).
     Membership is **many-to-many** via the `collection_items` junction table
     (`collection_id, item_id, added_at`) — an item can belong to any number of

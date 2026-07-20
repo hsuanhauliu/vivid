@@ -25,156 +25,143 @@ pub use media::*;
 pub use stats::*;
 pub use trash::*;
 
+/// Open a fresh connection (or an existing database file) and bring it up to
+/// the current schema. There is exactly one schema — no upgrade path from an
+/// older shape — so every statement here is unconditional: no `ALTER TABLE`,
+/// no `column_exists` guards. A pre-1.0 database that predates this schema
+/// isn't supported; delete it and let Vivid create a fresh one.
 pub fn init(conn: &Connection) -> Result<()> {
+    // Connection-level tuning + constraint enforcement, issued standalone
+    // before any schema statement. `PRAGMA foreign_keys` is a documented
+    // no-op if set mid-transaction, so it can't share a batch with DDL.
+    // Foreign keys are relied on throughout this schema (see the `folders`/
+    // `collections`/`media_items` comments below) to keep referential
+    // integrity a property of the database itself, not something every
+    // caller has to remember to maintain by hand.
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS media_items (
-            id                  TEXT PRIMARY KEY,
-            file_path           TEXT NOT NULL UNIQUE,
-            source_path         TEXT UNIQUE,
-            file_name           TEXT NOT NULL,
-            display_name        TEXT NOT NULL,
-            media_type          TEXT NOT NULL,
-            file_size           INTEGER NOT NULL DEFAULT 0,
-            description         TEXT NOT NULL DEFAULT '',
-            tags                TEXT NOT NULL DEFAULT '[]',
-            auto_tags           TEXT NOT NULL DEFAULT '[]',
-            starred             INTEGER NOT NULL DEFAULT 0,
-            favorited           INTEGER NOT NULL DEFAULT 0,
-            color_label         TEXT,
-            sort_order          INTEGER NOT NULL DEFAULT 0,
-            gps_lat             REAL,
-            gps_lng             REAL,
-            date_taken          TEXT,
-            width               INTEGER,
-            height              INTEGER,
-            embedding           BLOB,
-            ocr_text            TEXT,
-            ocr_scanned         INTEGER NOT NULL DEFAULT 0,
-            thumb_path          TEXT,
-            camera_make         TEXT,
-            camera_model        TEXT,
-            audio_title         TEXT,
-            audio_artist        TEXT,
-            audio_album         TEXT,
-            audio_track         INTEGER,
-            audio_duration_secs REAL,
-            audio_year          INTEGER,
-            audio_cover         TEXT,
-            deleted_at          TEXT,
-            created_at          TEXT NOT NULL,
-            updated_at          TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS collections (
-            id            TEXT PRIMARY KEY,
-            name          TEXT NOT NULL,
-            color         TEXT NOT NULL DEFAULT '',
-            emoji         TEXT,
-            kind          TEXT NOT NULL DEFAULT 'album',
-            pinned        INTEGER NOT NULL DEFAULT 1,
-            sidebar_pin   INTEGER NOT NULL DEFAULT 0,
-            cover_item_id TEXT,
-            description   TEXT,
-            created_at    TEXT NOT NULL
-        );
-        -- Folders are a real on-disk tree under the managed library root, distinct
-        -- from `collections` (albums/playlists, which are pure metadata collections).
-        -- `rel_path` is the folder's path relative to the library root, e.g.
-        -- 'Other' or 'Trips/Japan'; it's the source of truth for where the
-        -- files physically live. `parent_id` NULL means a top-level folder.
-        CREATE TABLE IF NOT EXISTS folders (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            parent_id   TEXT REFERENCES folders(id),
-            rel_path    TEXT NOT NULL UNIQUE,
-            created_at  TEXT NOT NULL
-        );
-        -- Many-to-many membership: a media item can belong to any number of
-        -- collections (albums/playlists) at once, unlike `folder_id` above.
-        CREATE TABLE IF NOT EXISTS collection_items (
-            collection_id TEXT NOT NULL,
-            item_id       TEXT NOT NULL,
-            added_at      TEXT NOT NULL,
-            PRIMARY KEY (collection_id, item_id)
-        );",
+        "PRAGMA foreign_keys = ON;
+         PRAGMA journal_mode = WAL;
+         PRAGMA synchronous = NORMAL;
+         PRAGMA cache_size = -65536;
+         PRAGMA temp_store = MEMORY;
+         PRAGMA mmap_size = 1073741824;",
     )?;
 
-    // Each media item lives in exactly one folder (filesystem semantics), unlike
-    // `collection_id` which ties it to album/playlist collections. Added via ALTER so
-    // existing databases pick it up.
-    if !column_exists(conn, "media_items", "folder_id")? {
-        conn.execute("ALTER TABLE media_items ADD COLUMN folder_id TEXT REFERENCES folders(id)", [])?;
-    }
-
-    // Optional collection description — added via ALTER so databases created
-    // before the column existed pick it up.
-    if !column_exists(conn, "collections", "description")? {
-        conn.execute("ALTER TABLE collections ADD COLUMN description TEXT", [])?;
-    }
-
-    // Which "album_group" collection (a container that only holds other
-    // albums, never media items directly) a regular album currently sits
-    // in — NULL means top-level. Only ever set on kind='album' rows,
-    // pointing at a kind='album_group' row; enforced in the command layer.
-    if !column_exists(conn, "collections", "parent_id")? {
-        conn.execute(
-            "ALTER TABLE collections ADD COLUMN parent_id TEXT REFERENCES collections(id)",
-            [],
-        )?;
-    }
-
-    // Last-seen on-disk modification time (unix seconds), used by workspace
-    // reconciliation to detect files that changed outside Vivid without
-    // re-hashing/re-reading every file on every launch. NULL for rows written
-    // before this column existed — reconciliation backfills it the first time
-    // it sees them rather than treating the absence as "modified".
-    if !column_exists(conn, "media_items", "mtime")? {
-        conn.execute("ALTER TABLE media_items ADD COLUMN mtime INTEGER", [])?;
-    }
-
-    // Performance indexes
     conn.execute_batch(
+        "-- The on-disk directory tree under the managed library root. Distinct
+         -- from `collections` (albums/playlists — pure metadata, no filesystem
+         -- meaning). `rel_path` is the source of truth for where a folder's
+         -- files physically live, relative to the library root (e.g.
+         -- 'Trips/Japan'); `parent_id` NULL means top-level. The virtual
+         -- \"Other\" bucket (everything with no folder) is never a row here —
+         -- see `UNCATEGORIZED_ID` in folders.rs.
+         CREATE TABLE IF NOT EXISTS folders (
+             id          TEXT PRIMARY KEY,
+             name        TEXT NOT NULL,
+             parent_id   TEXT REFERENCES folders(id),
+             rel_path    TEXT NOT NULL UNIQUE,
+             created_at  TEXT NOT NULL
+         );
+
+         -- Albums (image/video), playlists (audio), and album groups (a
+         -- container that only holds other albums, never media items
+         -- directly). Item membership is many-to-many via `collection_items`,
+         -- not stored here.
+         CREATE TABLE IF NOT EXISTS collections (
+             id            TEXT PRIMARY KEY,
+             name          TEXT NOT NULL,
+             color         TEXT NOT NULL DEFAULT '',
+             emoji         TEXT,
+             kind          TEXT NOT NULL DEFAULT 'album',
+             pinned        INTEGER NOT NULL DEFAULT 1,
+             sidebar_pin   INTEGER NOT NULL DEFAULT 0,
+             cover_item_id TEXT REFERENCES media_items(id) ON DELETE SET NULL,
+             description   TEXT,
+             -- The album_group this album currently sits in (kind='album' rows
+             -- only, pointing at a kind='album_group' row); NULL = top-level.
+             -- SET NULL on delete: removing a group ungroups its children
+             -- instead of orphaning or cascading the delete into them.
+             parent_id     TEXT REFERENCES collections(id) ON DELETE SET NULL,
+             created_at    TEXT NOT NULL
+         );
+
+         -- The library itself: one row per photo/video/audio file. `folder_id`
+         -- deliberately has no `ON DELETE` action — a folder can only be
+         -- deleted once every item under it (trashed included) has been
+         -- explicitly relocated first (see `commands::folders::delete_folder`),
+         -- so a row that would be left dangling should fail loudly instead of
+         -- silently losing its place in the tree.
+         CREATE TABLE IF NOT EXISTS media_items (
+             id                  TEXT PRIMARY KEY,
+             file_path           TEXT NOT NULL UNIQUE,
+             source_path         TEXT UNIQUE,
+             file_name           TEXT NOT NULL,
+             display_name        TEXT NOT NULL,
+             media_type          TEXT NOT NULL,
+             file_size           INTEGER NOT NULL DEFAULT 0,
+             mtime               INTEGER,
+             folder_id           TEXT REFERENCES folders(id),
+             description         TEXT NOT NULL DEFAULT '',
+             tags                TEXT NOT NULL DEFAULT '[]',
+             auto_tags           TEXT NOT NULL DEFAULT '[]',
+             starred             INTEGER NOT NULL DEFAULT 0,
+             favorited           INTEGER NOT NULL DEFAULT 0,
+             color_label         TEXT,
+             sort_order          INTEGER NOT NULL DEFAULT 0,
+             gps_lat             REAL,
+             gps_lng             REAL,
+             date_taken          TEXT,
+             width               INTEGER,
+             height              INTEGER,
+             embedding           BLOB,
+             ocr_text            TEXT,
+             ocr_scanned         INTEGER NOT NULL DEFAULT 0,
+             thumb_path          TEXT,
+             camera_make         TEXT,
+             camera_model        TEXT,
+             audio_title         TEXT,
+             audio_artist        TEXT,
+             audio_album         TEXT,
+             audio_track         INTEGER,
+             audio_duration_secs REAL,
+             audio_year          INTEGER,
+             audio_cover         TEXT,
+             deleted_at          TEXT,
+             created_at          TEXT NOT NULL,
+             updated_at          TEXT NOT NULL
+         );
+
+         -- Many-to-many collection membership. Both sides cascade: deleting a
+         -- collection or hard-deleting an item cleans up its membership rows
+         -- automatically instead of leaking orphaned junction rows forever.
+         CREATE TABLE IF NOT EXISTS collection_items (
+             collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+             item_id       TEXT NOT NULL REFERENCES media_items(id) ON DELETE CASCADE,
+             added_at      TEXT NOT NULL,
+             PRIMARY KEY (collection_id, item_id)
+         );",
+    )?;
+
+    conn.execute_batch(
+        // `file_path`/`source_path`/`rel_path` are already covered by their
+        // own UNIQUE constraints (SQLite indexes those automatically) — no
+        // explicit index duplicates one here.
         "CREATE INDEX IF NOT EXISTS idx_media_deleted
              ON media_items(deleted_at);
          CREATE INDEX IF NOT EXISTS idx_media_type_del
              ON media_items(media_type, deleted_at);
-         CREATE INDEX IF NOT EXISTS idx_collection_items_item
-             ON collection_items(item_id);
          CREATE INDEX IF NOT EXISTS idx_media_folder
              ON media_items(folder_id);
-         CREATE INDEX IF NOT EXISTS idx_media_source
-             ON media_items(source_path);
          CREATE INDEX IF NOT EXISTS idx_media_created
              ON media_items(created_at DESC);
          CREATE INDEX IF NOT EXISTS idx_embed_missing
              ON media_items(file_size)
-             WHERE embedding IS NULL AND deleted_at IS NULL;",
-    )?;
-
-    // One-time cleanup: null out `folder_id` on any item — trashed included
-    // — left pointing at a folder row that no longer exists. Before
-    // `items_under_including_trashed` (folder deletion now relocates
-    // trashed items too), deleting a folder that still held a trashed item
-    // could leave that item's `folder_id` dangling. Cheap once clean: the
-    // WHERE clause matches nothing on every later launch.
-    conn.execute(
-        "UPDATE media_items SET folder_id = NULL \
-         WHERE folder_id IS NOT NULL AND folder_id NOT IN (SELECT id FROM folders)",
-        [],
+             WHERE embedding IS NULL AND deleted_at IS NULL;
+         CREATE INDEX IF NOT EXISTS idx_collection_items_item
+             ON collection_items(item_id);",
     )?;
 
     Ok(())
-}
-
-/// Whether `table` already has a column named `column` (used to make ALTER-based
-/// migrations idempotent on databases created before the column existed).
-fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool> {
-    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
-    let mut found = false;
-    let rows = stmt.query_map([], |r| r.get::<_, String>(1))?;
-    for name in rows {
-        if name? == column { found = true; break; }
-    }
-    Ok(found)
 }
 
 // Column order in SELECT_MEDIA:
@@ -245,25 +232,36 @@ pub(crate) const SELECT_MEDIA: &str =
      camera_make, camera_model \
      FROM media_items";
 
+/// Build a `(?,?,?)`-shaped placeholder list for a dynamic IN-clause of
+/// length `n` — shared by every query that filters on a runtime-sized batch
+/// of ids, so the same idiom isn't hand-rolled at each call site.
+pub(crate) fn in_placeholders(n: usize) -> String {
+    vec!["?"; n].join(",")
+}
+
 /// Populate `collection_ids` on already-fetched items via one batch query
-/// against the junction table — `row_to_item` only sees a single row and
-/// can't join, so every `SELECT_MEDIA` call site runs its results through
-/// this afterward. A full scan of `collection_items`, not filtered to the
-/// given items: simpler than building a dynamic IN-list, and cheap at the
-/// scale a single-user local library operates at.
+/// against the junction table, filtered to just this batch's ids so it stays
+/// indexed (`idx_collection_items_item`) rather than scanning the whole
+/// table — `row_to_item` only sees a single row and can't join, so every
+/// `SELECT_MEDIA` call site runs its results through this afterward.
 pub(crate) fn attach_collections(conn: &Connection, items: &mut [MediaItem]) -> Result<()> {
     if items.is_empty() {
         return Ok(());
     }
     use std::collections::HashMap;
+    let sql = format!(
+        "SELECT item_id, collection_id FROM collection_items WHERE item_id IN ({})",
+        in_placeholders(items.len())
+    );
+    let mut stmt = conn.prepare(&sql)?;
     let mut map: HashMap<String, Vec<String>> = HashMap::new();
-    {
-        let mut stmt = conn.prepare("SELECT item_id, collection_id FROM collection_items")?;
-        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-        for row in rows {
-            let (item_id, collection_id) = row?;
-            map.entry(item_id).or_default().push(collection_id);
-        }
+    let rows = stmt.query_map(
+        rusqlite::params_from_iter(items.iter().map(|i| &i.id)),
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+    )?;
+    for row in rows {
+        let (item_id, collection_id) = row?;
+        map.entry(item_id).or_default().push(collection_id);
     }
     for item in items.iter_mut() {
         if let Some(ids) = map.remove(&item.id) {

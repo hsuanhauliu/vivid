@@ -98,19 +98,12 @@ pub fn set_collection_parent(conn: &Connection, id: &str, parent_id: Option<&str
     fetch_collection(conn, id)
 }
 
-/// Deletes a group and drops its membership rows atomically via a savepoint.
-/// If it's an album_group, its child albums are ungrouped (not deleted)
-/// rather than orphaned or cascaded away.
+/// Deletes a collection. Its membership rows go with it (`collection_items.
+/// collection_id ON DELETE CASCADE`), and if it's an album_group, its child
+/// albums are ungrouped rather than orphaned (`collections.parent_id ON
+/// DELETE SET NULL`) — both handled atomically by the schema itself as part
+/// of this one statement, not hand-rolled here.
 pub fn delete_collection(conn: &Connection, id: &str) -> Result<()> {
-    conn.execute("SAVEPOINT delete_collection", [])?;
-    let result = (|| -> Result<()> {
-        conn.execute("UPDATE collections SET parent_id=NULL WHERE parent_id=?1", params![id])?;
-        conn.execute("DELETE FROM collection_items WHERE collection_id=?1", params![id])?;
-        conn.execute("DELETE FROM collections WHERE id=?1", params![id])?;
-        Ok(())
-    })();
-    match result {
-        Ok(()) => conn.execute("RELEASE delete_collection", []).map(|_| ()),
-        Err(e) => { let _ = conn.execute("ROLLBACK TO delete_collection", []); Err(e) }
-    }
+    conn.execute("DELETE FROM collections WHERE id=?1", params![id])?;
+    Ok(())
 }

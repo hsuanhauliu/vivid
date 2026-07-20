@@ -47,11 +47,10 @@ pub fn fetch_items_by_ids(conn: &Connection, ids: &[String]) -> Result<Vec<Media
     if ids.is_empty() {
         return Ok(vec![]);
     }
-    let placeholders = (1..=ids.len())
-        .map(|i| format!("?{i}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!("{SELECT_MEDIA} WHERE id IN ({placeholders}) AND deleted_at IS NULL");
+    let sql = format!(
+        "{SELECT_MEDIA} WHERE id IN ({}) AND deleted_at IS NULL",
+        super::in_placeholders(ids.len())
+    );
     let mut stmt = conn.prepare(&sql)?;
     let mut items: Vec<MediaItem> = stmt
         .query_map(rusqlite::params_from_iter(ids.iter()), row_to_item)?

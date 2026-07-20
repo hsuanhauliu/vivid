@@ -1,6 +1,6 @@
 use crate::{
     db,
-    models::{extension_to_media_type, ExifMetadata, Collection, MediaItem},
+    models::{extension_to_media_type, ExifMetadata, Collection, LibraryStats, MediaItem},
     workspace, DbState,
 };
 use serde::Serialize;
@@ -984,15 +984,15 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
     let mut disk: Vec<DiscoveredMeta> = Vec::new();
     collect_workspace_root_with_meta(&mdir, &mut disk);
 
-    // id -> (file_path, file_size, mtime, thumb_path), keyed by file_path for
-    // O(1) lookup against what's on disk. `seen` tracks which DB rows still
-    // have a matching file; whatever's left afterward is gone from disk.
-    let by_path: std::collections::HashMap<String, (String, i64, Option<i64>, Option<String>)> = {
+    // Keyed by file_path for O(1) lookup against what's on disk. `seen_paths`
+    // tracks which DB rows still have a matching file; whatever's left
+    // afterward is gone from disk.
+    let by_path: std::collections::HashMap<String, db::FileIdentity> = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         db::get_reconcile_snapshot(&conn)
             .map_err(|e| e.to_string())?
             .into_iter()
-            .map(|(id, path, size, mtime, thumb)| (path, (id, size, mtime, thumb)))
+            .map(|f| (f.file_path.clone(), f))
             .collect()
     };
     let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -1006,21 +1006,21 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
         for dm in disk {
             let path_str = dm.d.src.to_string_lossy().to_string();
             match by_path.get(&path_str) {
-                Some((id, db_size, db_mtime, _thumb)) => {
+                Some(known) => {
                     seen_paths.insert(path_str);
-                    match db_mtime {
-                        // Rows written before the mtime column existed: bootstrap
-                        // the baseline silently (no reprocess storm on upgrade),
-                        // unless the size already disagrees — that's a real change.
+                    match known.mtime {
+                        // No baseline yet: establish one silently (no
+                        // reprocess storm) unless the size already
+                        // disagrees — that's a real change.
                         None => {
-                            if *db_size != dm.size as i64 {
-                                if db::mark_modified(&conn, id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                            if known.file_size != dm.size as i64 {
+                                if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
                             } else {
-                                let _ = db::set_mtime(&conn, id, dm.mtime);
+                                let _ = db::set_mtime(&conn, &known.id, dm.mtime);
                             }
                         }
-                        Some(m) if *m != dm.mtime || *db_size != dm.size as i64 => {
-                            if db::mark_modified(&conn, id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                        Some(m) if m != dm.mtime || known.file_size != dm.size as i64 => {
+                            if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
                         }
                         Some(_) => {}
                     }
@@ -1041,7 +1041,7 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
     let missing_ids: Vec<String> = by_path
         .into_iter()
         .filter(|(path, _)| !seen_paths.contains(path))
-        .map(|(_, (id, ..))| id)
+        .map(|(_, f)| f.id)
         .collect();
     let removed = missing_ids.len();
     if !missing_ids.is_empty() {
@@ -2031,31 +2031,10 @@ mod tests {
     }
 }
 
-#[derive(serde::Serialize)]
-pub struct LibraryStats {
-    pub total_images:    i64,
-    pub total_videos:    i64,
-    pub total_audio:     i64,
-    pub total_indexed:   i64,
-    pub total_unindexed: i64,
-    pub total_tags:      i64,
-    pub total_size_bytes: i64,
-}
-
 #[tauri::command]
 pub fn get_library_stats(state: State<DbState>) -> Result<LibraryStats, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let (images, videos, audio, indexed, unindexed, tags, size) =
-        db::get_library_stats(&conn).map_err(|e| e.to_string())?;
-    Ok(LibraryStats {
-        total_images:     images,
-        total_videos:     videos,
-        total_audio:      audio,
-        total_indexed:    indexed,
-        total_unindexed:  unindexed,
-        total_tags:       tags,
-        total_size_bytes: size,
-    })
+    db::get_library_stats(&conn).map_err(|e| e.to_string())
 }
 
 /// Hash library files and return collections with identical SHA-256.

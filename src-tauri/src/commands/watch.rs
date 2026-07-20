@@ -113,14 +113,10 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             // a separate creation event for the new name). Hard-delete the
             // tracked row, if any — trash doesn't apply, the file is gone.
             let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
-            if let Ok(id) = conn.query_row(
-                "SELECT id FROM media_items WHERE file_path=?1 AND deleted_at IS NULL",
-                rusqlite::params![path_str],
-                |r| r.get::<_, String>(0),
-            ) {
-                let _ = db::remove_missing(&conn, &[id.clone()]);
+            if let Ok(Some(known)) = db::active_identity_by_path(&conn, &path_str) {
+                let _ = db::remove_missing(&conn, &[known.id.clone()]);
                 drop(conn);
-                let _ = app.emit("media-removed", MediaRemoved { ids: vec![id] });
+                let _ = app.emit("media-removed", MediaRemoved { ids: vec![known.id] });
                 continue;
             }
             // Not a tracked file — a *folder* may have been removed instead
@@ -149,13 +145,9 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             continue;
         }
 
-        let existing: Option<(String, i64, Option<i64>)> = {
+        let existing = {
             let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
-            conn.query_row(
-                "SELECT id, file_size, mtime FROM media_items WHERE file_path=?1 AND deleted_at IS NULL",
-                rusqlite::params![path_str],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-            ).ok()
+            db::active_identity_by_path(&conn, &path_str).ok().flatten()
         };
 
         let Ok(meta) = std::fs::metadata(&p) else { continue };
@@ -166,18 +158,18 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
         let size = meta.len() as i64;
 
         match existing {
-            Some((id, db_size, db_mtime)) => {
-                if db_mtime != Some(mtime) || db_size != size {
+            Some(known) => {
+                if known.mtime != Some(mtime) || known.file_size != size {
                     let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
-                    let updated = if db::mark_modified(&conn, &id, size, mtime).is_ok() {
-                        db::fetch_one(&conn, &id).ok()
+                    let updated = if db::mark_modified(&conn, &known.id, size, mtime).is_ok() {
+                        db::fetch_one(&conn, &known.id).ok()
                     } else {
                         None
                     };
                     drop(conn);
                     if let Some(item) = updated {
                         if item.media_type == "image" || item.media_type == "video" {
-                            super::trigger_thumb(app, id.clone(), path_str.clone(), item.media_type.clone());
+                            super::trigger_thumb(app, known.id.clone(), path_str.clone(), item.media_type.clone());
                         }
                         let _ = app.emit("media-updated", item);
                     }
