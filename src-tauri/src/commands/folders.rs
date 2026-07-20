@@ -104,8 +104,12 @@ pub fn delete_folder(
     // Files in this folder and any descendant are flattened back to the
     // library root (the virtual Other bucket) rather than trashed —
     // deleting a folder is an organizational act, not a request to lose
-    // media. Nothing to create on disk: the root already exists.
-    let items = db::items_under(&conn, &folder.rel_path, &root_str).map_err(|e| e.to_string())?;
+    // media. Nothing to create on disk: the root already exists. Includes
+    // already-trashed items too: trashing doesn't move a file or clear its
+    // folder_id, so a trashed item left out here would have its real file
+    // swept away by the directory removal below with nothing to relocate
+    // it first, and its folder_id would dangle once the folder row is gone.
+    let items = db::items_under_including_trashed(&conn, &folder.rel_path, &root_str).map_err(|e| e.to_string())?;
     for item in &items {
         let src = Path::new(&item.file_path);
         let dest = unique_path(&root, &item.file_name);

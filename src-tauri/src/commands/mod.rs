@@ -1390,6 +1390,39 @@ mod workspace_scan_tests {
         assert_eq!(pruned, 0);
         assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.id == db::UNCATEGORIZED_ID));
     }
+
+    #[test]
+    fn prune_errors_instead_of_silently_orphaning_items_in_a_missing_folder() {
+        // Regression guard: a folder row that looks "missing" (wrong root,
+        // unmounted drive, timing) but still has items filed into it. The
+        // foreign-key constraint on `media_items.folder_id` is what actually
+        // protects the data here: the delete is rejected outright rather
+        // than silently succeeding and leaving items pointed at a folder
+        // that no longer exists.
+        let conn = open_db();
+        let dir = tempdir().unwrap();
+        let folder = db::create_folder(&conn, "Trip", None, "Trip").unwrap();
+        db::insert(&conn, &item_in("a", "/wherever/test.jpg", Some(&folder.id))).unwrap();
+
+        // `dir` never had "Trip" created in it, so the folder looks missing.
+        let result = prune_missing_folders(&conn, dir.path());
+        assert!(result.is_err(), "delete should be rejected while an item still references the folder");
+        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.rel_path == "Trip"));
+    }
+
+    fn item_in(id: &str, file_path: &str, folder_id: Option<&str>) -> MediaItem {
+        MediaItem {
+            id: id.to_string(),
+            file_path: file_path.to_string(),
+            file_name: "test.jpg".to_string(),
+            display_name: "Test".to_string(),
+            media_type: "image".to_string(),
+            created_at: "2024-01-01T00:00:00+00:00".to_string(),
+            updated_at: "2024-01-01T00:00:00+00:00".to_string(),
+            folder_id: folder_id.map(|s| s.to_string()),
+            ..MediaItem::default()
+        }
+    }
 }
 
 #[tauri::command]

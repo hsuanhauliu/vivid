@@ -527,16 +527,19 @@
 }
 
 /* Album-group nesting: twisty on the group row, indented children below it.
-   Twisty is a fixed 16px box (matches the Folders panel's .ft-twisty) so its
-   footprint is predictable — child rows indent by exactly that box's width
-   (+ the row's own left padding + gap) so a child's avatar lines up under
-   the group's avatar rather than sitting further left. */
+   The twisty's click handler lives on this 18px box (not the icon itself),
+   so the whole box is clickable even though the chevron glyph drawn inside
+   it is smaller — a small visual footprint with a bigger hit target.
+   Child rows indent by this box's width (+ the row's own left padding +
+   gap) plus a bit extra, so a child's avatar sits visibly right of the
+   group's avatar instead of lining up flush under it (which read as
+   "sibling", not "nested"). */
 .sp-group-twisty {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 10px;
+  height: 18px;
   flex-shrink: 0;
   color: var(--text-dim);
   cursor: pointer;
@@ -545,12 +548,19 @@
 .sp-group-twisty.collapsed {
   transform: rotate(-90deg);
 }
+.sp-group-twisty-spacer {
+  display: block;
+  width: 10px;
+  height: 18px;
+  flex-shrink: 0;
+}
 .sp-group-children {
   display: flex;
   flex-direction: column;
 }
 .sp-group-row-child {
-  padding-left: 37px; /* 12 (row padding) + 16 (twisty box) + 9 (row gap) */
+  /* 12 (row padding) + 10 (twisty box) + 9 (row gap) + 12 (extra nesting indent) */
+  padding-left: 43px;
 }
 
 /* Album vs Album Group toggle in the inline create form */

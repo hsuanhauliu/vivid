@@ -1006,12 +1006,13 @@ export default function App() {
 
   const handleSaveSearch = useCallback(
     (name, snapshot) => {
-      setSavedSearches((prev) => [
-        { id: crypto.randomUUID(), name, ...snapshot },
-        ...prev.filter((s) => s.name !== name),
-      ]);
+      if (savedSearches.some((s) => s.name === name)) {
+        showToast('error', t('notif.duplicateSavedSearch', { name }));
+        return;
+      }
+      setSavedSearches((prev) => [{ id: crypto.randomUUID(), name, ...snapshot }, ...prev]);
     },
-    [setSavedSearches],
+    [savedSearches, setSavedSearches, showToast, t],
   );
 
   const handleApplySavedSearch = useCallback(
@@ -1953,10 +1954,13 @@ export default function App() {
             </button>
             {loading && !importProgress && <span className="loading-dot" />}
             <button
-              className={`icon-btn toolbar-bell-btn ${notifications.some((n) => !n.read) ? 'has-unread' : ''}`}
+              className={`icon-btn toolbar-bell-btn ${showNotifications ? 'active' : ''} ${notifications.some((n) => !n.read) ? 'has-unread' : ''}`}
               onClick={() => {
-                setShowNotifications(true);
-                markNotificationsRead();
+                setShowNotifications((v) => {
+                  const next = !v;
+                  if (next) markNotificationsRead();
+                  return next;
+                });
               }}
               title={t('toolbar.systemMessages')}
             >
@@ -2238,6 +2242,11 @@ export default function App() {
                         setViewerItem(null);
                         setViewerDetails(false);
                         handleFolderClick(id);
+                      }}
+                      onOpenCollection={(id) => {
+                        setViewerItem(null);
+                        setViewerDetails(false);
+                        handleCollectionClick(id);
                       }}
                       onViewOnMap={handleViewOnMap}
                       onSetLocation={handleSetLocation}
@@ -2586,6 +2595,10 @@ export default function App() {
                   onRemoveAutoTag={handleRemoveAutoTag}
                   onRetagImage={handleRetagImage}
                   onNavigateToFolder={handleFolderClick}
+                  onOpenCollection={(id) => {
+                    setSelected(null);
+                    handleCollectionClick(id);
+                  }}
                   onViewOnMap={handleViewOnMap}
                   onSetLocation={handleSetLocation}
                   freshSrc={selected ? freshUrls[selected.id] || null : null}

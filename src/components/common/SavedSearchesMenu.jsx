@@ -35,7 +35,7 @@ export default function SavedSearchesMenu({
     <div className="saved-search-wrap" ref={ref}>
       <button
         type="button"
-        className="icon-btn toolbar-view-btn"
+        className={`icon-btn toolbar-view-btn ${open ? 'active' : ''}`}
         onClick={() => setOpen((v) => !v)}
         title={t('search.saved.title')}
       >
@@ -67,36 +67,38 @@ export default function SavedSearchesMenu({
               </button>
             </div>
           )}
-          {saved.length === 0 ? (
-            <div className="saved-search-empty">{t('search.saved.empty')}</div>
-          ) : (
-            saved.map((s) => (
-              <div key={s.id} className="search-history-item">
-                <button
-                  type="button"
-                  className="search-history-term"
-                  onClick={() => {
-                    onApply(s);
-                    setOpen(false);
-                  }}
-                >
-                  <Bookmark size={11} />
-                  {s.name}
-                </button>
-                <button
-                  type="button"
-                  className="search-history-remove"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(s.id);
-                  }}
-                  title={t('search.saved.delete')}
-                >
-                  <X size={10} />
-                </button>
-              </div>
-            ))
-          )}
+          <div className="saved-search-list">
+            {saved.length === 0 ? (
+              <div className="saved-search-empty">{t('search.saved.empty')}</div>
+            ) : (
+              saved.map((s) => (
+                <div key={s.id} className="search-history-item">
+                  <button
+                    type="button"
+                    className="search-history-term"
+                    onClick={() => {
+                      onApply(s);
+                      setOpen(false);
+                    }}
+                  >
+                    <Bookmark size={11} />
+                    {s.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="search-history-remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(s.id);
+                    }}
+                    title={t('search.saved.delete')}
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -150,6 +150,18 @@ pub fn init(conn: &Connection) -> Result<()> {
              WHERE embedding IS NULL AND deleted_at IS NULL;",
     )?;
 
+    // One-time cleanup: null out `folder_id` on any item — trashed included
+    // — left pointing at a folder row that no longer exists. Before
+    // `items_under_including_trashed` (folder deletion now relocates
+    // trashed items too), deleting a folder that still held a trashed item
+    // could leave that item's `folder_id` dangling. Cheap once clean: the
+    // WHERE clause matches nothing on every later launch.
+    conn.execute(
+        "UPDATE media_items SET folder_id = NULL \
+         WHERE folder_id IS NOT NULL AND folder_id NOT IN (SELECT id FROM folders)",
+        [],
+    )?;
+
     Ok(())
 }
 

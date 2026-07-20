@@ -35,15 +35,6 @@
 .notif-clear-btn:hover {
   text-decoration: underline;
 }
-.notif-close-btn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-}
 .notif-list {
   overflow-y: auto;
   flex: 1;
@@ -117,7 +108,8 @@
   pointer-events: none;
   box-sizing: border-box;
 }
-.toolbar-bell-btn.has-unread {
+.toolbar-bell-btn.has-unread,
+.toolbar-bell-btn.active {
   color: var(--accent);
 }
 

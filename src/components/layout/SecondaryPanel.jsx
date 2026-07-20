@@ -468,20 +468,32 @@ function CollectionList({
                   onPointerDown={(e) => handleDragHandleDown(e, g.id)}
                 />
               )}
-              {isGroupKind && (
-                <ChevronDown
-                  size={11}
-                  className={`sp-group-twisty ${collapsed ? 'collapsed' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleGroupCollapsed(g.id);
-                  }}
-                />
-              )}
+              {groupable &&
+                (isGroupKind ? (
+                  // The click handler lives on this wrapping box, not the
+                  // icon itself, so the whole reserved footprint is
+                  // clickable rather than just the tiny SVG glyph.
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    className={`sp-group-twisty ${collapsed ? 'collapsed' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroupCollapsed(g.id);
+                    }}
+                  >
+                    <ChevronDown size={9} />
+                  </span>
+                ) : (
+                  // Empty spacer matching the twisty's footprint so a regular
+                  // album's avatar lines up with a group's avatar instead of
+                  // sitting further left.
+                  <span className="sp-group-twisty-spacer" />
+                ))}
               <CollectionAvatar
                 group={g}
                 allItems={allItems ?? items}
-                size={isGroupKind ? 28 : 32}
+                size={32}
                 radius={7}
                 style={{ isolation: 'isolate' }}
                 draggable={false}

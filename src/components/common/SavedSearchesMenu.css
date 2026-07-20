@@ -14,8 +14,14 @@
   border-radius: var(--radius-sm);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 200;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
   padding: 4px;
+}
+
+.saved-search-list {
+  overflow-y: auto;
 }
 
 .saved-search-save-row {

@@ -1009,14 +1009,27 @@ export default function WorldMapView({
                 {t('map.clusterCount', { count: selectedCluster.length })}
               </p>
             )}
-            <button
-              className="map-item-open"
-              onClick={() =>
-                selectedCluster.length > 1 ? onOpenCluster?.(selectedCluster) : onOpen(selected)
-              }
-            >
-              {t('map.clickToOpen')}
-            </button>
+            <div className="map-item-actions">
+              <button
+                className="map-item-open"
+                onClick={() =>
+                  selectedCluster.length > 1 ? onOpenCluster?.(selectedCluster) : onOpen(selected)
+                }
+              >
+                {t('map.clickToOpen')}
+              </button>
+              <button
+                type="button"
+                className="map-item-gmaps"
+                onClick={() =>
+                  invoke('open_in_browser', {
+                    url: `https://www.google.com/maps?q=${selected.gps_lat.toFixed(6)},${selected.gps_lng.toFixed(6)}`,
+                  }).catch(() => {})
+                }
+              >
+                {t('map.googleMaps')}
+              </button>
+            </div>
           </div>
           <button
             className="map-item-close"

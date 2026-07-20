@@ -1,4 +1,4 @@
-import { X, CheckCircle, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import useDismiss from '../../hooks/useDismiss';
@@ -37,16 +37,11 @@ export default function NotificationsPanel({
     <div className="notif-panel" ref={ref}>
       <div className="notif-header">
         <span className="notif-title">{t('notif.title')}</span>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {notifications.length > 0 && (
-            <button className="notif-clear-btn" onClick={onClear}>
-              {t('notif.clearAll')}
-            </button>
-          )}
-          <button className="notif-close-btn" onClick={onClose}>
-            <X size={13} />
+        {notifications.length > 0 && (
+          <button className="notif-clear-btn" onClick={onClear}>
+            {t('notif.clearAll')}
           </button>
-        </div>
+        )}
       </div>
       <div className="notif-list">
         {notifications.length === 0 ? (

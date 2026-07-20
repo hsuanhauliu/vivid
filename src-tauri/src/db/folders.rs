@@ -169,11 +169,17 @@ pub fn delete_folder_subtree(conn: &Connection, rel_path: &str) -> Result<()> {
 }
 
 /// Items that physically live under `rel_path` or any descendant folder — i.e.
-/// everything whose file currently sits inside this directory subtree on disk.
-pub fn items_under(conn: &Connection, rel_path: &str, root: &str) -> Result<Vec<MediaItem>> {
+/// everything whose file currently sits inside this directory subtree on disk,
+/// including trashed items. A trashed item's `file_path`/`folder_id` are
+/// untouched by trashing (it's a pure soft-delete flag), so it still
+/// physically sits in this directory subtree — folder deletion needs to know
+/// about it too, or its file gets swept away by the directory removal with
+/// nothing to relocate it first, and its `folder_id` is left dangling once
+/// the folder row is gone.
+pub fn items_under_including_trashed(conn: &Connection, rel_path: &str, root: &str) -> Result<Vec<MediaItem>> {
     let abs = format!("{root}/{rel_path}");
     let mut stmt = conn.prepare(&format!(
-        "{SELECT_MEDIA} WHERE deleted_at IS NULL AND (file_path = ?1 || '/' || file_name OR file_path LIKE ?1 || '/%')"
+        "{SELECT_MEDIA} WHERE file_path = ?1 || '/' || file_name OR file_path LIKE ?1 || '/%'"
     ))?;
     let rows = stmt.query_map(params![abs], row_to_item)?;
     let mut items: Vec<MediaItem> = rows.collect::<Result<_>>()?;

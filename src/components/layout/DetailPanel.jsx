@@ -181,6 +181,7 @@ export default function DetailPanel({
   onRemoveAutoTag,
   onRetagImage,
   onNavigateToFolder,
+  onOpenCollection,
   onViewOnMap,
   onSetLocation,
   freshSrc = null,
@@ -388,7 +389,26 @@ export default function DetailPanel({
                   radius={5}
                   allowAny
                 />
-                <span>{g.name}</span>
+                <div className="detail-collection-info">
+                  {onOpenCollection ? (
+                    <button
+                      type="button"
+                      className="detail-collection-link"
+                      onClick={() => onOpenCollection(g.id)}
+                    >
+                      {g.name}
+                    </button>
+                  ) : (
+                    <span>{g.name}</span>
+                  )}
+                  <span className="detail-collection-type">
+                    {g.kind === 'playlist'
+                      ? t('common.playlist')
+                      : g.kind === 'album_group'
+                        ? t('collection.albumGroup')
+                        : t('common.album')}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

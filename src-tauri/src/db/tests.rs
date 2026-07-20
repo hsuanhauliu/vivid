@@ -621,7 +621,7 @@ fn delete_folder_subtree_removes_descendants_but_not_siblings() {
 }
 
 #[test]
-fn items_under_matches_direct_and_nested_children_only() {
+fn items_under_including_trashed_matches_direct_and_nested_children_only() {
     let conn = open();
     let root = "/lib";
     insert(&conn, &item("direct", &format!("{root}/Trip/a.jpg"))).unwrap();
@@ -631,7 +631,7 @@ fn items_under_matches_direct_and_nested_children_only() {
     // Unrelated folder — must NOT be matched.
     insert(&conn, &item("unrelated", &format!("{root}/Other/d.jpg"))).unwrap();
 
-    let found = items_under(&conn, "Trip", root).unwrap();
+    let found = items_under_including_trashed(&conn, "Trip", root).unwrap();
     let ids: Vec<&str> = found.iter().map(|i| i.id.as_str()).collect();
 
     assert_eq!(found.len(), 2);
@@ -640,13 +640,38 @@ fn items_under_matches_direct_and_nested_children_only() {
 }
 
 #[test]
-fn items_under_excludes_deleted() {
+fn items_under_including_trashed_finds_both() {
+    // Regression guard: folder deletion needs the trashed item too — see
+    // `delete_folder`'s doc comment — otherwise its file gets swept away by
+    // the directory removal with nothing to relocate it first, and its
+    // folder_id is left dangling once the folder row is gone.
     let conn = open();
     let root = "/lib";
-    insert(&conn, &item("id-1", &format!("{root}/Trip/a.jpg"))).unwrap();
-    trash_item(&conn, "id-1").unwrap();
+    insert(&conn, &item("active", &format!("{root}/Trip/a.jpg"))).unwrap();
+    insert(&conn, &item("trashed", &format!("{root}/Trip/b.jpg"))).unwrap();
+    trash_item(&conn, "trashed").unwrap();
 
-    assert!(items_under(&conn, "Trip", root).unwrap().is_empty());
+    let found = items_under_including_trashed(&conn, "Trip", root).unwrap();
+    let ids: Vec<&str> = found.iter().map(|i| i.id.as_str()).collect();
+    assert_eq!(found.len(), 2);
+    assert!(ids.contains(&"active"));
+    assert!(ids.contains(&"trashed"));
+}
+
+#[test]
+fn init_clears_folder_id_dangling_at_a_nonexistent_folder() {
+    let conn = open();
+    insert(&conn, &item("a", "/lib/wherever/a.jpg")).unwrap();
+    // A dangling reference can't normally be created (foreign keys reject
+    // it) — simulates one already existing in a database from before this
+    // cleanup, or before `delete_folder` accounted for trashed items.
+    conn.execute_batch("PRAGMA foreign_keys = OFF").unwrap();
+    conn.execute("UPDATE media_items SET folder_id = 'ghost-id' WHERE id = 'a'", []).unwrap();
+
+    init(&conn).unwrap();
+
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(fetched.folder_id, None);
 }
 
 #[test]

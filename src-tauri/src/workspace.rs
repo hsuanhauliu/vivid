@@ -80,10 +80,6 @@ impl Default for WorkspaceRegistry {
 }
 
 impl WorkspaceRegistry {
-    pub fn active(&self) -> Option<&Workspace> {
-        self.workspaces.iter().find(|w| w.id == self.active_id)
-    }
-
     pub fn find(&self, id: &str) -> Option<&Workspace> {
         self.workspaces.iter().find(|w| w.id == id)
     }
@@ -178,42 +174,6 @@ impl WorkspacePaths {
     }
 }
 
-/// Resolve which workspace should actually be used at startup: the
-/// registry's active workspace, unless it's an External workspace whose
-/// folder is currently missing (e.g. an unmounted external drive or a folder
-/// that was deleted/renamed outside Vivid) — in which case fall back to the
-/// Default workspace for this session. The registry itself is left
-/// untouched, so once the folder is available again the next launch picks it
-/// back up automatically instead of the fallback silently becoming sticky.
-///
-/// Only ever reached when the registry has exactly one workspace (see
-/// `.setup()` in `lib.rs`, which defers to the frontend gate for 0 or 2+),
-/// so in practice the fallback path below is unreachable — kept anyway as a
-/// non-panicking last resort rather than assuming that invariant forever.
-pub fn resolve_startup_workspace(registry: &WorkspaceRegistry) -> Workspace {
-    let fallback = || {
-        registry.find(DEFAULT_WORKSPACE_ID).cloned().unwrap_or_else(|| {
-            // Truly nothing usable. Deliberately *not* written back to the
-            // registry — if the user chose not to have a managed library,
-            // this recovery shouldn't silently reintroduce one.
-            Workspace {
-                id: DEFAULT_WORKSPACE_ID.into(),
-                kind: WorkspaceKind::Default,
-                path: None,
-                name: "My Library".into(),
-            }
-        })
-    };
-    match registry.active() {
-        Some(w) if w.kind == WorkspaceKind::External => match &w.path {
-            Some(p) if Path::new(p).is_dir() => w.clone(),
-            _ => fallback(),
-        },
-        Some(w) => w.clone(),
-        None => fallback(),
-    }
-}
-
 /// Managed Tauri state holding the resolved paths for whichever workspace was
 /// active at startup. Read-only for the life of the process — switching
 /// workspaces writes the new `active_id` to the registry and restarts the app
@@ -237,7 +197,6 @@ mod tests {
         let reg = WorkspaceRegistry::default();
         assert!(reg.workspaces.is_empty());
         assert!(reg.active_id.is_empty());
-        assert!(reg.active().is_none());
     }
 
     #[test]
@@ -271,13 +230,6 @@ mod tests {
     fn parse_falls_back_to_default_on_empty_string() {
         let parsed = WorkspaceRegistry::parse("");
         assert_eq!(parsed, WorkspaceRegistry::default());
-    }
-
-    #[test]
-    fn active_returns_none_when_active_id_is_stale() {
-        let mut reg = WorkspaceRegistry::default();
-        reg.active_id = "does-not-exist".into();
-        assert!(reg.active().is_none());
     }
 
     #[test]
@@ -318,79 +270,6 @@ mod tests {
         fs::write(registry_path(dir.path()), "{ this is not valid json").unwrap();
         let reg = load(dir.path());
         assert_eq!(reg, WorkspaceRegistry::default());
-    }
-
-    // ── resolve_startup_workspace ────────────────────────────────────────────
-
-    /// A registry with just the Default workspace registered — what
-    /// `WorkspaceRegistry::default()` used to return before it became
-    /// genuinely empty. Only for tests that need a Default entry to exist.
-    fn registry_with_default() -> WorkspaceRegistry {
-        WorkspaceRegistry {
-            workspaces: vec![Workspace {
-                id: DEFAULT_WORKSPACE_ID.into(),
-                kind: WorkspaceKind::Default,
-                path: None,
-                name: "My Library".into(),
-            }],
-            active_id: DEFAULT_WORKSPACE_ID.into(),
-        }
-    }
-
-    #[test]
-    fn startup_uses_default_when_active_is_default() {
-        let reg = registry_with_default();
-        let w = resolve_startup_workspace(&reg);
-        assert_eq!(w.id, DEFAULT_WORKSPACE_ID);
-    }
-
-    #[test]
-    fn startup_uses_external_when_folder_exists() {
-        let dir = tempdir().unwrap();
-        let mut reg = registry_with_default();
-        reg.workspaces.push(Workspace {
-            id: "ext1".into(),
-            kind: WorkspaceKind::External,
-            path: Some(dir.path().to_string_lossy().into_owned()),
-            name: "Photos".into(),
-        });
-        reg.active_id = "ext1".into();
-
-        let w = resolve_startup_workspace(&reg);
-        assert_eq!(w.id, "ext1");
-    }
-
-    #[test]
-    fn startup_falls_back_to_default_when_external_folder_missing() {
-        let mut reg = registry_with_default();
-        reg.workspaces.push(Workspace {
-            id: "ext1".into(),
-            kind: WorkspaceKind::External,
-            path: Some("/this/path/does/not/exist/anywhere".into()),
-            name: "Photos".into(),
-        });
-        reg.active_id = "ext1".into();
-
-        let w = resolve_startup_workspace(&reg);
-        assert_eq!(w.id, DEFAULT_WORKSPACE_ID);
-    }
-
-    #[test]
-    fn startup_falls_back_to_default_when_active_id_is_stale() {
-        let mut reg = registry_with_default();
-        reg.active_id = "gone".into();
-        let w = resolve_startup_workspace(&reg);
-        assert_eq!(w.id, DEFAULT_WORKSPACE_ID);
-    }
-
-    #[test]
-    fn startup_falls_back_to_transient_default_when_registry_is_truly_empty() {
-        // Not reachable in the real `.setup()` flow (an empty registry always
-        // defers to the frontend gate instead), but should never panic.
-        let reg = WorkspaceRegistry::default();
-        let w = resolve_startup_workspace(&reg);
-        assert_eq!(w.id, DEFAULT_WORKSPACE_ID);
-        assert_eq!(w.kind, WorkspaceKind::Default);
     }
 
     // ── WorkspacePaths::resolve ──────────────────────────────────────────────

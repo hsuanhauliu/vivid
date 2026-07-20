@@ -43,7 +43,7 @@ export default function SearchScopeMenu({ scope, onChange }) {
     <div className="search-scope-wrap" ref={ref}>
       <button
         type="button"
-        className={`icon-btn toolbar-view-btn ${!allOn ? 'active' : ''}`}
+        className={`icon-btn toolbar-view-btn ${!allOn || open ? 'active' : ''}`}
         onClick={() => setOpen((v) => !v)}
         title={t('search.scope.title')}
       >
