@@ -14,6 +14,7 @@ import {
   Disc,
 } from 'lucide-react';
 import CollectionAvatar from './CollectionAvatar';
+import ScrollArea from './ScrollArea';
 import useDismiss from '../../hooks/useDismiss';
 import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './SelectionBar.css';
@@ -106,7 +107,7 @@ function MoveToCollectionMenu({ collections, allItems, selectedItems, onMassColl
               />
             </div>
           )}
-          <div className="sel-collection-list">
+          <ScrollArea className="sel-collection-list" innerClassName="sel-collection-list-inner">
             {sections.map(({ key, label, icon: Icon, items }) => {
               const rows = items.slice(0, budget);
               budget -= rows.length;
@@ -140,7 +141,7 @@ function MoveToCollectionMenu({ collections, allItems, selectedItems, onMassColl
                     : t('selection.noCollections')}
               </div>
             )}
-          </div>
+          </ScrollArea>
           {hasMore && (
             <button className="sel-collection-more" onClick={() => setExpanded(true)}>
               <Search size={11} /> {t('selection.findMore', { count: totalReal - VISIBLE_LIMIT })}
@@ -206,7 +207,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
               />
             </div>
           )}
-          <div className="sel-collection-list">
+          <ScrollArea className="sel-collection-list" innerClassName="sel-collection-list-inner">
             {shown.map((f) => {
               const depth = (f.rel_path.match(/\//g) || []).length;
               return (
@@ -221,7 +222,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
             {shown.length === 0 && (
               <div className="sel-collection-empty">{t('selection.noFolders')}</div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>

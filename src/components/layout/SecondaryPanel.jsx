@@ -468,40 +468,40 @@ function CollectionList({
                   onPointerDown={(e) => handleDragHandleDown(e, g.id)}
                 />
               )}
-              {groupable &&
-                (isGroupKind ? (
-                  // The click handler lives on this wrapping box, not the
-                  // icon itself, so the whole reserved footprint is
-                  // clickable rather than just the tiny SVG glyph.
+              <div className="sp-avatar-wrap">
+                <CollectionAvatar
+                  group={g}
+                  allItems={allItems ?? items}
+                  size={32}
+                  radius={7}
+                  style={{ isolation: 'isolate' }}
+                  draggable={false}
+                  onDragStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                />
+                {groupable && isGroupKind && (
+                  // A subtle "this is a group" badge by default; hovering the
+                  // row swaps it for the collapse/expand chevron, so nothing
+                  // is reserved in the row's normal flow (every row — album
+                  // or group — starts flush left, no extra padding) and the
+                  // toggle only appears when it's actually actionable.
                   <span
                     role="button"
                     tabIndex={-1}
-                    className={`sp-group-twisty ${collapsed ? 'collapsed' : ''}`}
+                    className={`sp-group-toggle ${collapsed ? 'collapsed' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleGroupCollapsed(g.id);
                     }}
+                    title={collapsed ? t('panel.expandGroup') : t('panel.collapseGroup')}
                   >
-                    <ChevronDown size={9} />
+                    <Layers size={8} className="sp-group-badge-icon" />
+                    <ChevronDown size={11} className="sp-group-chevron-icon" />
                   </span>
-                ) : (
-                  // Empty spacer matching the twisty's footprint so a regular
-                  // album's avatar lines up with a group's avatar instead of
-                  // sitting further left.
-                  <span className="sp-group-twisty-spacer" />
-                ))}
-              <CollectionAvatar
-                group={g}
-                allItems={allItems ?? items}
-                size={32}
-                radius={7}
-                style={{ isolation: 'isolate' }}
-                draggable={false}
-                onDragStart={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              />
+                )}
+              </div>
               <div className="sp-group-info">
                 {renamingId === g.id ? (
                   <RenameInline

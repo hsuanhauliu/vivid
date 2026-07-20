@@ -325,12 +325,10 @@
     },
     "homePageOptions": {
       "all": "Tất cả",
+      "starred": "Đã đánh dấu sao",
       "image": "Ảnh",
       "video": "Video",
-      "audio": "Âm thanh",
-      "folders": "Thư mục",
-      "albums": "Album ảnh",
-      "music": "Danh sách phát nhạc"
+      "audio": "Âm thanh"
     },
     "syncIntervals": {
       "launch": "Mỗi lần khởi động",
@@ -528,6 +526,8 @@
   },
   "panel": {
     "collapsePanel": "Thu gọn bảng",
+    "expandGroup": "Mở rộng nhóm",
+    "collapseGroup": "Thu gọn nhóm",
     "sortAZ": "A → Z (nhấp để chuyển Z → A)",
     "sortZA": "Z → A (nhấp để chuyển Tùy chỉnh)",
     "sortCustom": "Thứ tự tùy chỉnh (nhấp để chuyển A → Z)",
@@ -870,6 +870,7 @@
     "track": "Bài số",
     "file": "Tệp",
     "format": "Định dạng",
+    "colorLabel": "Nhãn",
     "size": "Dung lượng",
     "added": "Đã thêm vào Vivid",
     "path": "Đường dẫn",

@@ -325,12 +325,10 @@
     },
     "homePageOptions": {
       "all": "전체 미디어",
+      "starred": "별표 표시",
       "image": "사진",
       "video": "동영상",
-      "audio": "오디오",
-      "folders": "폴더",
-      "albums": "사진 앨범",
-      "music": "음악 재생목록"
+      "audio": "오디오"
     },
     "syncIntervals": {
       "launch": "실행할 때마다",
@@ -528,6 +526,8 @@
   },
   "panel": {
     "collapsePanel": "패널 접기",
+    "expandGroup": "그룹 펼치기",
+    "collapseGroup": "그룹 접기",
     "sortAZ": "A → Z (클릭하면 Z → A)",
     "sortZA": "Z → A (클릭하면 사용자 지정 순서)",
     "sortCustom": "사용자 지정 순서 (클릭하면 A → Z)",
@@ -866,6 +866,7 @@
     "track": "트랙 번호",
     "file": "파일",
     "format": "형식",
+    "colorLabel": "라벨",
     "size": "크기",
     "added": "Vivid에 추가된 날짜",
     "path": "경로",

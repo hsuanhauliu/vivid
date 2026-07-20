@@ -8,7 +8,6 @@ import {
   Folder,
   FolderOpen,
   ChevronRight,
-  Minus,
   Plus,
   Pencil,
   Trash2,
@@ -242,12 +241,15 @@ export default function FolderTree({
               if (kids.length) toggle(folder.id);
             }}
             tabIndex={-1}
+            style={kids.length ? undefined : { cursor: 'default' }}
           >
+            {/* Leaf folders render nothing here — the button keeps its fixed
+                16px footprint (see .ft-twisty) so names still line up with
+                folders that do have a chevron, instead of a "-" that looked
+                like a real (but non-functional) control. */}
             {kids.length ? (
               <ChevronRight size={12} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
-            ) : (
-              <Minus size={12} />
-            )}
+            ) : null}
           </button>
           {isOpen && kids.length ? (
             <FolderOpen size={14} className="ft-icon" />

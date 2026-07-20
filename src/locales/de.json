@@ -327,12 +327,10 @@
     },
     "homePageOptions": {
       "all": "Alle Medien",
+      "starred": "Markiert",
       "image": "Fotos",
       "video": "Videos",
-      "audio": "Audio",
-      "folders": "Ordner",
-      "albums": "Fotoalben",
-      "music": "Musik-Wiedergabelisten"
+      "audio": "Audio"
     },
     "syncIntervals": {
       "launch": "Bei jedem Start",
@@ -545,6 +543,8 @@
   },
   "panel": {
     "collapsePanel": "Bereich einklappen",
+    "expandGroup": "Gruppe aufklappen",
+    "collapseGroup": "Gruppe einklappen",
     "sortAZ": "A → Z (Klick für Z → A)",
     "sortZA": "Z → A (Klick für Benutzerdefiniert)",
     "sortCustom": "Benutzerdefinierte Reihenfolge (Klick für A → Z)",
@@ -897,6 +897,7 @@
     "track": "Titel-Nr.",
     "file": "Datei",
     "format": "Format",
+    "colorLabel": "Markierung",
     "size": "Größe",
     "added": "Zu Vivid hinzugefügt",
     "path": "Pfad",

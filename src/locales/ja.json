@@ -299,12 +299,10 @@
     },
     "homePageOptions": {
       "all": "すべてのメディア",
+      "starred": "スター付き",
       "image": "写真",
       "video": "ビデオ",
-      "audio": "オーディオ",
-      "folders": "フォルダ",
-      "albums": "フォトアルバム",
-      "music": "音楽プレイリスト"
+      "audio": "オーディオ"
     },
     "syncIntervals": {
       "launch": "起動ごと",
@@ -536,6 +534,8 @@
   },
   "panel": {
     "collapsePanel": "パネルを折りたたむ",
+    "expandGroup": "グループを展開",
+    "collapseGroup": "グループを折りたたむ",
     "sortAZ": "A → Z（クリックで Z → A）",
     "sortZA": "Z → A（クリックでカスタム）",
     "sortCustom": "カスタム順（クリックで A → Z）",
@@ -880,6 +880,7 @@
     "track": "トラック #",
     "file": "ファイル",
     "format": "フォーマット",
+    "colorLabel": "ラベル",
     "size": "サイズ",
     "added": "Vividに追加",
     "path": "パス",

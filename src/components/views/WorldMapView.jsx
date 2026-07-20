@@ -16,6 +16,7 @@ import {
   EyeOff,
   Eye,
   Focus,
+  ExternalLink,
 } from 'lucide-react';
 import MapGL, { Marker, NavigationControl, AttributionControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -480,15 +481,10 @@ export default function WorldMapView({
 
   const toggleTravelPath = useCallback(() => {
     setTravelPath((v) => {
-      const next = !v;
       setStepIndex(null);
-      if (next) {
-        const map = mapRef.current?.getMap();
-        fitGeoItems(map, pathStops.length >= 2 ? pathStops : geoItems, true, mapConfig);
-      }
-      return next;
+      return !v;
     });
-  }, [pathStops, geoItems, mapConfig]);
+  }, []);
 
   // Draw the travel path in from the first stop to the last — the line
   // itself moving toward each next destination is what shows the direction
@@ -1021,6 +1017,7 @@ export default function WorldMapView({
               <button
                 type="button"
                 className="map-item-gmaps"
+                title={t('map.googleMaps')}
                 onClick={() =>
                   invoke('open_in_browser', {
                     url: `https://www.google.com/maps?q=${selected.gps_lat.toFixed(6)},${selected.gps_lng.toFixed(6)}`,
@@ -1028,6 +1025,7 @@ export default function WorldMapView({
                 }
               >
                 {t('map.googleMaps')}
+                <ExternalLink size={10} />
               </button>
             </div>
           </div>

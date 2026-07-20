@@ -526,41 +526,61 @@
   margin-top: 1px;
 }
 
-/* Album-group nesting: twisty on the group row, indented children below it.
-   The twisty's click handler lives on this 18px box (not the icon itself),
-   so the whole box is clickable even though the chevron glyph drawn inside
-   it is smaller — a small visual footprint with a bigger hit target.
-   Child rows indent by this box's width (+ the row's own left padding +
-   gap) plus a bit extra, so a child's avatar sits visibly right of the
-   group's avatar instead of lining up flush under it (which read as
-   "sibling", not "nested"). */
-.sp-group-twisty {
+/* Album-group indicator: every row (album or group) starts flush left, no
+   space reserved for anything twisty-shaped — the toggle lives as a badge
+   overlaid on the avatar's corner instead of sitting beside it in flow. */
+.sp-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+}
+
+/* Subtle by default (a small "this holds other albums" mark); hovering the
+   row swaps it for the collapse/expand chevron, so the interactive control
+   only shows up when it's actually clickable. */
+.sp-group-toggle {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 10px;
-  height: 18px;
-  flex-shrink: 0;
-  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
   cursor: pointer;
+  z-index: 2;
+}
+.sp-group-badge-icon {
+  display: block;
+  color: var(--text-dim);
+}
+.sp-group-chevron-icon {
+  display: none;
+  color: var(--text-dim);
   transition: transform 0.12s ease;
 }
-.sp-group-twisty.collapsed {
+.sp-group-toggle.collapsed .sp-group-chevron-icon {
   transform: rotate(-90deg);
 }
-.sp-group-twisty-spacer {
-  display: block;
-  width: 10px;
-  height: 18px;
-  flex-shrink: 0;
+.sp-group-row:hover .sp-group-badge-icon {
+  display: none;
 }
+.sp-group-row:hover .sp-group-chevron-icon {
+  display: block;
+}
+
 .sp-group-children {
   display: flex;
   flex-direction: column;
 }
 .sp-group-row-child {
-  /* 12 (row padding) + 10 (twisty box) + 9 (row gap) + 12 (extra nesting indent) */
-  padding-left: 43px;
+  /* 12 (row padding) + 9 (row gap) + 12 (extra nesting indent), so a
+     child's avatar sits visibly right of the group's avatar instead of
+     lining up flush under it (which read as "sibling", not "nested"). */
+  padding-left: 33px;
 }
 
 /* Album vs Album Group toggle in the inline create form */

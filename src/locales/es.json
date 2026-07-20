@@ -327,12 +327,10 @@
     },
     "homePageOptions": {
       "all": "Todo el contenido",
+      "starred": "Destacados",
       "image": "Fotos",
       "video": "Videos",
-      "audio": "Audio",
-      "folders": "Carpetas",
-      "albums": "Álbumes de fotos",
-      "music": "Listas de música"
+      "audio": "Audio"
     },
     "syncIntervals": {
       "launch": "Cada vez que se abre",
@@ -545,6 +543,8 @@
   },
   "panel": {
     "collapsePanel": "Contraer panel",
+    "expandGroup": "Expandir grupo",
+    "collapseGroup": "Contraer grupo",
     "sortAZ": "A → Z (clic para Z → A)",
     "sortZA": "Z → A (clic para orden personalizado)",
     "sortCustom": "Orden personalizado (clic para A → Z)",
@@ -897,6 +897,7 @@
     "track": "N.° de pista",
     "file": "Archivo",
     "format": "Formato",
+    "colorLabel": "Etiqueta",
     "size": "Tamaño",
     "added": "Añadido a Vivid",
     "path": "Ruta",

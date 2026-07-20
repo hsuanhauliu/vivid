@@ -172,6 +172,11 @@ export default function App() {
   const [freshUrls, setFreshUrls] = useState({});
   const [screensaverItems, setScreensaverItems] = useState(null); // screensaver mode items
   const [playerItem, setPlayerItem] = useState(null); // bottom audio player
+  // Bumped on every explicit "play" action (card click, play-all, shuffle)
+  // so AudioPlayer restarts from the beginning even when it's asked to play
+  // the track that's already loaded — item identity alone doesn't change in
+  // that case, so this is what actually signals "start over".
+  const [playToken, setPlayToken] = useState(0);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
   const [mapFocusId, setMapFocusId] = useState(null); // item to center the World Map on
   // Scopes FileViewer's nav (prev/next + filmstrip) to a map pin/cluster
@@ -1383,6 +1388,7 @@ export default function App() {
         setPlayerPlaylist(false);
         setPlayerExplicitQueue(null);
         setPlayerItem(item);
+        setPlayToken((v) => v + 1);
       } else {
         setMapViewerItems(navItems);
         setViewerItem(item);
@@ -1395,6 +1401,7 @@ export default function App() {
     setPlayerPlaylist(false);
     setPlayerExplicitQueue(null);
     setPlayerItem(item);
+    setPlayToken((v) => v + 1);
   }, []);
 
   // Play a collection of tracks as a playlist (enables auto-advance controls)
@@ -1404,6 +1411,7 @@ export default function App() {
     setPlayerPlaylist(true);
     setPlayerPlaylistName(typeof name === 'string' ? name : null);
     setPlayerItem(tracks[0]);
+    setPlayToken((v) => v + 1);
   }, []);
 
   const [playerPlaylist, setPlayerPlaylist] = useState(false);
@@ -1730,6 +1738,11 @@ export default function App() {
         setShowCmdPalette((v) => !v);
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && isSelecting) {
+        e.preventDefault();
+        setCheckedIds(new Set(visible.map((i) => i.id)));
+        return;
+      }
       if (e.key === '?') {
         setShowHelp(true);
         return;
@@ -1748,7 +1761,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [viewerItem, playerItem, visible, selected, handleCardOpen]);
+  }, [viewerItem, playerItem, visible, selected, handleCardOpen, isSelecting, setCheckedIds]);
 
   // Queue for the bottom player: explicit (playlist) queue takes priority
   const playerQueue = useMemo(() => {
@@ -2610,6 +2623,7 @@ export default function App() {
             {playerItem && (
               <AudioPlayer
                 item={playerItem}
+                playToken={playToken}
                 queue={playerQueue}
                 playlistMode={playerPlaylist}
                 playlistName={playerPlaylistName}

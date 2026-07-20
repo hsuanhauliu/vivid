@@ -12,12 +12,14 @@ import {
   Map as MapIcon,
   FolderInput,
   RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
+import { COLOR_LABELS } from '../common/FilterBar';
 import WorldMapView from '../views/WorldMapView';
 import ScrollArea from '../common/ScrollArea';
 import LocationPickerModal from '../modals/LocationPickerModal';
@@ -134,10 +136,15 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
         <>
           <div className="meta-row meta-gps-row">
             <span>{t('exif.gps')}</span>
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="meta-gps-link">
-              <MapPin size={11} />
+            <button
+              type="button"
+              className="meta-gps-link"
+              title={t('map.googleMaps')}
+              onClick={() => invoke('open_in_browser', { url: mapsUrl }).catch(() => {})}
+            >
               {item.gps_lat.toFixed(5)}, {item.gps_lng.toFixed(5)}
-            </a>
+              <ExternalLink size={10} />
+            </button>
           </div>
           <div className="map-view">
             <WorldMapView
@@ -640,6 +647,21 @@ export default function DetailPanel({
         <div className="meta-section">
           <p className="meta-section-title">{t('detail.file')}</p>
           <MetaRow label={t('detail.format')} value={ext} />
+          {item.color_label &&
+            (() => {
+              const colorInfo = COLOR_LABELS.find((c) => c.value === item.color_label);
+              return colorInfo ? (
+                <MetaRow
+                  label={t('detail.colorLabel')}
+                  value={
+                    <span className="meta-color-label">
+                      <span className="meta-color-swatch" style={{ background: colorInfo.hex }} />
+                      {t(colorInfo.labelKey)}
+                    </span>
+                  }
+                />
+              ) : null;
+            })()}
           {item.media_type === 'video' && (
             <MetaRow
               label={t('exif.dimensions')}

@@ -327,12 +327,10 @@
     },
     "homePageOptions": {
       "all": "सभी मीडिया",
+      "starred": "स्टार किया गया",
       "image": "फ़ोटो",
       "video": "वीडियो",
-      "audio": "ऑडियो",
-      "folders": "फ़ोल्डर",
-      "albums": "फ़ोटो एल्बम",
-      "music": "म्यूज़िक प्लेलिस्ट"
+      "audio": "ऑडियो"
     },
     "syncIntervals": {
       "launch": "हर बार खोलने पर",
@@ -545,6 +543,8 @@
   },
   "panel": {
     "collapsePanel": "पैनल छोटा करें",
+    "expandGroup": "समूह बड़ा करें",
+    "collapseGroup": "समूह छोटा करें",
     "sortAZ": "A → Z (Z → A के लिए क्लिक करें)",
     "sortZA": "Z → A (कस्टम क्रम के लिए क्लिक करें)",
     "sortCustom": "कस्टम क्रम (A → Z के लिए क्लिक करें)",
@@ -897,6 +897,7 @@
     "track": "ट्रैक #",
     "file": "फ़ाइल",
     "format": "फ़ॉर्मैट",
+    "colorLabel": "लेबल",
     "size": "साइज़",
     "added": "Vivid में जोड़ी गई",
     "path": "पाथ",

@@ -131,25 +131,46 @@ export function VideoThumb({
         </div>
       )}
 
-      {/* Playing video — always mounted when playing, fades in once ready */}
+      {/* Playing video — always mounted when playing, fades in once ready.
+          Deliberately NOT sized with `object-fit: cover` (unlike the poster
+          image): WebKit has a known bug where a hardware-decoded <video>
+          layer that needs real cropping via object-fit: cover renders
+          upside-down for portrait-shot clips with a rotation matrix (common
+          for phone-recorded .mov files) — hits Cards view (a fixed square
+          box, so most non-square videos need substantial cropping) but not
+          Masonry (whose cell is sized to the video's own aspect ratio via
+          `onRatio`, so there's rarely real cropping to trigger it) or the
+          full video player (which never crops to a fixed box at all). The
+          manual centered-oversize technique below achieves the same visual
+          "fill and crop" result without ever invoking object-fit on the
+          video element, sidestepping the bug regardless of root cause. */}
       {isPlaying && (
-        <video
-          key="play"
-          src={src}
-          className={imgClassName}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: videoReady ? 1 : 0,
-            transition: 'opacity 0.25s ease',
-            zIndex: 2,
-          }}
-          muted
-          playsInline
-          loop
-          autoPlay
-          onCanPlay={() => setVideoReady(true)}
-        />
+        <div
+          className="card-video-cover-wrap"
+          style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 2 }}
+        >
+          <video
+            key="play"
+            src={src}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'auto',
+              height: 'auto',
+              minWidth: '100%',
+              minHeight: '100%',
+              opacity: videoReady ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+            }}
+            muted
+            playsInline
+            loop
+            autoPlay
+            onCanPlay={() => setVideoReady(true)}
+          />
+        </div>
       )}
 
       {/* Hidden extraction video — fallback only, for videos with no cached
