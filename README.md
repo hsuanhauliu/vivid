@@ -28,13 +28,13 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 
 ### Library & organization
 
-* **Flexible Workspaces**: Choose your flow. Let Vivid neatly manage your assets on disk, or seamlessly link existing folders with **zero file replication**.
+* **Multiple Workspaces**: Manage more than one library side by side — Vivid can neatly organize your assets on disk, or seamlessly link existing folders with **zero file replication**. Add, switch, and unlink workspaces anytime.
 * Four dynamic layouts: **Masonry** (justified), **Cards** (uniform), **List**, and a chronological **Timeline** complete with a smooth date scrubber.
-* Stay organized with photo and group albums, dedicated music playlists, and nested folders.
-* **Interactive World Map**: Relive your travels by visualizing your GPS-tagged media on a global map.
+* Stay organized with photo albums, **album groups** (nest related albums together), dedicated music playlists, and nested folders. Albums can belong to multiple collections at once.
+* **Interactive World Map**: Relive your travels by visualizing your GPS-tagged media on a global map, with multi-select (marquee-drag or Ctrl+click) to hide or isolate pins.
 * **Frictionless Ingestion**: Import via drag-and-drop, direct downloads, mobile uploads, or set up **watched folders** for automatic background importing.
 * **Set-and-Forget Backup**: Keep your critical data safe with an auto-file-sync feature that continuously backs up to a designated folder.
-* **Pro-Grade Search**: Find anything instantly. Filter by name, tags, metadata, or text-in-image, with advanced scope control and **saved searches**.
+* **Pro-Grade Search**: Find anything instantly. Filter by name, tags, metadata, resolution, or text-in-image, narrow the search scope to just names/tags/description/OCR, and **bookmark searches** to revisit them later.
 * **Curation Power Tools**: Batch-edit metadata, apply color labels, favorite your best shots, and instantly clean up clutter with built-in **duplicate detection**.
 
 ### On-device AI (100% private & optional)
