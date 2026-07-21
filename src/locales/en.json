@@ -717,8 +717,6 @@
   "sort": {
     "dateNewest": "Capture date (newest)",
     "dateOldest": "Capture date (oldest)",
-    "addedNewest": "Added to Vivid (newest)",
-    "addedOldest": "Added to Vivid (oldest)",
     "nameAz": "Name A→Z",
     "nameZa": "Name Z→A",
     "sizeDesc": "Largest first",

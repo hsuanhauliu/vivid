@@ -700,8 +700,6 @@
   "sort": {
     "dateNewest": "拍攝日期（最新）",
     "dateOldest": "拍攝日期（最舊）",
-    "addedNewest": "加入 Vivid 時間（最新）",
-    "addedOldest": "加入 Vivid 時間（最舊）",
     "nameAz": "名稱 A→Z",
     "nameZa": "名稱 Z→A",
     "sizeDesc": "最大在前",

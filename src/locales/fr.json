@@ -710,8 +710,6 @@
   "sort": {
     "dateNewest": "Date de prise de vue (plus récent)",
     "dateOldest": "Date de prise de vue (plus ancien)",
-    "addedNewest": "Ajouté à Vivid (plus récent)",
-    "addedOldest": "Ajouté à Vivid (plus ancien)",
     "nameAz": "Nom A→Z",
     "nameZa": "Nom Z→A",
     "sizeDesc": "Le plus volumineux d'abord",

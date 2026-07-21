@@ -692,8 +692,6 @@
   "sort": {
     "dateNewest": "촬영 날짜 (최신순)",
     "dateOldest": "촬영 날짜 (오래된순)",
-    "addedNewest": "Vivid에 추가된 날짜 (최신순)",
-    "addedOldest": "Vivid에 추가된 날짜 (오래된순)",
     "nameAz": "이름 A→Z",
     "nameZa": "이름 Z→A",
     "sizeDesc": "큰 파일 먼저",

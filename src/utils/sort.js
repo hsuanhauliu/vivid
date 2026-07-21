@@ -27,19 +27,43 @@ function sortByKey(items, keyOf, cmp) {
     .map((d) => d.item);
 }
 
+// Missing-last comparator for the "date" sort specifically: items without a
+// captured date (screenshots, stripped EXIF, etc.) always sort to the end
+// regardless of direction, rather than routing through captureDate()'s `||`
+// fallback and getting chronologically interleaved by import time — which
+// looks like a wrong capture date rather than an absent one. captureDate()
+// itself is untouched (still used by FilterBar's date-range filter, where
+// falling back to added-date is the right call — a range filter needs some
+// date to test, unlike a sort where interleaving reads as wrong data).
+function compareDateMissingLast(x, y, ascending) {
+  if (x == null && y == null) return 0;
+  if (x == null) return 1;
+  if (y == null) return -1;
+  if (x === y) return 0;
+  const xFirst = ascending ? x < y : x > y;
+  return xFirst ? -1 : 1;
+}
+
 export function sortItems(items, sortBy) {
   const arr = [...items];
   switch (sortBy) {
     case 'manual':
       return arr.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     case 'date-asc':
-      return sortByKey(arr, captureDate, (x, y) => (x < y ? -1 : x > y ? 1 : 0));
-    case 'date-desc':
-      return sortByKey(arr, captureDate, (x, y) => (x < y ? 1 : x > y ? -1 : 0));
-    case 'added-asc':
-      return sortByKey(arr, addedDate, (x, y) => (x < y ? -1 : x > y ? 1 : 0));
-    case 'added-desc':
-      return sortByKey(arr, addedDate, (x, y) => (x < y ? 1 : x > y ? -1 : 0));
+    case 'date-desc': {
+      const ascending = sortBy === 'date-asc';
+      // Two stable passes: sort by added-date (oldest-added first, fixed
+      // regardless of asc/desc) so undated items — all tied at the "missing"
+      // end — land in a sensible relative order instead of arbitrary array
+      // order, then sort by captured-date. Array.prototype.sort's stability
+      // means the added-date order survives as the tiebreaker within that group.
+      const byAdded = sortByKey(arr, addedDate, (x, y) => (x < y ? -1 : x > y ? 1 : 0));
+      return sortByKey(
+        byAdded,
+        (i) => i.date_taken || null,
+        (x, y) => compareDateMissingLast(x, y, ascending),
+      );
+    }
     case 'name-asc':
       return sortByKey(
         arr,
@@ -61,11 +85,12 @@ export function sortItems(items, sortBy) {
   }
 }
 
+// "Date" sorts by captured date, with undated items pushed to the end and
+// tie-broken by added date (see sortItems) — no separate "Added" sort is
+// needed on top of that anymore.
 export const SORT_OPTIONS = [
   { value: 'date-desc', labelKey: 'sort.dateNewest' },
   { value: 'date-asc', labelKey: 'sort.dateOldest' },
-  { value: 'added-desc', labelKey: 'sort.addedNewest' },
-  { value: 'added-asc', labelKey: 'sort.addedOldest' },
   { value: 'name-asc', labelKey: 'sort.nameAz' },
   { value: 'name-desc', labelKey: 'sort.nameZa' },
   { value: 'size-desc', labelKey: 'sort.sizeDesc' },

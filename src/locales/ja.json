@@ -700,8 +700,6 @@
   "sort": {
     "dateNewest": "撮影日（新しい順）",
     "dateOldest": "撮影日（古い順）",
-    "addedNewest": "Vivid に追加（新しい順）",
-    "addedOldest": "Vivid に追加（古い順）",
     "nameAz": "名前 A→Z",
     "nameZa": "名前 Z→A",
     "sizeDesc": "サイズ大きい順",

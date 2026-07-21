@@ -692,8 +692,6 @@
   "sort": {
     "dateNewest": "拍摄日期（最新在前）",
     "dateOldest": "拍摄日期（最早在前）",
-    "addedNewest": "添加到 Vivid 的时间（最新在前）",
-    "addedOldest": "添加到 Vivid 的时间（最早在前）",
     "nameAz": "名称 A→Z",
     "nameZa": "名称 Z→A",
     "sizeDesc": "文件从大到小",

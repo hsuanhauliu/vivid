@@ -692,8 +692,6 @@
   "sort": {
     "dateNewest": "Ngày chụp (mới nhất)",
     "dateOldest": "Ngày chụp (cũ nhất)",
-    "addedNewest": "Ngày thêm vào Vivid (mới nhất)",
-    "addedOldest": "Ngày thêm vào Vivid (cũ nhất)",
     "nameAz": "Tên A→Z",
     "nameZa": "Tên Z→A",
     "sizeDesc": "Lớn nhất trước",

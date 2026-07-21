@@ -31,23 +31,24 @@ describe('sortItems', () => {
     expect(items).toEqual(copy);
   });
 
-  it('sorts by capture date newest first', () => {
+  it('sorts by capture date newest first, undated items last', () => {
+    // 'b' has no date_taken — lands last in both directions, not wherever
+    // its created_at (2019, chronologically "oldest") would otherwise place it.
     expect(ids(sortItems(items, 'date-desc'))).toEqual(['c', 'a', 'b']);
   });
 
-  it('sorts by capture date oldest first', () => {
-    expect(ids(sortItems(items, 'date-asc'))).toEqual(['b', 'a', 'c']);
+  it('sorts by capture date oldest first, undated items still last', () => {
+    expect(ids(sortItems(items, 'date-asc'))).toEqual(['a', 'c', 'b']);
   });
 
-  it('sorts by time added to Vivid, independent of capture date', () => {
-    // 'a' was imported most recently despite having the oldest capture date.
-    const added = [
-      { id: 'a', date_taken: '2021-06-01', created_at: '2024-01-01' },
-      { id: 'b', date_taken: '2019-01-01', created_at: '2022-01-01' },
-      { id: 'c', date_taken: '2023-12-31', created_at: '2023-01-01' },
+  it('breaks ties among undated items by added date (ascending), regardless of overall direction', () => {
+    const mixed = [
+      { id: 'z', date_taken: '2022-01-01', created_at: '2022-01-01' },
+      { id: 'undated-newer', created_at: '2024-01-01' },
+      { id: 'undated-older', created_at: '2020-01-01' },
     ];
-    expect(ids(sortItems(added, 'added-desc'))).toEqual(['a', 'c', 'b']);
-    expect(ids(sortItems(added, 'added-asc'))).toEqual(['b', 'c', 'a']);
+    expect(ids(sortItems(mixed, 'date-desc'))).toEqual(['z', 'undated-older', 'undated-newer']);
+    expect(ids(sortItems(mixed, 'date-asc'))).toEqual(['z', 'undated-older', 'undated-newer']);
   });
 
   it('sorts names naturally (IMG_2 before IMG_10) and case-insensitively', () => {
@@ -75,7 +76,7 @@ describe('SORT_OPTIONS', () => {
     const values = SORT_OPTIONS.map((o) => o.value);
     expect(new Set(values).size).toBe(values.length);
     expect(values).toContain('date-desc');
-    expect(values).toContain('added-desc');
     expect(values).toContain('manual');
+    expect(values).not.toContain('added-desc');
   });
 });
