@@ -456,7 +456,8 @@
     "noResultsDesc": "Không có tệp nào khớp với tìm kiếm hoặc bộ lọc hiện tại",
     "clearFilters": "Xóa tìm kiếm & bộ lọc",
     "selectGroup": "Chọn tất cả trong nhóm này",
-    "deselectGroup": "Bỏ chọn tất cả trong nhóm này"
+    "deselectGroup": "Bỏ chọn tất cả trong nhóm này",
+    "noCaptureDate": "Không có ngày chụp — hiển thị ngày thêm vào"
   },
   "filterBar": {
     "filters": "Bộ lọc",
@@ -871,6 +872,7 @@
     "file": "Tệp",
     "format": "Định dạng",
     "colorLabel": "Nhãn",
+    "noColorLabel": "Không có nhãn",
     "size": "Dung lượng",
     "added": "Đã thêm vào Vivid",
     "path": "Đường dẫn",

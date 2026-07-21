@@ -467,7 +467,8 @@
     "noResultsDesc": "Ningún archivo coincide con tu búsqueda o filtros actuales",
     "clearFilters": "Borrar búsqueda y filtros",
     "selectGroup": "Seleccionar todo en este grupo",
-    "deselectGroup": "Deseleccionar todo en este grupo"
+    "deselectGroup": "Deseleccionar todo en este grupo",
+    "noCaptureDate": "Sin fecha de captura: se muestra la fecha de adición"
   },
   "filterBar": {
     "filters": "Filtros",
@@ -898,6 +899,7 @@
     "file": "Archivo",
     "format": "Formato",
     "colorLabel": "Etiqueta",
+    "noColorLabel": "Sin etiqueta",
     "size": "Tamaño",
     "added": "Añadido a Vivid",
     "path": "Ruta",

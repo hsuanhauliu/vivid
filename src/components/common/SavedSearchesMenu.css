@@ -102,17 +102,19 @@
   background: var(--accent);
 }
 
-/* Visibility is driven by JS-tracked hover state (see SavedSearchesMenu.jsx)
-   instead of the shared :hover-only rule these classes normally use — that
-   rule can leave a delete button stuck visible after deleting a row shifts
-   the list under a stationary cursor, since WebKit doesn't re-run :hover
-   hit-testing from layout changes alone. Higher specificity than the shared
-   rule so it wins regardless of CSS import order. */
-.saved-search-menu .search-history-item:hover .search-history-remove {
-  opacity: 0;
-}
-.saved-search-menu .search-history-remove.visible {
-  opacity: 1;
+/* Visibility is set via inline style in JS (React `hoveredId` state, see
+   SavedSearchesMenu.jsx) — inline style always wins the cascade over the
+   shared `.search-history-item:hover .search-history-remove` rule (App.css)
+   regardless of specificity, so there's no cascade fight here anymore.
+   What this does do: strip that shared class's `transition: opacity 0.15s`
+   for this component specifically. A transition riding on top of
+   React-driven toggling inside a custom-scrollbar `overflow: auto`
+   container (ScrollArea) is the leading suspect for the stuck-visible
+   symptom this replaced — an in-flight/unflushed transition inside such a
+   container is a known category of WebKit repaint bug. Removing it makes
+   the opacity flip instant and removes that whole class of risk. */
+.saved-search-menu .search-history-remove {
+  transition: none;
 }
 
 .saved-search-empty {

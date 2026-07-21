@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { thumbSrcOf } from '../../utils/path';
-import { Music, Video, Image, Star, Check } from 'lucide-react';
+import { Music, Video, Image, Star, Check, Clock } from 'lucide-react';
 import { COLOR_LABELS } from '../common/FilterBar';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { acquireExtractSlot, releaseExtractSlot } from '../../utils/videoExtractQueue';
@@ -471,6 +472,7 @@ function MediaCard({
   onCardDragStart,
   freshThumbSrc = null,
 }) {
+  const { t } = useTranslation();
   const hoverTimer = useRef(null);
   const clickTimer = useRef(null);
   const dblFired = useRef(false);
@@ -537,6 +539,11 @@ function MediaCard({
 
         <span className={`card-type-badge badge-${item.media_type}`}>
           <TypeIcon size={11} strokeWidth={2.5} />
+          {item.media_type !== 'audio' && !item.date_taken && (
+            <span className="card-no-capture-date" title={t('mediaGrid.noCaptureDate')}>
+              <Clock size={10} />
+            </span>
+          )}
         </span>
 
         {item.color_label &&

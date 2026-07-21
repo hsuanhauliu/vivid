@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'lucide-react';
+import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play, Clock } from 'lucide-react';
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { thumbSrcOf } from '../../utils/path';
@@ -49,6 +49,7 @@ const MasonryItem = memo(function MasonryItem({
   onCardDragStart,
   freshThumbSrc,
 }) {
+  const { t } = useTranslation();
   // Stable src — convertFileSrc output is deterministic for a given path.
   const src = useMemo(() => convertFileSrc(item.file_path ?? ''), [item.file_path]);
   // Images (GIFs included) render the cheap cached static thumbnail when
@@ -136,6 +137,11 @@ const MasonryItem = memo(function MasonryItem({
       >
         {checked && <Check size={11} strokeWidth={3} />}
       </button>
+      {item.media_type !== 'audio' && !item.date_taken && (
+        <span className="masonry-no-capture-date" title={t('mediaGrid.noCaptureDate')}>
+          <Clock size={10} />
+        </span>
+      )}
       {item.media_type === 'video' ? (
         <VideoThumb
           src={src}
@@ -239,6 +245,7 @@ const ListRow = memo(function ListRow({
   onCardDragStart,
   reorderHandle = null,
 }) {
+  const { t } = useTranslation();
   const dblFired = useRef(false);
   const clickTimer = useRef(null);
 
@@ -321,9 +328,16 @@ const ListRow = memo(function ListRow({
         {item.media_type === 'audio' ? (item.audio_album ?? '') : formatBytes(item.file_size)}
       </span>
       <span className="list-row-dur">
-        {item.media_type === 'audio'
-          ? formatDuration(item.audio_duration)
-          : formatDate(item.created_at)}
+        {item.media_type === 'audio' ? (
+          formatDuration(item.audio_duration)
+        ) : item.date_taken ? (
+          formatDate(item.date_taken)
+        ) : (
+          <span className="list-row-date-estimated" title={t('mediaGrid.noCaptureDate')}>
+            <Clock size={10} />
+            {formatDate(item.created_at)}
+          </span>
+        )}
       </span>
       <button
         className={`list-row-star ${item.starred ? 'starred' : ''}`}

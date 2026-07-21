@@ -13,11 +13,13 @@ import {
   FolderInput,
   RefreshCw,
   ExternalLink,
+  Palette,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { useTabCompletion } from '../../hooks/useTabCompletion';
+import useDismiss from '../../hooks/useDismiss';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
 import { COLOR_LABELS } from '../common/FilterBar';
@@ -167,6 +169,63 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
   );
 }
 
+// Header color-label swatch + popover picker — lives to the left of the star
+// button so setting a color is a one-click action from the detail pane
+// itself, not just a read-only row further down (or a right-click-only
+// context menu action).
+function ColorLabelButton({ item, onColorLabel, t }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismiss(ref, () => setOpen(false), { enabled: open, escape: false });
+
+  if (!onColorLabel) return null;
+  const current = COLOR_LABELS.find((c) => c.value === item.color_label);
+
+  function pick(value) {
+    onColorLabel(item.id, value);
+    setOpen(false);
+  }
+
+  return (
+    <div className="dp-color-wrap" ref={ref}>
+      <button
+        type="button"
+        className="icon-btn dp-color-btn"
+        onClick={() => setOpen((v) => !v)}
+        title={current ? t(current.labelKey) : t('detail.colorLabel')}
+      >
+        {current ? (
+          <span className="dp-color-dot" style={{ background: current.hex }} />
+        ) : (
+          <Palette size={15} />
+        )}
+      </button>
+      {open && (
+        <div className="dp-color-popover">
+          <button
+            type="button"
+            className={`dp-color-none ${!item.color_label ? 'active' : ''}`}
+            onClick={() => pick(null)}
+            title={t('detail.noColorLabel')}
+          >
+            <X size={10} />
+          </button>
+          {COLOR_LABELS.map(({ value, hex, labelKey }) => (
+            <button
+              key={value}
+              type="button"
+              className={`dp-color-swatch ${item.color_label === value ? 'active' : ''}`}
+              style={{ background: hex }}
+              title={t(labelKey)}
+              onClick={() => pick(value)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailPreview({ item, freshSrc }) {
   const src = useDisplayableSrc(item.file_path);
   const displaySrc = freshSrc || src;
@@ -186,6 +245,7 @@ export default function DetailPanel({
   onClose,
   onSave,
   onStarToggle,
+  onColorLabel,
   onRemoveAutoTag,
   onRetagImage,
   onNavigateToFolder,
@@ -340,6 +400,7 @@ export default function DetailPanel({
       <div className="detail-header">
         <span className="detail-title">{dirty ? t('detail.editing') : t('detail.title')}</span>
         <div style={{ display: 'flex', gap: 4 }}>
+          <ColorLabelButton item={item} onColorLabel={onColorLabel} t={t} />
           <button
             className={`icon-btn star-toggle-btn ${item.starred ? 'starred' : ''}`}
             onClick={() => onStarToggle(item.id)}
@@ -657,21 +718,6 @@ export default function DetailPanel({
         <div className="meta-section">
           <p className="meta-section-title">{t('detail.file')}</p>
           <MetaRow label={t('detail.format')} value={ext} />
-          {item.color_label &&
-            (() => {
-              const colorInfo = COLOR_LABELS.find((c) => c.value === item.color_label);
-              return colorInfo ? (
-                <MetaRow
-                  label={t('detail.colorLabel')}
-                  value={
-                    <span className="meta-color-label">
-                      <span className="meta-color-swatch" style={{ background: colorInfo.hex }} />
-                      {t(colorInfo.labelKey)}
-                    </span>
-                  }
-                />
-              ) : null;
-            })()}
           {item.media_type === 'video' && (
             <MetaRow
               label={t('exif.dimensions')}

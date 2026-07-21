@@ -464,7 +464,8 @@
     "noResultsDesc": "沒有符合目前搜尋或篩選條件的檔案",
     "clearFilters": "清除搜尋與篩選",
     "selectGroup": "全選此群組",
-    "deselectGroup": "取消全選此群組"
+    "deselectGroup": "取消全選此群組",
+    "noCaptureDate": "無拍攝日期 — 顯示加入日期"
   },
   "filterBar": {
     "filters": "篩選",
@@ -881,6 +882,7 @@
     "file": "檔案",
     "format": "格式",
     "colorLabel": "標籤",
+    "noColorLabel": "無標籤",
     "size": "大小",
     "added": "已加入 Vivid",
     "path": "路徑",

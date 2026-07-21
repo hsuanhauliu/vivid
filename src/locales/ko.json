@@ -456,7 +456,8 @@
     "noResultsDesc": "현재 검색 또는 필터와 일치하는 파일이 없습니다",
     "clearFilters": "검색 및 필터 지우기",
     "selectGroup": "이 그룹 모두 선택",
-    "deselectGroup": "이 그룹 선택 해제"
+    "deselectGroup": "이 그룹 선택 해제",
+    "noCaptureDate": "촬영 날짜 없음 — 추가된 날짜 표시"
   },
   "filterBar": {
     "filters": "필터",
@@ -867,6 +868,7 @@
     "file": "파일",
     "format": "형식",
     "colorLabel": "라벨",
+    "noColorLabel": "라벨 없음",
     "size": "크기",
     "added": "Vivid에 추가된 날짜",
     "path": "경로",

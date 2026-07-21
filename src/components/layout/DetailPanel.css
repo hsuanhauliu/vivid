@@ -340,16 +340,68 @@ select.input {
   align-items: flex-start;
 }
 
-.meta-color-label {
-  display: inline-flex;
+/* ── Header color-label picker ───────────────────────────────────────────── */
+.dp-color-wrap {
+  position: relative;
+}
+.dp-color-dot {
+  display: block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+.dp-color-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  display: flex;
   align-items: center;
   gap: 5px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 20;
 }
-.meta-color-swatch {
-  width: 9px;
-  height: 9px;
+.dp-color-swatch {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  flex-shrink: 0;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 0.1s,
+    border-color 0.1s;
+}
+.dp-color-swatch:hover {
+  transform: scale(1.2);
+}
+.dp-color-swatch.active {
+  border-color: #fff;
+}
+.dp-color-none {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.dp-color-none:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+.dp-color-none.active {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .meta-gps-link {

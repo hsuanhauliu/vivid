@@ -115,6 +115,23 @@
 .masonry-check-btn.always-show {
   opacity: 1;
 }
+/* Same "no capture date" signal as Cards/List (mediaGrid.noCaptureDate) —
+   masonry has no type badge to fold it into, so it's a standalone pill in
+   the one free corner (top-left is the check button, bottom-right/left are
+   otherwise empty here unlike Cards view). */
+.masonry-no-capture-date {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
 .masonry-img {
   width: 100%;
   height: 100%;

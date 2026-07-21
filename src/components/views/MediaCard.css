@@ -67,6 +67,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+}
+
+/* Mirrors the list view's clock-icon treatment for items with no EXIF
+   capture date (see mediaGrid.noCaptureDate) — same signal, just folded
+   into the existing type badge instead of a whole separate overlay, since
+   the card's corners are otherwise fully occupied (check/star/color-label). */
+.card-no-capture-date {
+  display: flex;
+  align-items: center;
+  opacity: 0.85;
 }
 
 .badge-image {

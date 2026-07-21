@@ -467,7 +467,8 @@
     "noResultsDesc": "Keine Dateien entsprechen Ihrer aktuellen Suche oder Filtern",
     "clearFilters": "Suche & Filter zurücksetzen",
     "selectGroup": "Alles in dieser Gruppe auswählen",
-    "deselectGroup": "Auswahl dieser Gruppe aufheben"
+    "deselectGroup": "Auswahl dieser Gruppe aufheben",
+    "noCaptureDate": "Kein Aufnahmedatum – zeigt Hinzugefügt-Datum"
   },
   "filterBar": {
     "filters": "Filter",
@@ -898,6 +899,7 @@
     "file": "Datei",
     "format": "Format",
     "colorLabel": "Markierung",
+    "noColorLabel": "Keine Markierung",
     "size": "Größe",
     "added": "Zu Vivid hinzugefügt",
     "path": "Pfad",

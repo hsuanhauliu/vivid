@@ -474,7 +474,8 @@
     "noResultsDesc": "No files match your current search or filters",
     "clearFilters": "Clear search & filters",
     "selectGroup": "Select all in this group",
-    "deselectGroup": "Deselect all in this group"
+    "deselectGroup": "Deselect all in this group",
+    "noCaptureDate": "No capture date — showing date added"
   },
   "filterBar": {
     "filters": "Filters",
@@ -905,6 +906,7 @@
     "file": "File",
     "format": "Format",
     "colorLabel": "Label",
+    "noColorLabel": "No label",
     "size": "Size",
     "added": "Added to Vivid",
     "path": "Path",

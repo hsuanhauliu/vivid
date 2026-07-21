@@ -188,6 +188,17 @@
   min-width: 40px;
 }
 
+/* Marks a date as "date added" standing in for a missing capture date —
+   matches the sort-by-date behavior (undated items sort last, tie-broken by
+   added date) so it's visually clear this isn't when the file was taken. */
+.list-row-date-estimated {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
 .list-row-star {
   width: 26px;
   height: 26px;

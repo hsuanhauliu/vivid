@@ -123,7 +123,16 @@ export default function SavedSearchesMenu({
                   </button>
                   <button
                     type="button"
-                    className={`search-history-remove ${hoveredId === s.id ? 'visible' : ''}`}
+                    className="search-history-remove"
+                    // Inline style, not a class + :hover/CSS cascade: this
+                    // component's rows share the `.search-history-*` class
+                    // names with an unrelated dropdown (App.jsx's recent-
+                    // search history) that carries its own global :hover
+                    // rule, and fighting that with specificity tricks kept
+                    // producing edge cases. Inline style always wins the
+                    // cascade outright, so visibility is 100% determined by
+                    // React state with zero ambiguity.
+                    style={{ opacity: hoveredId === s.id ? 1 : 0 }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setHoveredId((id) => (id === s.id ? null : id));

@@ -464,7 +464,8 @@
     "noResultsDesc": "現在の検索またはフィルターに一致するファイルがありません",
     "clearFilters": "検索とフィルターをクリア",
     "selectGroup": "このグループをすべて選択",
-    "deselectGroup": "このグループの選択を解除"
+    "deselectGroup": "このグループの選択を解除",
+    "noCaptureDate": "撮影日なし — 追加日を表示"
   },
   "filterBar": {
     "filters": "フィルター",
@@ -881,6 +882,7 @@
     "file": "ファイル",
     "format": "フォーマット",
     "colorLabel": "ラベル",
+    "noColorLabel": "ラベルなし",
     "size": "サイズ",
     "added": "Vividに追加",
     "path": "パス",

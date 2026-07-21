@@ -87,6 +87,7 @@ import usePersistentState, {
   jsonParse,
 } from './hooks/usePersistentState';
 import { sortItems } from './utils/sort';
+import { matchesSearch } from './utils/search';
 import { switchWorkspaceAndApply } from './utils/workspace';
 import { folderIdOf } from './utils/folders';
 import SortDropdown from './components/common/SortDropdown';
@@ -1639,19 +1640,7 @@ export default function App() {
       // Text search (debounced) — skipped in semantic mode, where the same
       // search box is the AI query rather than a literal substring match.
       // Each field only participates when its toggle in searchScope is on.
-      if (
-        !isSemantic &&
-        q &&
-        !(
-          (searchScope.name &&
-            (i.display_name.toLowerCase().includes(q) || i.file_name.toLowerCase().includes(q))) ||
-          (searchScope.description && i.description?.toLowerCase().includes(q)) ||
-          (searchScope.ocr && i.ocr_text?.toLowerCase().includes(q)) ||
-          (searchScope.tags &&
-            (i.tags?.some((t) => t.includes(q)) || i.auto_tags?.some((t) => t.includes(q))))
-        )
-      )
-        return false;
+      if (!isSemantic && !matchesSearch(i, q, searchScope)) return false;
 
       return true;
     });
@@ -1682,16 +1671,30 @@ export default function App() {
   ]);
 
   // World Map's own item pool: shares the top-bar FilterBar/`filters` state
-  // with the library view, but skips the library-only scoping (sidebar
-  // type/folder/collection/tag, search, AI ranking modes) — the map always
-  // shows every geotagged item that passes the filter bar, regardless of
-  // which folder/collection/search the library happens to be on. Restricted
-  // to mapScopeItems instead of the whole library when set (e.g. "View on
-  // Map" from an album) — filters still apply on top of that scope.
-  const mapVisible = useMemo(
-    () => applyAllFilters(mapScopeItems ?? allItems, filters),
-    [mapScopeItems, allItems, filters],
-  );
+  // and the search box with the library view, but skips the rest of the
+  // library-only scoping (sidebar type/folder/collection/tag, AI ranking
+  // modes) — the map always shows every geotagged item that passes the
+  // filter bar and search box, regardless of which folder/collection the
+  // library happens to be on. Restricted to mapScopeItems instead of the
+  // whole library when set (e.g. "View on Map" from an album) — filters
+  // still apply on top of that scope. Search is skipped in semantic mode,
+  // same reasoning as `visible` above (the box holds an AI query then, not a
+  // literal substring).
+  const mapVisible = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const isSemantic = semanticMode && semanticResults !== null;
+    const pool = mapScopeItems ?? allItems;
+    const searched = isSemantic ? pool : pool.filter((i) => matchesSearch(i, q, searchScope));
+    return applyAllFilters(searched, filters);
+  }, [
+    mapScopeItems,
+    allItems,
+    filters,
+    debouncedSearch,
+    searchScope,
+    semanticMode,
+    semanticResults,
+  ]);
 
   // Opening an image from inside an album gets a filmstrip of the album's
   // other images (image-only, matching the album's own scope) instead of the
@@ -2255,6 +2258,7 @@ export default function App() {
                       onSave={handleSave}
                       onStarToggle={handleStarToggle}
                       onSetCollection={handleSetCollection}
+                      onColorLabel={handleColorLabel}
                       onRemoveAutoTag={handleRemoveAutoTag}
                       onRetagImage={handleRetagImage}
                       onNavigateToFolder={(id) => {
@@ -2611,6 +2615,7 @@ export default function App() {
                   onSave={handleSave}
                   onStarToggle={handleStarToggle}
                   onSetCollection={handleSetCollection}
+                  onColorLabel={handleColorLabel}
                   onRemoveAutoTag={handleRemoveAutoTag}
                   onRetagImage={handleRetagImage}
                   onNavigateToFolder={handleFolderClick}
