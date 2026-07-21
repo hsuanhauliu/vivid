@@ -307,6 +307,7 @@ pub fn run() {
             commands::download_url,
             commands::export_file,
             commands::reveal_in_finder,
+            commands::set_desktop_wallpaper,
             commands::copy_file_to_clipboard,
             commands::copy_frame_to_clipboard,
             commands::trim_video,

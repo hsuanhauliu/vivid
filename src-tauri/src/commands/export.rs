@@ -58,6 +58,26 @@ pub fn export_file(src_path: String, dest_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Set an image as the desktop wallpaper (macOS, via System Events).
+#[tauri::command]
+pub fn set_desktop_wallpaper(file_path: String) -> Result<(), String> {
+    if !Path::new(&file_path).exists() {
+        return Err(format!("File not found: {file_path}"));
+    }
+    let escaped = file_path.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        r#"tell application "System Events" to set picture of every desktop to "{escaped}""#
+    );
+    let out = std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
 /// Export with optional format conversion (image crate infers format from extension).
 #[tauri::command]
 pub fn export_as(src_path: String, dest_path: String, is_image: bool) -> Result<(), String> {

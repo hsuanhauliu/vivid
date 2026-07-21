@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   Check,
   Search,
+  Monitor,
 } from 'lucide-react';
 import { COLOR_LABELS } from './FilterBar';
 import CollectionAvatar from './CollectionAvatar';
@@ -490,6 +491,21 @@ export default function ContextMenu({
       >
         <FolderOpen size={14} /> {t('contextMenu.showInFinder')}
       </button>
+      {isImage && (
+        <button
+          className="context-item"
+          onClick={async () => {
+            try {
+              await invoke('set_desktop_wallpaper', { filePath: item.file_path });
+            } catch (e) {
+              onError?.(`Set wallpaper failed: ${e}`);
+            }
+            onClose();
+          }}
+        >
+          <Monitor size={14} /> {t('contextMenu.setAsWallpaper')}
+        </button>
+      )}
       {onRenameFile && (
         <button
           className="context-item"
