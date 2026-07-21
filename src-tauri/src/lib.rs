@@ -379,6 +379,9 @@ pub fn run() {
             // Vision OCR
             commands::run_ocr_all,
             commands::get_ocr_status,
+            // Text completion
+            commands::text_completion_available,
+            commands::get_text_completions,
             // Thumbnails
             commands::generate_thumbnails_all,
             commands::regenerate_single_thumbnail,

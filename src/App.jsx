@@ -79,6 +79,7 @@ import CollectionDragGhost from './components/common/CollectionDragGhost';
 import ToastStack from './components/common/ToastStack';
 import useMultilingual from './hooks/useMultilingual';
 import useTheme from './hooks/useTheme';
+import { useTabCompletion } from './hooks/useTabCompletion';
 import useToasts from './hooks/useToasts';
 import usePersistentState, {
   boolDefaultTrue,
@@ -392,6 +393,7 @@ export default function App() {
   ); // null | 'folders' | 'albums' | 'playlists' | 'tags' | 'stats'
 
   const searchInputRef = useRef(null);
+  useTabCompletion(searchInputRef);
 
   // Search history
   const [searchHistoryEnabled, setSearchHistoryEnabled] = usePersistentState(

@@ -110,6 +110,9 @@ pub use workspace_cmds::*;
 mod watch;
 pub use watch::*;
 
+mod text_completion;
+pub use text_completion::*;
+
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 

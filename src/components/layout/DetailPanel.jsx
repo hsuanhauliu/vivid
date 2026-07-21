@@ -17,6 +17,7 @@ import {
 import { translateTag } from '../../utils/translateTag';
 import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { useTabCompletion } from '../../hooks/useTabCompletion';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
 import { COLOR_LABELS } from '../common/FilterBar';
@@ -202,6 +203,12 @@ export default function DetailPanel({
   const [dirty, setDirty] = useState(false);
   const [exifMeta, setExifMeta] = useState(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const nameInputRef = useRef(null);
+  const descInputRef = useRef(null);
+  const tagInputRef = useRef(null);
+  useTabCompletion(nameInputRef);
+  useTabCompletion(descInputRef);
+  useTabCompletion(tagInputRef);
   const [audioArtist, setAudioArtist] = useState('');
   const [audioAlbum, setAudioAlbum] = useState('');
   const [audioTitle, setAudioTitle] = useState('');
@@ -353,6 +360,7 @@ export default function DetailPanel({
         <div className="field">
           <label>{t('detail.name')}</label>
           <input
+            ref={nameInputRef}
             value={displayName}
             onChange={(e) => {
               setDisplayName(e.target.value);
@@ -372,6 +380,7 @@ export default function DetailPanel({
             </span>
           </label>
           <textarea
+            ref={descInputRef}
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
@@ -474,6 +483,7 @@ export default function DetailPanel({
           </div>
           <div className="tag-input-row">
             <input
+              ref={tagInputRef}
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
