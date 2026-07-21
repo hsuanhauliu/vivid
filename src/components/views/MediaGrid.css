@@ -89,6 +89,9 @@
   position: relative;
   background: var(--bg);
   flex-shrink: 1;
+  /* Skip render/layout work for off-screen tiles — height is already fixed
+     above so no contain-intrinsic-size hint is needed for it to hold space. */
+  content-visibility: auto;
 }
 .masonry-item:hover {
   opacity: 0.92;

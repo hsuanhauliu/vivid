@@ -206,17 +206,28 @@ fn make_thumb(
 /// Overwrites the existing thumbnail JPEG so the file's mtime changes,
 /// then updates the DB dimensions. Returns the (unchanged) thumb path.
 #[tauri::command]
-pub fn regenerate_single_thumbnail(
-    id: String,
-    file_path: String,
-    app: tauri::AppHandle,
-    state: State<DbState>,
-) -> Result<String, String> {
-    let dir = thumb_output_dir(&app)?;
-    let (thumb_str, w, h) = generate_thumbnail(Path::new(&file_path), &id, dir.as_deref())?;
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    db::set_thumb_dims(&conn, &id, &thumb_str, w, h).map_err(|e| e.to_string())?;
-    Ok(thumb_str)
+pub fn regenerate_single_thumbnail(id: String, file_path: String, app: tauri::AppHandle) {
+    // Fire-and-forget, same as `trigger_thumb`: the only caller (ImageEditorPage,
+    // after a save) doesn't await a return value, just listens for `thumb-item`.
+    // Decoding a full-res image on the Tauri command dispatch pool would block
+    // other sync commands queued behind it, so this does the work off-thread.
+    std::thread::spawn(move || {
+        let dir = match thumb_output_dir(&app) {
+            Ok(d) => d,
+            Err(e) => { tracing::error!(error = %e, "thumbs dir"); return; }
+        };
+        let (thumb_path, w, h) =
+            match generate_thumbnail(Path::new(&file_path), &id, dir.as_deref()) {
+                Ok(v) => v,
+                Err(e) => { tracing::warn!(id, error = %e, "thumbnail regeneration failed"); return; }
+            };
+        {
+            let db = app.state::<DbState>();
+            let conn = db.0.lock().unwrap();
+            let _ = db::set_thumb_dims(&conn, &id, &thumb_path, w, h);
+        }
+        let _ = app.emit("thumb-item", ThumbItem { id, thumb_path, width: w, height: h });
+    });
 }
 
 /// Background pass: generate a thumbnail for every image and video that lacks

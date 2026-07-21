@@ -759,15 +759,28 @@ export default function MediaGrid({
   const isManual = sortBy === 'manual' && reorderable;
 
   // ── Incremental rendering ────────────────────────────────────────────────
-  // Cap how many cards are mounted at once and grow the window as the user
-  // scrolls. Keeps the DOM small for large libraries without the risk of fully
-  // windowing the masonry/timeline layouts. Manual (drag-reorder) and timeline
-  // render in full — drag needs every node, timeline is already chunked by month.
+  // Mount only a sliding window [windowStart, limit) of cards and grow/shift
+  // it as the user scrolls, instead of accumulating every item ever scrolled
+  // past. Keeps the DOM bounded for very large libraries (tens of thousands
+  // of items) rather than growing forever across a long scroll session.
+  // Manual (drag-reorder) and timeline render in full — drag needs every
+  // node, timeline is already chunked by month.
   const CHUNK = 250;
+  const MAX_WINDOW = CHUNK * 4; // evict once the mounted range exceeds this
   const capEnabled = !timelineGrouping && !isManual;
   const [limit, setLimit] = useState(() => restoreScrollRef?.current?.limit || CHUNK);
+  // Seed consistently with the restored `limit` so a deep scroll position
+  // doesn't briefly re-mount every item up to it before the eviction effect
+  // below has a chance to catch up.
+  const [windowStart, setWindowStart] = useState(() => Math.max(0, limit - MAX_WINDOW));
   const gridScrollRef = useRef(null);
   const sentinelRef = useRef(null);
+  const topSentinelRef = useRef(null);
+  // Snapshot of scrollHeight taken right before a windowStart-shifting DOM
+  // change, so the compensating useLayoutEffect below can keep the viewport
+  // visually still (adding/removing content above it would otherwise cause
+  // a jump) regardless of masonry's variable item heights.
+  const pendingScrollAdjustRef = useRef(null);
   // scrollAreaRef lives on a stable object so TimelineScrubber doesn't remount on re-render.
   // Timeline mode scrolls this nested element instead of gridScrollRef itself.
   const scrollAreaRef = useRef(null);
@@ -783,9 +796,54 @@ export default function MediaGrid({
   const resetSig = `${items.length}:${items[0]?.id ?? ''}:${viewMode}:${timelineGrouping}`;
   const prevResetSig = useRef(resetSig);
   useEffect(() => {
-    if (prevResetSig.current !== resetSig) setLimit(CHUNK);
+    if (prevResetSig.current !== resetSig) {
+      setLimit(CHUNK);
+      setWindowStart(0);
+    }
     prevResetSig.current = resetSig;
   }, [resetSig]);
+
+  // Once the mounted window grows past MAX_WINDOW, evict a chunk from the
+  // trailing edge (opposite the edge that just grew) so the DOM stays bounded
+  // no matter how far the user keeps scrolling in one direction.
+  useEffect(() => {
+    if (limit - windowStart <= MAX_WINDOW) return;
+    const el = getScrollEl();
+    if (el) pendingScrollAdjustRef.current = el.scrollHeight;
+    setWindowStart((s) => Math.min(s + CHUNK, limit - CHUNK));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, windowStart]);
+
+  // Compensate scrollTop for whatever just changed the rendered range above
+  // the viewport (eviction from the front, or growth back into it below).
+  useLayoutEffect(() => {
+    const el = getScrollEl();
+    if (el && pendingScrollAdjustRef.current != null) {
+      el.scrollTop += el.scrollHeight - pendingScrollAdjustRef.current;
+      pendingScrollAdjustRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowStart]);
+
+  // Top sentinel: scrolling back up near the start of the mounted window
+  // brings earlier items back in, symmetric to the bottom sentinel below.
+  useEffect(() => {
+    if (!capEnabled || windowStart === 0) return undefined;
+    const root = gridScrollRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!root || !sentinel) return undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        const el = getScrollEl();
+        if (el) pendingScrollAdjustRef.current = el.scrollHeight;
+        setWindowStart((s) => Math.max(0, s - CHUNK));
+      },
+      { root, rootMargin: '800px 0px' },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [capEnabled, windowStart, getScrollEl]);
 
   // Restore scroll position once, after the restored chunk-window above has
   // had a chance to render (returning from the file viewer, for instance).
@@ -814,7 +872,7 @@ export default function MediaGrid({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [onScrollStateChange, limit, getScrollEl]);
 
-  const shownItems = capEnabled ? items.slice(0, limit) : items;
+  const shownItems = capEnabled ? items.slice(windowStart, limit) : items;
   const hasMore = capEnabled && items.length > limit;
 
   useEffect(() => {
@@ -1091,6 +1149,9 @@ export default function MediaGrid({
             </div>
           ) : (
             <>
+              {windowStart > 0 && (
+                <div ref={topSentinelRef} className="grid-load-sentinel" aria-hidden="true" />
+              )}
               {renderGroup(shownItems)}
               {hasMore && (
                 <div ref={sentinelRef} className="grid-load-sentinel" aria-hidden="true" />

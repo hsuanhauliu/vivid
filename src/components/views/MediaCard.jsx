@@ -4,6 +4,7 @@ import { thumbSrcOf } from '../../utils/path';
 import { Music, Video, Image, Star, Check } from 'lucide-react';
 import { COLOR_LABELS } from '../common/FilterBar';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { acquireExtractSlot, releaseExtractSlot } from '../../utils/videoExtractQueue';
 import './MediaCard.css';
 
 const TYPE_ICONS = { image: Image, video: Video, audio: Music };
@@ -24,9 +25,12 @@ export function VideoThumb({
   const [dataUrl, setDataUrl] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [canExtract, setCanExtract] = useState(false);
   const extractRef = useRef(null);
+  const rootRef = useRef(null);
   const hoverTimer = useRef(null);
   const doneRef = useRef(!!poster);
+  const hasSlotRef = useRef(false);
 
   // The shown still: prefer the cached poster, fall back to a client-extracted
   // frame for videos that don't have one yet.
@@ -66,6 +70,11 @@ export function VideoThumb({
         }
       } catch {
         /* drawing on detached video is benign */
+      } finally {
+        if (hasSlotRef.current) {
+          hasSlotRef.current = false;
+          releaseExtractSlot();
+        }
       }
     });
   }, []);
@@ -83,6 +92,56 @@ export function VideoThumb({
 
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
+  // Only pull an extraction slot (and thus start buffering the full source
+  // file) once this card is actually near the viewport — with no grid
+  // virtualization, every off-screen card would otherwise queue up too,
+  // just delaying the pile-up instead of preventing it. IntersectionObserver
+  // is cheap to keep running since it only flips a boolean once.
+  useEffect(() => {
+    if (poster || doneRef.current || !rootRef.current) return undefined;
+    const el = rootRef.current;
+    let cancelled = false;
+    let requested = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || requested) return;
+        requested = true;
+        acquireExtractSlot().then(() => {
+          if (cancelled) {
+            releaseExtractSlot();
+            return;
+          }
+          hasSlotRef.current = true;
+          setCanExtract(true);
+        });
+      },
+      { rootMargin: '200px' },
+    );
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      if (hasSlotRef.current) {
+        hasSlotRef.current = false;
+        releaseExtractSlot();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poster]);
+
+  // Safety net: if extraction never fires (corrupt/unreadable file), release
+  // the slot anyway so it doesn't stay stuck forever for other cards.
+  useEffect(() => {
+    if (!canExtract) return undefined;
+    const timer = setTimeout(() => {
+      if (hasSlotRef.current) {
+        hasSlotRef.current = false;
+        releaseExtractSlot();
+      }
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [canExtract]);
+
   // ── Hover-to-play (1.5 s delay) — disabled when disableHoverPlay ───────
   function onMouseEnter() {
     if (disableHoverPlay) return;
@@ -96,7 +155,12 @@ export function VideoThumb({
   }
 
   return (
-    <div className="media-thumb-root" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div
+      className="media-thumb-root"
+      ref={rootRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {/* Thumbnail — always rendered, fades out once video is ready */}
       {still ? (
         <img
@@ -175,8 +239,11 @@ export function VideoThumb({
 
       {/* Hidden extraction video — fallback only, for videos with no cached
           poster yet. Skipped entirely when a poster exists so the webview never
-          decodes videos just to render the grid. */}
-      {!poster && !doneRef.current && (
+          decodes videos just to render the grid. Gated on `canExtract`
+          (in-viewport + a free slot from the global concurrency queue) so
+          scrolling a library full of not-yet-thumbnailed videos doesn't
+          start buffering dozens of full source files at once. */}
+      {!poster && !doneRef.current && canExtract && (
         <video
           ref={extractRef}
           src={src}
