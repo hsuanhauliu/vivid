@@ -758,6 +758,8 @@
       "save": "保存",
       "delete": "削除",
       "empty": "保存された検索はまだありません。",
+      "filterPlaceholder": "ブックマークを検索…",
+      "noMatches": "一致するものがありません。",
       "deleteTitle": "保存された検索を削除",
       "deleteMsg": "保存された検索「{{name}}」を削除しますか？元に戻せません。",
       "deleteConfirm": "削除"
@@ -937,7 +939,7 @@
     "saveAs": "名前を付けて保存",
     "optional": "任意",
     "optionalNoExt": "任意、拡張子なし",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "プレイリストに追加",

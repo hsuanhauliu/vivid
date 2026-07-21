@@ -865,6 +865,8 @@
       "save": "सहेजें",
       "delete": "हटाएं",
       "empty": "अभी तक कोई सहेजी गई खोज नहीं है।",
+      "filterPlaceholder": "बुकमार्क खोजें…",
+      "noMatches": "कोई मेल नहीं मिला।",
       "deleteTitle": "सहेजी गई खोज हटाएं",
       "deleteMsg": "सहेजी गई खोज \"{{name}}\" हटाएं? इसे वापस नहीं लाया जा सकता।",
       "deleteConfirm": "हटाएं"
@@ -954,7 +956,7 @@
     "saveAs": "इस नाम से सहेजें",
     "optional": "वैकल्पिक",
     "optionalNoExt": "वैकल्पिक, बिना एक्सटेंशन के",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "प्लेलिस्ट में जोड़ें",

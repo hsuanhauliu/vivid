@@ -834,6 +834,8 @@
       "save": "저장",
       "delete": "삭제",
       "empty": "저장된 검색이 아직 없습니다.",
+      "filterPlaceholder": "북마크 검색…",
+      "noMatches": "일치하는 항목이 없습니다.",
       "deleteTitle": "저장된 검색 삭제",
       "deleteMsg": "저장된 검색 \"{{name}}\"을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.",
       "deleteConfirm": "삭제"
@@ -923,7 +925,7 @@
     "saveAs": "저장 이름",
     "optional": "선택 사항",
     "optionalNoExt": "선택 사항, 확장자 제외",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "재생목록에 추가",

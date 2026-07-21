@@ -758,6 +758,8 @@
       "save": "儲存",
       "delete": "刪除",
       "empty": "尚無已儲存的搜尋。",
+      "filterPlaceholder": "搜尋書籤…",
+      "noMatches": "沒有符合項目。",
       "deleteTitle": "刪除已儲存的搜尋",
       "deleteMsg": "刪除已儲存的搜尋「{{name}}」？此操作無法復原。",
       "deleteConfirm": "刪除"
@@ -937,7 +939,7 @@
     "saveAs": "另存為",
     "optional": "選填",
     "optionalNoExt": "選填，不含副檔名",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "加入播放清單",

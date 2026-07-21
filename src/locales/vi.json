@@ -838,6 +838,8 @@
       "save": "Lưu",
       "delete": "Xóa",
       "empty": "Chưa có tìm kiếm nào được lưu.",
+      "filterPlaceholder": "Tìm kiếm dấu trang…",
+      "noMatches": "Không có kết quả phù hợp.",
       "deleteTitle": "Xóa tìm kiếm đã lưu",
       "deleteMsg": "Xóa tìm kiếm đã lưu \"{{name}}\"? Không thể hoàn tác.",
       "deleteConfirm": "Xóa"
@@ -927,7 +929,7 @@
     "saveAs": "Lưu với tên",
     "optional": "tùy chọn",
     "optionalNoExt": "tùy chọn, không kèm đuôi tệp",
-    "photoPlaceholder": "anh-cua-toi.jpg",
+    "photoPlaceholder": "anh-cua-toi",
     "videoPlaceholder": "video-cua-toi",
     "songPlaceholder": "bai-hat-cua-toi",
     "addToCollection": "Thêm vào danh sách phát",

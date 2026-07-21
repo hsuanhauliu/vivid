@@ -865,6 +865,8 @@
       "save": "Speichern",
       "delete": "Löschen",
       "empty": "Noch keine gespeicherten Suchen.",
+      "filterPlaceholder": "Lesezeichen durchsuchen…",
+      "noMatches": "Keine Treffer.",
       "deleteTitle": "Gespeicherte Suche löschen",
       "deleteMsg": "Die gespeicherte Suche „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
       "deleteConfirm": "Löschen"
@@ -954,7 +956,7 @@
     "saveAs": "Speichern als",
     "optional": "optional",
     "optionalNoExt": "optional, ohne Dateiendung",
-    "photoPlaceholder": "mein-foto.jpg",
+    "photoPlaceholder": "mein-foto",
     "videoPlaceholder": "mein-video",
     "songPlaceholder": "mein-song",
     "addToCollection": "Zu Wiedergabeliste hinzufügen",

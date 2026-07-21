@@ -865,6 +865,8 @@
       "save": "Enregistrer",
       "delete": "Supprimer",
       "empty": "Aucune recherche enregistrée pour l'instant.",
+      "filterPlaceholder": "Rechercher des favoris…",
+      "noMatches": "Aucun résultat.",
       "deleteTitle": "Supprimer la recherche enregistrée",
       "deleteMsg": "Supprimer la recherche enregistrée « {{name}} » ? Cette action est irréversible.",
       "deleteConfirm": "Supprimer"
@@ -954,7 +956,7 @@
     "saveAs": "Enregistrer sous",
     "optional": "facultatif",
     "optionalNoExt": "facultatif, sans extension",
-    "photoPlaceholder": "ma-photo.jpg",
+    "photoPlaceholder": "ma-photo",
     "videoPlaceholder": "ma-video",
     "songPlaceholder": "ma-chanson",
     "addToCollection": "Ajouter à une liste de lecture",

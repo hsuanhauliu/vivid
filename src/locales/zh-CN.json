@@ -834,6 +834,8 @@
       "save": "保存",
       "delete": "删除",
       "empty": "暂无已保存的搜索。",
+      "filterPlaceholder": "搜索书签…",
+      "noMatches": "没有匹配项。",
       "deleteTitle": "删除已保存的搜索",
       "deleteMsg": "删除已保存的搜索“{{name}}”？此操作无法撤销。",
       "deleteConfirm": "删除"
@@ -923,7 +925,7 @@
     "saveAs": "保存为",
     "optional": "可选",
     "optionalNoExt": "可选，无需扩展名",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "添加到播放列表",

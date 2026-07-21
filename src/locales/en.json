@@ -872,6 +872,8 @@
       "save": "Save",
       "delete": "Delete",
       "empty": "No saved searches yet.",
+      "filterPlaceholder": "Search bookmarks…",
+      "noMatches": "No matches.",
       "deleteTitle": "Delete Saved Search",
       "deleteMsg": "Delete the saved search \"{{name}}\"? This can't be undone.",
       "deleteConfirm": "Delete"
@@ -961,7 +963,7 @@
     "saveAs": "Save as",
     "optional": "optional",
     "optionalNoExt": "optional, no extension",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "Add to playlist",

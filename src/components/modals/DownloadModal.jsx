@@ -521,7 +521,8 @@ export default function DownloadModal({ onClose, collections = [], folders = [] 
         {tab === 'direct' && (
           <div className="field">
             <label>
-              {t('download.saveAs')} <span className="field-hint">({t('download.optional')})</span>
+              {t('download.saveAs')}{' '}
+              <span className="field-hint">({t('download.optionalNoExt')})</span>
             </label>
             <input
               className="input"

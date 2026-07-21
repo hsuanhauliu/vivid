@@ -91,34 +91,21 @@
   height: 28px;
   flex-shrink: 0;
 }
-.bell-badge {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  min-width: 11px;
-  height: 11px;
-  background: #ef4444;
-  color: #fff;
-  font-size: 7px;
-  font-weight: 700;
-  line-height: 11px;
-  text-align: center;
-  padding: 0 2px;
-  border-radius: 999px;
-  pointer-events: none;
-  box-sizing: border-box;
-}
 .toolbar-bell-btn.has-unread,
 .toolbar-bell-btn.active {
   color: var(--accent);
 }
 
-.sidebar-bell-wrap {
+/* Shared by the toolbar bell and the sidebar bell so the unread-count badge
+   sits in the exact same spot relative to the Bell glyph in both places —
+   tight-wrapped to the icon itself (not the toolbar button's larger 28x28
+   hit target) so both anchor to the same 15x15 reference box. */
+.bell-icon-wrap {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
 }
-.sidebar-bell-badge {
+.bell-badge {
   position: absolute;
   top: -3px;
   right: -5px;
@@ -132,8 +119,8 @@
   text-align: center;
   padding: 0 2px;
   border-radius: 999px;
-  box-sizing: border-box;
   pointer-events: none;
+  box-sizing: border-box;
 }
 
 /* ── Notification panel footer ───────────────────────────────────────────────── */

@@ -865,6 +865,8 @@
       "save": "Salvar",
       "delete": "Excluir",
       "empty": "Nenhuma pesquisa salva ainda.",
+      "filterPlaceholder": "Pesquisar marcadores…",
+      "noMatches": "Nenhum resultado.",
       "deleteTitle": "Excluir pesquisa salva",
       "deleteMsg": "Excluir a pesquisa salva \"{{name}}\"? Isso não pode ser desfeito.",
       "deleteConfirm": "Excluir"
@@ -954,7 +956,7 @@
     "saveAs": "Salvar como",
     "optional": "opcional",
     "optionalNoExt": "opcional, sem extensão",
-    "photoPlaceholder": "minha-foto.jpg",
+    "photoPlaceholder": "minha-foto",
     "videoPlaceholder": "meu-video",
     "songPlaceholder": "minha-musica",
     "addToCollection": "Adicionar à playlist",

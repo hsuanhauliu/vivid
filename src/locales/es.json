@@ -865,6 +865,8 @@
       "save": "Guardar",
       "delete": "Eliminar",
       "empty": "Aún no hay búsquedas guardadas.",
+      "filterPlaceholder": "Buscar marcadores…",
+      "noMatches": "Sin resultados.",
       "deleteTitle": "Eliminar búsqueda guardada",
       "deleteMsg": "¿Eliminar la búsqueda guardada \"{{name}}\"? Esto no se puede deshacer.",
       "deleteConfirm": "Eliminar"
@@ -954,7 +956,7 @@
     "saveAs": "Guardar como",
     "optional": "opcional",
     "optionalNoExt": "opcional, sin extensión",
-    "photoPlaceholder": "mi-foto.jpg",
+    "photoPlaceholder": "mi-foto",
     "videoPlaceholder": "mi-video",
     "songPlaceholder": "mi-cancion",
     "addToCollection": "Añadir a lista de reproducción",

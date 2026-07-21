@@ -460,11 +460,9 @@ export default function Sidebar({
           }}
           title={collapsed ? t('sidebar.messages') : undefined}
         >
-          <span className="sidebar-bell-wrap">
+          <span className="bell-icon-wrap">
             <Bell size={15} strokeWidth={1.8} />
-            {unreadNotifications > 0 && (
-              <span className="sidebar-bell-badge">{unreadNotifications}</span>
-            )}
+            {unreadNotifications > 0 && <span className="bell-badge">{unreadNotifications}</span>}
           </span>
           {!collapsed && <span className="sidebar-item-label">{t('sidebar.messages')}</span>}
         </button>

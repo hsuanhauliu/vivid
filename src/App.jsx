@@ -394,6 +394,7 @@ export default function App() {
 
   const searchInputRef = useRef(null);
   useTabCompletion(searchInputRef);
+  const bellBtnRef = useRef(null);
 
   // Search history
   const [searchHistoryEnabled, setSearchHistoryEnabled] = usePersistentState(
@@ -1740,7 +1741,7 @@ export default function App() {
         setShowCmdPalette((v) => !v);
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && isSelecting) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
         setCheckedIds(new Set(visible.map((i) => i.id)));
         return;
@@ -1969,6 +1970,7 @@ export default function App() {
             </button>
             {loading && !importProgress && <span className="loading-dot" />}
             <button
+              ref={bellBtnRef}
               className={`icon-btn toolbar-bell-btn ${showNotifications ? 'active' : ''} ${notifications.some((n) => !n.read) ? 'has-unread' : ''}`}
               onClick={() => {
                 setShowNotifications((v) => {
@@ -1979,10 +1981,12 @@ export default function App() {
               }}
               title={t('toolbar.systemMessages')}
             >
-              <Bell size={15} />
-              {notifications.some((n) => !n.read) && (
-                <span className="bell-badge">{unreadCount}</span>
-              )}
+              <span className="bell-icon-wrap">
+                <Bell size={15} />
+                {notifications.some((n) => !n.read) && (
+                  <span className="bell-badge">{unreadCount}</span>
+                )}
+              </span>
             </button>
             <ImportMenu
               onImport={handleImport}
@@ -2865,6 +2869,7 @@ export default function App() {
           onClose={() => setShowNotifications(false)}
           onClear={clearNotifications}
           onViewAll={() => handleViewChange('system-messages')}
+          triggerRef={bellBtnRef}
         />
       )}
 

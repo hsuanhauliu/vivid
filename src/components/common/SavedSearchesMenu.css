@@ -21,7 +21,40 @@
 }
 
 .saved-search-list {
-  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.saved-search-list-inner {
+  /* Right padding keeps the scrollbar clear of the delete button instead of
+     overlapping it. */
+  padding-right: 6px;
+}
+
+.saved-search-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+}
+.saved-search-filter-icon {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+.saved-search-filter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.saved-search-filter-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .saved-search-save-row {
@@ -67,6 +100,19 @@
   opacity: 0.4;
   cursor: default;
   background: var(--accent);
+}
+
+/* Visibility is driven by JS-tracked hover state (see SavedSearchesMenu.jsx)
+   instead of the shared :hover-only rule these classes normally use — that
+   rule can leave a delete button stuck visible after deleting a row shifts
+   the list under a stationary cursor, since WebKit doesn't re-run :hover
+   hit-testing from layout changes alone. Higher specificity than the shared
+   rule so it wins regardless of CSS import order. */
+.saved-search-menu .search-history-item:hover .search-history-remove {
+  opacity: 0;
+}
+.saved-search-menu .search-history-remove.visible {
+  opacity: 1;
 }
 
 .saved-search-empty {

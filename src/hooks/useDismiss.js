@@ -5,8 +5,17 @@ import { useEffect } from 'react';
  * the pattern that was hand-rolled in Select, SortDropdown, ImportMenu,
  * ContextMenu, NotificationsPanel, SelectionBar, and the download pickers.
  *
- * @param {React.RefObject} ref       - element that defines "inside"; clicks
- *                                       within it (or its descendants) are kept.
+ * @param {React.RefObject|React.RefObject[]} ref - element(s) that define
+ *                                       "inside"; clicks within any of them
+ *                                       (or their descendants) are kept. Pass
+ *                                       an array when the toggle button that
+ *                                       opens the menu lives outside the
+ *                                       menu's own DOM subtree — otherwise
+ *                                       its mousedown fires this hook's
+ *                                       outside-click dismiss a beat before
+ *                                       its own onClick re-opens the menu,
+ *                                       which looks like clicking the toggle
+ *                                       while open does nothing.
  * @param {Function}        onDismiss - called on an outside click or Escape.
  * @param {object}  [opts]
  * @param {boolean} [opts.enabled=true] - attach listeners only while truthy
@@ -21,8 +30,10 @@ export default function useDismiss(
 ) {
   useEffect(() => {
     if (!enabled) return undefined;
+    const refs = Array.isArray(ref) ? ref : [ref];
     const onDown = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onDismiss();
+      const inside = refs.some((r) => r?.current && r.current.contains(e.target));
+      if (!inside) onDismiss();
     };
     const onKey = (e) => {
       if (e.key === 'Escape') onDismiss();
@@ -33,5 +44,6 @@ export default function useDismiss(
       if (outside) document.removeEventListener('mousedown', onDown);
       if (escape) document.removeEventListener('keydown', onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, onDismiss, enabled, escape, outside]);
 }
