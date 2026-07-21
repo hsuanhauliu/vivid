@@ -2338,6 +2338,7 @@ export default function App() {
                   items={mapVisible}
                   onOpen={(item) => handleCardOpen(item, [item])}
                   onOpenCluster={(clItems) => handleCardOpen(clItems[0], clItems)}
+                  onViewDetails={handleCardDetails}
                   focusItemId={mapFocusId}
                   persistedViewState={mapViewState}
                   onViewStateChange={setMapViewState}

@@ -1061,6 +1061,7 @@
     "copyFrame": "Sao chép khung hình vào clipboard",
     "frameCopied": "Đã sao chép khung hình vào clipboard",
     "trimVideo": "Cắt video",
+    "fitToScreen": "Vừa với màn hình",
     "trimDragHint": "Kéo các tay cầm để cắt, nhấn phát để xem trước",
     "trimSaveNew": "Lưu bản mới",
     "trimReplace": "Thay thế",

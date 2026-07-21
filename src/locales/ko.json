@@ -1056,6 +1056,7 @@
     "copyFrame": "프레임을 클립보드에 복사",
     "frameCopied": "프레임이 클립보드에 복사되었습니다",
     "trimVideo": "동영상 자르기",
+    "fitToScreen": "화면에 맞추기",
     "trimDragHint": "핸들을 드래그해 자르고, 재생해서 미리 보세요",
     "trimSaveNew": "새 파일로 저장",
     "trimReplace": "원본 교체",

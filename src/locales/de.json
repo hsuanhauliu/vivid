@@ -1088,6 +1088,7 @@
     "copyFrame": "Einzelbild in die Zwischenablage kopieren",
     "frameCopied": "Einzelbild in die Zwischenablage kopiert",
     "trimVideo": "Video schneiden",
+    "fitToScreen": "An Bildschirm anpassen",
     "trimDragHint": "Ziehen Sie die Griffe zum Schneiden, spielen Sie zur Vorschau ab",
     "trimSaveNew": "Als neu speichern",
     "trimReplace": "Ersetzen",

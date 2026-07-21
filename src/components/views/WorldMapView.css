@@ -335,6 +335,7 @@
   border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .map-item-info {
   flex: 1;

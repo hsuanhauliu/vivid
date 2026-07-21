@@ -248,6 +248,7 @@ export default function WorldMapView({
   items,
   onOpen,
   onOpenCluster,
+  onViewDetails,
   showStyleToggle = true,
   showMapTools = true,
   simplePins = false,
@@ -993,7 +994,12 @@ export default function WorldMapView({
       {!pickable && selected && (
         <div className="map-item-card" onMouseDown={(e) => e.stopPropagation()}>
           {selected.media_type === 'image' && (
-            <img src={convertFileSrc(selected.file_path)} className="map-item-thumb" alt="" />
+            <img
+              src={convertFileSrc(selected.file_path)}
+              className="map-item-thumb"
+              alt=""
+              onClick={() => onViewDetails?.(selected)}
+            />
           )}
           <div className="map-item-info">
             <p className="map-item-name">{selected.display_name}</p>

@@ -24,6 +24,7 @@ import {
   StepForward,
   Clipboard,
   Scissors,
+  Expand,
   X,
   AlertTriangle,
   ChevronDown,
@@ -35,6 +36,9 @@ import useWindowFullscreen from '../../hooks/useWindowFullscreen';
 import './VideoPlayer.css';
 
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+// Below this native height, "fit to screen" (upscale to fill the wrap) is
+// offered — larger videos already fill the viewport at their own size.
+const LOW_RES_HEIGHT_THRESHOLD = 720;
 const RESOLUTIONS = [240, 360, 480, 720, 1080, 4096];
 // 4096 stands in for "original" (never upscaled, so any real source height
 // passes through it as a no-op cap) — the one entry that isn't an "Xp" label.
@@ -120,6 +124,9 @@ export default function VideoPlayer({
   const [panning, setPanning] = useState(false);
   const [reverse, setReverse] = useState(false);
   const [transformMenu, setTransformMenu] = useState(false);
+  const [videoDims, setVideoDims] = useState(null); // { width, height } from loadedmetadata
+  const [fitToScreen, setFitToScreen] = useState(false);
+  const isLowRes = videoDims != null && videoDims.height < LOW_RES_HEIGHT_THRESHOLD;
 
   // ── Trim ─────────────────────────────────────────────────────────────────────
   const [trimMode, setTrimMode] = useState(false);
@@ -862,7 +869,9 @@ export default function VideoPlayer({
     }
   }
   function onLoadedMetadata() {
-    setDuration(videoRef.current?.duration ?? 0);
+    const v = videoRef.current;
+    setDuration(v?.duration ?? 0);
+    if (v) setVideoDims({ width: v.videoWidth, height: v.videoHeight });
   }
   function onProgress() {
     const v = videoRef.current;
@@ -892,7 +901,7 @@ export default function VideoPlayer({
       <video
         ref={videoRef}
         src={videoSrc ?? undefined}
-        className="vp-video"
+        className={`vp-video${fitToScreen ? ' vp-video-fit' : ''}`}
         style={{
           transform: videoTransform,
           transition: panning ? 'none' : 'transform 0.18s ease',
@@ -1223,6 +1232,15 @@ export default function VideoPlayer({
                   <Scissors size={13} />
                   {t('viewer.trimVideo')}
                 </button>
+                {isLowRes && (
+                  <button
+                    className={`vp-transform-option${fitToScreen ? ' selected' : ''}`}
+                    onClick={() => setFitToScreen((v) => !v)}
+                  >
+                    <Expand size={13} />
+                    {t('viewer.fitToScreen')}
+                  </button>
+                )}
                 <div className="vp-transform-sep" />
                 <button
                   className={`vp-transform-option${reverse ? ' selected' : ''}`}

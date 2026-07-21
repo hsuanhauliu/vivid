@@ -1095,6 +1095,7 @@
     "copyFrame": "Copy frame to clipboard",
     "frameCopied": "Frame copied to clipboard",
     "trimVideo": "Trim video",
+    "fitToScreen": "Fit to screen",
     "trimDragHint": "Drag the handles to trim, play to preview",
     "trimSaveNew": "Save as new",
     "trimReplace": "Replace",

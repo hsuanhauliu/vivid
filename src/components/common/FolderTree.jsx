@@ -202,10 +202,11 @@ export default function FolderTree({
     if (onMoveFolder) onMoveFolder(movingFolder.id, newParentId);
   }
 
-  const nameCmp =
-    sortMode === 'za'
-      ? (a, b) => b.name.localeCompare(a.name)
-      : (a, b) => a.name.localeCompare(b.name);
+  const nameCmp = (a, b) => {
+    if (a.id === UNCATEGORIZED_ID) return -1;
+    if (b.id === UNCATEGORIZED_ID) return 1;
+    return sortMode === 'za' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+  };
 
   function renderNode(folder, depth) {
     const kids = (tree.get(folder.id) || [])
@@ -268,7 +269,13 @@ export default function FolderTree({
               />
             ) : (
               <>
-                <span className={`ft-name ${isMatch ? 'ft-name-match' : ''}`}>{folder.name}</span>
+                <span
+                  className={`ft-name ${isMatch ? 'ft-name-match' : ''} ${
+                    folder.id === UNCATEGORIZED_ID ? 'ft-name-uncategorized' : ''
+                  }`}
+                >
+                  {folder.name}
+                </span>
                 <span className="ft-count">{counts[folder.id] || 0}</span>
               </>
             )}

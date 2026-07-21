@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, FolderOpen, BookImage, Disc, Plus, Library, Search, Check, Pencil } from 'lucide-react';
 import CollectionAvatar from '../common/CollectionAvatar';
+import ScrollArea from '../common/ScrollArea';
 import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './ImportCollectionModal.css';
 
@@ -312,7 +313,7 @@ export default function ImportCollectionModal({
                 />
               </div>
             )}
-            <div className="igm-list">
+            <ScrollArea className="igm-list" innerClassName="igm-list-inner">
               {filteredFolders.map((f) => {
                 const active = !newFolderMode && !newFolderConfirmed && folderId === f.id;
                 const depth = (f.rel_path.match(/\//g) || []).length;
@@ -379,7 +380,7 @@ export default function ImportCollectionModal({
                   <span className="igm-row-name">{t('importModal.newFolder')}</span>
                 </button>
               )}
-            </div>
+            </ScrollArea>
           </div>
 
           {/* ── Right: collection picker (only when collections exist) ── */}
@@ -402,7 +403,7 @@ export default function ImportCollectionModal({
                   />
                 </div>
               )}
-              <div className="igm-list">
+              <ScrollArea className="igm-list" innerClassName="igm-list-inner">
                 <button
                   className={`igm-row ${collectionId === 'none' ? 'igm-row-active' : ''}`}
                   onClick={() => setCollectionId('none')}
@@ -444,7 +445,7 @@ export default function ImportCollectionModal({
                 {collSections.length === 0 && collSearch && (
                   <div className="igm-empty">{t('importModal.noCollectionsMatch')}</div>
                 )}
-              </div>
+              </ScrollArea>
             </div>
           )}
         </div>

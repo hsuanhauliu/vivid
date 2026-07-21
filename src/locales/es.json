@@ -1088,6 +1088,7 @@
     "copyFrame": "Copiar fotograma al portapapeles",
     "frameCopied": "Fotograma copiado al portapapeles",
     "trimVideo": "Recortar video",
+    "fitToScreen": "Ajustar a la pantalla",
     "trimDragHint": "Arrastra los controles para recortar, reproduce para previsualizar",
     "trimSaveNew": "Guardar como nuevo",
     "trimReplace": "Reemplazar",

@@ -308,6 +308,10 @@
   color: var(--accent);
   font-weight: 600;
 }
+.ft-name-uncategorized {
+  font-style: italic;
+  color: var(--text-dim);
+}
 .ft-drag-over {
   background: var(--accent-dim) !important;
   outline: 1px solid var(--accent);

@@ -304,7 +304,7 @@ pub async fn start_playlist_bg(
 
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result: Result<usize, String> = async {
+        let result: Result<(usize, Option<String>), String> = async {
             let ytdlp = ytdlp_bin()?;
             let mdir  = media_dir(&app2)?;
 
@@ -364,14 +364,16 @@ pub async fn start_playlist_bg(
             };
 
             let mut count = 0usize;
+            let mut last_file_name: Option<String> = None;
             for (i, path) in new_files.iter().enumerate() {
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                 if extension_to_media_type(ext).is_none() { continue; }
 
+                let file_name = path.file_stem().and_then(|n| n.to_str()).map(String::from);
                 emit_dl(&app2, DlProgress {
                     job_id: job_id.clone(), label: label.clone(),
                     current: i, total,
-                    file_name: path.file_stem().and_then(|n| n.to_str()).map(String::from),
+                    file_name: file_name.clone(),
                     done: false, error: None, success_count: count,
                 });
 
@@ -379,17 +381,31 @@ pub async fn start_playlist_bg(
                     if let Some(ref g) = gid { item.collection_ids.push(g.clone()); }
                     item.folder_id = folder_id.clone();
                     if format2 == "audio" { apply_audio_meta(&mut item, path); }
-                    if insert_imported(&conn, &mut item, &app2).is_ok() { count += 1; }
+                    if insert_imported(&conn, &mut item, &app2).is_ok() {
+                        count += 1;
+                        last_file_name = file_name;
+                    }
                 }
             }
             drop(conn);
             tracing::info!(count, url = %url2, "Playlist bg download complete");
             if count > 0 { trigger_embed_if_ready(&app2); }
-            Ok(count)
+            Ok((count, last_file_name))
         }.await;
 
-        let (err, cnt) = match result { Ok(n) => (None, n), Err(e) => (Some(e), 0) };
-        emit_dl(&app2, DlProgress { job_id, label, current: cnt, total: cnt, file_name: None, done: true, error: err, success_count: cnt });
+        let (err, cnt, last_file_name) = match result {
+            Ok((n, name)) => (None, n, name),
+            Err(e) => (Some(e), 0, None),
+        };
+        // For a single-track result, prefer the actual track name over the
+        // playlist/collection label so the completion toast doesn't read
+        // "Downloaded <playlist name>" for a job that only fetched one file.
+        emit_dl(&app2, DlProgress {
+            job_id, label,
+            current: cnt, total: cnt,
+            file_name: if cnt == 1 { last_file_name } else { None },
+            done: true, error: err, success_count: cnt,
+        });
     });
 
     Ok(())

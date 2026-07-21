@@ -1070,6 +1070,7 @@
     "copyFrame": "複製畫面到剪貼簿",
     "frameCopied": "畫面已複製到剪貼簿",
     "trimVideo": "修剪影片",
+    "fitToScreen": "符合螢幕",
     "trimDragHint": "拖曳把手以修剪，播放即可預覽",
     "trimSaveNew": "另存新檔",
     "trimReplace": "取代",

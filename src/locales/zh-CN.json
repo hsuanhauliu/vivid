@@ -1056,6 +1056,7 @@
     "copyFrame": "复制当前帧到剪贴板",
     "frameCopied": "已将当前帧复制到剪贴板",
     "trimVideo": "剪辑视频",
+    "fitToScreen": "适应屏幕",
     "trimDragHint": "拖动手柄进行剪辑，播放即可预览",
     "trimSaveNew": "另存为新文件",
     "trimReplace": "替换原文件",

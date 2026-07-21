@@ -1070,6 +1070,7 @@
     "copyFrame": "フレームをクリップボードにコピー",
     "frameCopied": "フレームをクリップボードにコピーしました",
     "trimVideo": "動画をトリミング",
+    "fitToScreen": "画面に合わせる",
     "trimDragHint": "ハンドルをドラッグしてトリミング、再生でプレビュー",
     "trimSaveNew": "新規保存",
     "trimReplace": "置き換え",
