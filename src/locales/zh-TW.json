@@ -837,6 +837,9 @@
     "duplicateSavedSearch": "已存在名為「{{name}}」的已儲存搜尋",
     "duplicateFolder": "此處已存在名為「{{name}}」的資料夾",
     "addedToCollection": "已將 {{count}} 個項目加入「{{name}}」",
+    "movedToFolder": "已將 {{count}} 個項目移動到「{{name}}」",
+    "alreadyInFolder": "{{count}} 個項目已在「{{name}}」中",
+    "alreadyInCollection": "{{count}} 個項目已在「{{name}}」中",
     "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）",
     "noGeotaggedInAlbum": "此相簿中沒有含地理位置資訊的圖片可在地圖上顯示。",
     "renameFilesFailed": "{{count}} 個檔案重新命名失敗"

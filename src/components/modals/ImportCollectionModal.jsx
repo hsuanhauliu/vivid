@@ -197,16 +197,21 @@ export default function ImportCollectionModal({
   const hasAudio = useMemo(() => paths.some((p) => AUDIO_EXTS.has(pathExt(p))), [paths]);
   const hasVideo = useMemo(() => paths.some((p) => VIDEO_EXTS.has(pathExt(p))), [paths]);
   const hasImage = useMemo(() => paths.some((p) => IMAGE_EXTS.has(pathExt(p))), [paths]);
-  // Albums: images or video. Playlists: audio or video.
-  const showAlbums = hasImage || hasVideo;
-  const showPlaylists = hasAudio || hasVideo;
+  // Albums: images or video, but not mixed with audio (albums don't accept
+  // audio files). Playlists: audio or video, but not mixed with images
+  // (playlists don't accept images) — video alone is ambiguous so it's
+  // offered for both, matching DownloadModal's ytdlpCollectionKinds.
+  const showAlbums = (hasImage || hasVideo) && !hasAudio;
+  const showPlaylists = (hasAudio || hasVideo) && !hasImage;
 
   const pinned = useMemo(
     () =>
       collections.filter((g) => {
+        // album_group only holds other albums, never actual files — it's
+        // never a valid import destination regardless of pin state.
         if (g.kind === 'album') return showAlbums && g.sidebar_pin;
         if (g.kind === 'playlist') return showPlaylists && g.sidebar_pin;
-        return g.sidebar_pin;
+        return false;
       }),
     [collections, showAlbums, showPlaylists],
   );

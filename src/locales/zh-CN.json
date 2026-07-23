@@ -800,6 +800,9 @@
     "duplicateSavedSearch": "已存在名为“{{name}}”的已保存搜索",
     "duplicateFolder": "此处已存在名为“{{name}}”的文件夹",
     "addedToCollection": "已将 {{count}} 个项目添加到“{{name}}”",
+    "movedToFolder": "已将 {{count}} 个项目移动到“{{name}}”",
+    "alreadyInFolder": "{{count}} 个项目已在“{{name}}”中",
+    "alreadyInCollection": "{{count}} 个项目已在“{{name}}”中",
     "moveToCollectionFailed": "{{count}} 个文件无法移动（与合集类型不兼容）",
     "noGeotaggedInAlbum": "此相册中没有带地理位置信息的图片可在地图上显示。",
     "renameFilesFailed": "{{count}} 个文件重命名失败"

@@ -804,6 +804,9 @@
     "duplicateSavedSearch": "Đã tồn tại tìm kiếm đã lưu tên “{{name}}”",
     "duplicateFolder": "Đã tồn tại thư mục tên “{{name}}” ở đây",
     "addedToCollection": "Đã thêm {{count}} mục vào {{name}}",
+    "movedToFolder": "Đã chuyển {{count}} mục vào {{name}}",
+    "alreadyInFolder": "{{count}} mục đã có trong {{name}}",
+    "alreadyInCollection": "{{count}} mục đã có trong {{name}}",
     "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)",
     "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ.",
     "renameFilesFailed": "Không thể đổi tên {{count}} tệp"

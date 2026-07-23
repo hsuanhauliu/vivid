@@ -1130,9 +1130,14 @@ export default function VideoPlayer({
               <video
                 ref={previewRef}
                 className="vp-preview-video"
-                src={videoSrc ?? undefined}
+                // Only attached while actually scrubbing/hovering — keeping this
+                // src loaded at all times opens a second concurrent decode
+                // session on the same file, which HEVC .mov sources (unlike
+                // H.264 .mp4) have very limited hardware slots for, causing the
+                // main player to briefly flash black when it pauses.
+                src={hover ? (videoSrc ?? undefined) : undefined}
                 muted
-                preload="auto"
+                preload="none"
                 playsInline
               />
               {fineLevel > 0 && (

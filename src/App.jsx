@@ -764,6 +764,9 @@ export default function App() {
   const handleMassCollection = useCallback(
     async (collectionId) => {
       const ids = [...checkedIds];
+      const alreadyCount = ids.filter((id) =>
+        allItems.find((it) => it.id === id)?.collection_ids?.includes(collectionId),
+      ).length;
       // allSettled (not all): one incompatible item must not abort the whole
       // batch mid-flight or skip applying the state update for the others
       // that already succeeded in the DB.
@@ -777,33 +780,64 @@ export default function App() {
           const map = Object.fromEntries(updated.map((it) => [it.id, it]));
           return prev.map((it) => map[it.id] ?? it);
         });
+        const name = collections.find((g) => g.id === collectionId)?.name ?? collectionId;
+        const added = updated.length - alreadyCount;
+        if (added > 0) {
+          showToast('success', t('notif.addedToCollection', { count: added, name }));
+        } else {
+          showToast('info', t('notif.alreadyInCollection', { count: alreadyCount, name }));
+        }
       }
       if (failed.length > 0) {
         showToast('error', t('notif.moveToCollectionFailed', { count: failed.length }));
       }
     },
-    [checkedIds, showToast, t],
+    [checkedIds, allItems, collections, showToast, t],
   );
 
   const handleMassMoveFolder = useCallback(
     async (folderId) => {
       const ids = [...checkedIds];
+      const alreadyCount = ids.filter(
+        (id) => folderIdOf(allItems.find((it) => it.id === id) ?? {}) === folderId,
+      ).length;
       const moved = await invoke('move_to_folder', { itemIds: ids, folderId });
       setAllItems((prev) => {
         const map = Object.fromEntries(moved.map((it) => [it.id, it]));
         return prev.map((it) => map[it.id] ?? it);
       });
+      if (moved.length > 0) {
+        const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+        const movedCount = moved.length - alreadyCount;
+        if (movedCount > 0) {
+          showToast('success', t('notif.movedToFolder', { count: movedCount, name }));
+        } else {
+          showToast('info', t('notif.alreadyInFolder', { count: alreadyCount, name }));
+        }
+      }
     },
-    [checkedIds],
+    [checkedIds, allItems, folders, showToast, t],
   );
 
-  const handleMoveToFolder = useCallback(async (itemId, folderId) => {
-    const moved = await invoke('move_to_folder', { itemIds: [itemId], folderId });
-    setAllItems((prev) => {
-      const map = Object.fromEntries(moved.map((it) => [it.id, it]));
-      return prev.map((it) => map[it.id] ?? it);
-    });
-  }, []);
+  const handleMoveToFolder = useCallback(
+    async (itemId, folderId) => {
+      const alreadyThere = folderIdOf(allItems.find((it) => it.id === itemId) ?? {}) === folderId;
+      const moved = await invoke('move_to_folder', { itemIds: [itemId], folderId });
+      setAllItems((prev) => {
+        const map = Object.fromEntries(moved.map((it) => [it.id, it]));
+        return prev.map((it) => map[it.id] ?? it);
+      });
+      if (moved.length > 0) {
+        const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+        if (alreadyThere) {
+          showToast('info', t('notif.alreadyInFolder', { count: 1, name }));
+        } else {
+          showToast('success', t('notif.movedToFolder', { count: 1, name }));
+        }
+      }
+    },
+    [allItems, folders, showToast, t],
+  );
 
   const handleAddResultsToCollection = useCallback(async (collectionId, items) => {
     const updated = await Promise.all(
@@ -822,16 +856,27 @@ export default function App() {
       // Folder drop wins when both are hit: moving files on disk is the stronger
       // intent than adding to a metadata collection.
       if (folderId) {
+        const alreadyCount = items.filter((it) => folderIdOf(it) === folderId).length;
         const moved = await invoke('move_to_folder', { itemIds: ids, folderId });
         setAllItems((prev) => {
           const map = Object.fromEntries(moved.map((it) => [it.id, it]));
           return prev.map((it) => map[it.id] ?? it);
         });
+        if (moved.length > 0) {
+          const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+          const movedCount = moved.length - alreadyCount;
+          if (movedCount > 0) {
+            showToast('success', t('notif.movedToFolder', { count: movedCount, name }));
+          } else {
+            showToast('info', t('notif.alreadyInFolder', { count: alreadyCount, name }));
+          }
+        }
         return;
       }
       // Album groups only organize other albums — dropping media files onto
       // one isn't a valid target, unlike a regular album/playlist row.
       if (collectionId && collections.find((g) => g.id === collectionId)?.kind !== 'album_group') {
+        const alreadyCount = items.filter((it) => it.collection_ids?.includes(collectionId)).length;
         const updated = await Promise.all(
           ids.map((id) => invoke('add_to_collection', { id, collectionId })),
         );
@@ -839,11 +884,18 @@ export default function App() {
           const map = Object.fromEntries(updated.map((it) => [it.id, it]));
           return prev.map((it) => map[it.id] ?? it);
         });
+        if (updated.length > 0) {
+          const name = collections.find((g) => g.id === collectionId)?.name ?? collectionId;
+          const added = updated.length - alreadyCount;
+          if (added > 0) {
+            showToast('success', t('notif.addedToCollection', { count: added, name }));
+          } else {
+            showToast('info', t('notif.alreadyInCollection', { count: alreadyCount, name }));
+          }
+        }
       }
-      // No notification: the items visibly move. The messages page is for
-      // warnings/errors only, not routine success confirmations.
     },
-    [setAllItems, collections],
+    [setAllItems, collections, folders, showToast, t],
   );
 
   const { drag: collectionDrag, beginCollectionDrag } = useCollectionDrag(handleCollectionDrop);
@@ -1177,7 +1229,6 @@ export default function App() {
       setActiveCollection(null);
       setActiveFolder(null);
       setView('library');
-      setSecondaryPanel(null);
       setShowFilterBar(true);
       setFilters((prev) => ({ ...prev, tags: [tag] }));
       pushNav({
@@ -2012,7 +2063,6 @@ export default function App() {
               onCollectionClick={(id) => {
                 handleCollectionClick(id);
                 handleViewChange('library');
-                setSecondaryPanel(null);
               }}
               onTagClick={handleTagNavigate}
               activeCollectionId={activeCollection}
@@ -2030,7 +2080,6 @@ export default function App() {
               dragOverFolderId={collectionDrag?.overFolderId}
               onFolderClick={(id) => {
                 handleFolderClick(id);
-                setSecondaryPanel(null);
               }}
               onCreateFolder={handleCreateFolder}
               onRenameFolder={handleRenameFolder}

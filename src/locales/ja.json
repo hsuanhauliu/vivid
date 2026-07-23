@@ -837,6 +837,9 @@
     "duplicateSavedSearch": "「{{name}}」という名前の保存済み検索は既に存在します",
     "duplicateFolder": "ここには「{{name}}」という名前のフォルダが既に存在します",
     "addedToCollection": "{{count}} 件を「{{name}}」に追加しました",
+    "movedToFolder": "{{count}} 件を「{{name}}」に移動しました",
+    "alreadyInFolder": "{{count}} 件はすでに「{{name}}」にあります",
+    "alreadyInCollection": "{{count}} 件はすでに「{{name}}」にあります",
     "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）",
     "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。",
     "renameFilesFailed": "{{count}} 件のファイル名を変更できませんでした"
