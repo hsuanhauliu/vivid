@@ -119,6 +119,7 @@
     "emptyGroup": "此分组内暂无相册。",
     "moveToGroup": "移动到分组…",
     "removeFromGroup": "从分组中移除",
+    "newAlbumInside": "在此内新建相册…",
     "noOtherGroups": "没有其他分组"
   },
   "contextMenu": {

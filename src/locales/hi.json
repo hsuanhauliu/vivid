@@ -121,6 +121,7 @@
     "emptyGroup": "इस समूह में अभी तक कोई एल्बम नहीं है।",
     "moveToGroup": "समूह में ले जाएं…",
     "removeFromGroup": "समूह से हटाएं",
+    "newAlbumInside": "अंदर नया एल्बम…",
     "noOtherGroups": "कोई अन्य समूह नहीं"
   },
   "contextMenu": {

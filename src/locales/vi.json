@@ -119,6 +119,7 @@
     "emptyGroup": "Chưa có album nào trong nhóm này.",
     "moveToGroup": "Chuyển vào nhóm…",
     "removeFromGroup": "Xóa khỏi nhóm",
+    "newAlbumInside": "Album mới bên trong…",
     "noOtherGroups": "Không có nhóm nào khác"
   },
   "contextMenu": {

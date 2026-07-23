@@ -293,6 +293,40 @@
   min-width: 0;
   gap: 6px;
 }
+
+/* Tree connector lines for nested folders — same idea as the album group's
+   nesting indicator (SecondaryPanel's .sp-group-children/-row-child): one
+   continuous vertical guide per nesting level plus a short stub branching
+   off to each child row, instead of empty indent space. */
+.ft-node {
+  position: relative;
+}
+.ft-children {
+  position: relative;
+}
+.ft-children::before {
+  content: '';
+  position: absolute;
+  left: var(--ft-guide-x);
+  top: 0;
+  bottom: 13px;
+  width: 0;
+  border-left: 1px solid var(--border);
+  /* Above the row's own hover/active background — see the album group fix
+     for why z-index:auto here gets painted over during hover. */
+  z-index: 1;
+}
+.ft-stub {
+  position: absolute;
+  top: 13px;
+  /* Parent icon-center to child icon-center is a full 14px depth step;
+     stop 7px short (half the 14px icon) so the line ends at the child
+     icon's left edge instead of running through/over the icon itself. */
+  width: 7px;
+  height: 0;
+  border-top: 1px solid var(--border);
+  z-index: 1;
+}
 .ft-name {
   font-size: 12.5px;
   white-space: nowrap;
@@ -577,14 +611,61 @@
 }
 
 .sp-group-children {
+  position: relative;
   display: flex;
   flex-direction: column;
+}
+/* A tree-style connector line down the nesting indent, so the indent reads
+   as "these albums belong to the group above" instead of plain empty
+   padding. One continuous vertical line for the whole group... */
+.sp-group-children::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 20px;
+  width: 0;
+  border-left: 1px solid var(--border);
+  /* Above the row's own hover/active background, which otherwise paints
+     over this stretch of the line and made it flicker out on hover while
+     the per-row horizontal stub (part of the row itself) stayed visible. */
+  z-index: 1;
 }
 .sp-group-row-child {
   /* 12 (row padding) + 9 (row gap) + 12 (extra nesting indent), so a
      child's avatar sits visibly right of the group's avatar instead of
      lining up flush under it (which read as "sibling", not "nested"). */
+  position: relative;
   padding-left: 33px;
+}
+/* ...and a short horizontal stub per child, branching off it at the row's
+   vertical center to meet the child's avatar. */
+.sp-group-row-child::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 9px;
+  height: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Inline "create album inside this group" row, opened from the group's
+   context menu — same shape as a regular child row so it slots in among
+   the existing albums instead of looking like a separate control. */
+.sp-create-child-form {
+  cursor: default;
+}
+.sp-row-icon-new {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
 }
 
 /* Album vs Album Group toggle in the inline create form */

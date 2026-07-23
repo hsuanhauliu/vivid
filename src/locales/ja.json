@@ -120,6 +120,7 @@
     "emptyGroup": "このグループにはまだアルバムがありません。",
     "moveToGroup": "グループに移動…",
     "removeFromGroup": "グループから削除",
+    "newAlbumInside": "新しいアルバムを追加…",
     "noOtherGroups": "他のグループはありません"
   },
   "contextMenu": {

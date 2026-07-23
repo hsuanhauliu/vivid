@@ -217,8 +217,15 @@ export default function FolderTree({
       matchSet && query.trim() && folder.name.toLowerCase().includes(query.trim().toLowerCase());
     const isActive = folder.id === activeFolderId;
     const isDragOver = folder.id === dragOverFolderId;
+    // Tree connector line to the parent, mirroring the album group's nesting
+    // indicator. Anchored on the folder icon's center (row margin 6 + padding
+    // 6 + twisty 16 + gap 4 + half the 14px icon = 39, plus 14px per depth
+    // step) so the line visibly runs icon-to-icon instead of through empty
+    // indent space.
+    const guideX = 39 + depth * 14;
     return (
-      <div key={folder.id}>
+      <div key={folder.id} className="ft-node">
+        {depth > 0 && <div className="ft-stub" style={{ left: guideX - 14 }} />}
         <div
           role="button"
           tabIndex={0}
@@ -307,7 +314,11 @@ export default function FolderTree({
             />
           </form>
         )}
-        {isOpen && kids.map((k) => renderNode(k, depth + 1))}
+        {isOpen && kids.length > 0 && (
+          <div className="ft-children" style={{ '--ft-guide-x': `${guideX}px` }}>
+            {kids.map((k) => renderNode(k, depth + 1))}
+          </div>
+        )}
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { translateTag } from '../../utils/translateTag';
@@ -130,6 +130,34 @@ function CollectionList({
       return next;
     });
 
+  // Inline "create album inside this group" row, triggered from the group's
+  // context menu — id of the group currently showing the input, or null.
+  const [creatingChildOf, setCreatingChildOf] = useState(null);
+  const [childName, setChildName] = useState('');
+  const childInputRef = useRef(null);
+  const startCreatingChild = (groupId) => {
+    setCollapsedGroups((prev) => {
+      if (!prev.has(groupId)) return prev;
+      const next = new Set(prev);
+      next.delete(groupId);
+      return next;
+    });
+    setCreatingChildOf(groupId);
+    setChildName('');
+    setTimeout(() => childInputRef.current?.focus(), 30);
+  };
+  const cancelCreatingChild = () => {
+    setCreatingChildOf(null);
+    setChildName('');
+  };
+  const submitCreatingChild = async (groupId) => {
+    const n = childName.trim();
+    cancelCreatingChild();
+    if (!n) return;
+    const created = await onCreateCollection?.(n, 'album');
+    if (created) onSetParent?.(created.id, groupId);
+  };
+
   // Pointer-based drag state
   const [dragId, setDragId] = useState(null); // id being dragged
   const [insertIdx, setInsertIdx] = useState(null); // drop line position in sorted array
@@ -165,22 +193,35 @@ function CollectionList({
     return m;
   }, [items]);
 
+  // Shared by the top-level list and nested group children so both respect
+  // whatever sort mode is active instead of nested rows always reading
+  // alphabetical regardless of the sort toggle. Custom order only applies to
+  // the top-level list — there's no drag handle for reordering albums within
+  // a group, so `allowCustom: false` (used for children) always falls back
+  // to alphabetical instead of leaving them in whatever order they came in.
+  const sortList = useCallback(
+    (list, { allowCustom = true } = {}) => {
+      const out = [...list];
+      if (sortMode === 'za') out.sort((a, b) => b.name.localeCompare(a.name));
+      else if (sortMode === 'custom' && customOrder && allowCustom) {
+        const idx = new Map(customOrder.map((id, i) => [id, i]));
+        out.sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999));
+      } else out.sort((a, b) => a.name.localeCompare(b.name));
+      return out;
+    },
+    [sortMode, customOrder],
+  );
+
   const sorted = useMemo(() => {
     // Searching flattens the hierarchy (matches at any level, top-level or
     // nested in a group) rather than trying to keep the tree shape — a
     // search result you have to expand a group to see isn't really "found".
     const base = groupable && !search ? collections.filter((g) => !g.parent_id) : collections;
-    let list = [...base].filter(
+    const list = base.filter(
       (g) => !search || g.name.toLowerCase().includes(search.toLowerCase()),
     );
-    if (sortMode === 'az') list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sortMode === 'za') list.sort((a, b) => b.name.localeCompare(a.name));
-    else if (sortMode === 'custom' && customOrder) {
-      const idx = new Map(customOrder.map((id, i) => [id, i]));
-      list.sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999));
-    }
-    return list;
-  }, [collections, search, sortMode, customOrder, groupable]);
+    return sortList(list);
+  }, [collections, search, groupable, sortList]);
 
   // ── Pointer-based drag reorder ────────────────────────────────────────────────
 
@@ -435,9 +476,10 @@ function CollectionList({
         const isGroupKind = g.kind === 'album_group';
         const children =
           groupable && isGroupKind && !search
-            ? collections
-                .filter((c) => c.parent_id === g.id)
-                .sort((a, b) => a.name.localeCompare(b.name))
+            ? sortList(
+                collections.filter((c) => c.parent_id === g.id),
+                { allowCustom: false },
+              )
             : [];
         const collapsed = collapsedGroups.has(g.id);
         const count = isGroupKind ? children.length : counts[g.id] || 0;
@@ -541,7 +583,7 @@ function CollectionList({
             </div>
             {showLineAfter && <div className="sp-drop-line" />}
 
-            {isGroupKind && !collapsed && children.length > 0 && (
+            {isGroupKind && !collapsed && (children.length > 0 || creatingChildOf === g.id) && (
               <div className="sp-group-children">
                 {children.map((child) => {
                   const childCount = counts[child.id] || 0;
@@ -597,6 +639,31 @@ function CollectionList({
                     </div>
                   );
                 })}
+                {creatingChildOf === g.id && (
+                  <form
+                    className="sp-group-row sp-group-row-child sp-create-child-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      submitCreatingChild(g.id);
+                    }}
+                  >
+                    <div className="sp-row-icon-new">
+                      <Plus size={14} />
+                    </div>
+                    <input
+                      ref={childInputRef}
+                      className="sp-rename-input"
+                      placeholder={t('collection.newAlbumPlaceholder')}
+                      value={childName}
+                      maxLength={COLLECTION_NAME_MAX_LEN}
+                      onChange={(e) => setChildName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') cancelCreatingChild();
+                      }}
+                      onBlur={cancelCreatingChild}
+                    />
+                  </form>
+                )}
               </div>
             )}
           </div>
@@ -614,6 +681,9 @@ function CollectionList({
           onSetCover={onSetCover}
           onSidebarPin={onSidebarPin}
           onSetParent={groupable ? onSetParent : undefined}
+          onCreateChildAlbum={
+            groupable && onCreateCollection ? () => startCreatingChild(ctxMenu.group.id) : undefined
+          }
           onDelete={onDelete}
         />
       )}

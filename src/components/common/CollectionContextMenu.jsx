@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Image, Pin, Trash2, FolderInput, FolderMinus } from 'lucide-react';
+import { Pencil, Image, Pin, Trash2, FolderInput, FolderMinus, Plus } from 'lucide-react';
 import SimpleMenu from './SimpleMenu';
 import CollectionAvatar from './CollectionAvatar';
 
@@ -19,6 +19,8 @@ import CollectionAvatar from './CollectionAvatar';
  * @param {Function} [onSidebarPin] - (id, pinned) => void; omit to hide.
  * @param {Function} [onSetParent]  - (albumId, groupId|null) => void; omit to
  *                                    hide the move/remove-from-group actions.
+ * @param {Function} [onCreateChildAlbum] - () => void; only shown for an
+ *                                    album_group target, omit to hide.
  * @param {Function} [onDelete]     - (id, name) => void; omit to hide.
  */
 export default function CollectionContextMenu({
@@ -31,6 +33,7 @@ export default function CollectionContextMenu({
   onSetCover,
   onSidebarPin,
   onSetParent,
+  onCreateChildAlbum,
   onDelete,
 }) {
   const { t } = useTranslation();
@@ -42,6 +45,8 @@ export default function CollectionContextMenu({
     );
     return (
       <SimpleMenu x={x} y={y} onClose={onClose}>
+        <div className="sp-ctx-title">{t('collection.moveToGroup')}</div>
+        <div className="sp-ctx-sep" />
         {targets.length === 0 ? (
           <div className="sp-ctx-item sp-ctx-item-disabled">{t('collection.noOtherGroups')}</div>
         ) : (
@@ -87,6 +92,18 @@ export default function CollectionContextMenu({
         >
           <Image size={12} />
           <span>{t('panel.setCover')}</span>
+        </button>
+      )}
+      {onCreateChildAlbum && target.kind === 'album_group' && (
+        <button
+          className="sp-ctx-item"
+          onClick={() => {
+            onCreateChildAlbum();
+            onClose();
+          }}
+        >
+          <Plus size={12} />
+          <span>{t('collection.newAlbumInside')}</span>
         </button>
       )}
       {onSetParent && target.kind === 'album' && (

@@ -119,6 +119,7 @@
     "emptyGroup": "이 그룹에는 아직 앨범이 없습니다.",
     "moveToGroup": "그룹으로 이동…",
     "removeFromGroup": "그룹에서 제거",
+    "newAlbumInside": "안에 새 앨범 만들기…",
     "noOtherGroups": "다른 그룹이 없습니다"
   },
   "contextMenu": {

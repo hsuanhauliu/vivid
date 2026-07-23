@@ -120,6 +120,7 @@
     "emptyGroup": "此群組尚無相簿。",
     "moveToGroup": "移動到群組…",
     "removeFromGroup": "從群組移除",
+    "newAlbumInside": "在此內新增相簿…",
     "noOtherGroups": "沒有其他群組"
   },
   "contextMenu": {

@@ -121,6 +121,7 @@
     "emptyGroup": "Aucun album dans ce groupe pour l'instant.",
     "moveToGroup": "Déplacer vers le groupe…",
     "removeFromGroup": "Retirer du groupe",
+    "newAlbumInside": "Nouvel album à l'intérieur…",
     "noOtherGroups": "Aucun autre groupe"
   },
   "contextMenu": {

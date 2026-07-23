@@ -47,3 +47,11 @@
   background: var(--border);
   margin: 2px 4px;
 }
+.sp-ctx-title {
+  padding: 5px 9px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
