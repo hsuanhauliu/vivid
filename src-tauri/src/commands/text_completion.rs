@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use std::process::Command;
 use std::sync::OnceLock;
-use tauri::Manager;
 
 #[derive(Deserialize)]
 struct HelperComplete {
