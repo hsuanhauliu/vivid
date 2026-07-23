@@ -293,6 +293,40 @@
   min-width: 0;
   gap: 6px;
 }
+
+/* Tree connector lines for nested folders — same idea as the album group's
+   nesting indicator (SecondaryPanel's .sp-group-children/-row-child): one
+   continuous vertical guide per nesting level plus a short stub branching
+   off to each child row, instead of empty indent space. */
+.ft-node {
+  position: relative;
+}
+.ft-children {
+  position: relative;
+}
+.ft-children::before {
+  content: '';
+  position: absolute;
+  left: var(--ft-guide-x);
+  top: 0;
+  bottom: 13px;
+  width: 0;
+  border-left: 1px solid var(--border);
+  /* Above the row's own hover/active background — see the album group fix
+     for why z-index:auto here gets painted over during hover. */
+  z-index: 1;
+}
+.ft-stub {
+  position: absolute;
+  top: 13px;
+  /* Parent icon-center to child icon-center is a full 14px depth step;
+     stop 7px short (half the 14px icon) so the line ends at the child
+     icon's left edge instead of running through/over the icon itself. */
+  width: 7px;
+  height: 0;
+  border-top: 1px solid var(--border);
+  z-index: 1;
+}
 .ft-name {
   font-size: 12.5px;
   white-space: nowrap;
@@ -307,6 +341,10 @@
 .ft-name-match {
   color: var(--accent);
   font-weight: 600;
+}
+.ft-name-uncategorized {
+  font-style: italic;
+  color: var(--text-dim);
 }
 .ft-drag-over {
   background: var(--accent-dim) !important;
@@ -526,6 +564,133 @@
   margin-top: 1px;
 }
 
+/* Album-group indicator: every row (album or group) starts flush left, no
+   space reserved for anything twisty-shaped — the toggle lives as a badge
+   overlaid on the avatar's corner instead of sitting beside it in flow. */
+.sp-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+}
+
+/* Subtle by default (a small "this holds other albums" mark); hovering the
+   row swaps it for the collapse/expand chevron, so the interactive control
+   only shows up when it's actually clickable. */
+.sp-group-toggle {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 2;
+}
+.sp-group-badge-icon {
+  display: block;
+  color: var(--text-dim);
+}
+.sp-group-chevron-icon {
+  display: none;
+  color: var(--text-dim);
+  transition: transform 0.12s ease;
+}
+.sp-group-toggle.collapsed .sp-group-chevron-icon {
+  transform: rotate(-90deg);
+}
+.sp-group-row:hover .sp-group-badge-icon {
+  display: none;
+}
+.sp-group-row:hover .sp-group-chevron-icon {
+  display: block;
+}
+
+.sp-group-children {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* A tree-style connector line down the nesting indent, so the indent reads
+   as "these albums belong to the group above" instead of plain empty
+   padding. One continuous vertical line for the whole group... */
+.sp-group-children::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 20px;
+  width: 0;
+  border-left: 1px solid var(--border);
+  /* Above the row's own hover/active background, which otherwise paints
+     over this stretch of the line and made it flicker out on hover while
+     the per-row horizontal stub (part of the row itself) stayed visible. */
+  z-index: 1;
+}
+.sp-group-row-child {
+  /* 12 (row padding) + 9 (row gap) + 12 (extra nesting indent), so a
+     child's avatar sits visibly right of the group's avatar instead of
+     lining up flush under it (which read as "sibling", not "nested"). */
+  position: relative;
+  padding-left: 33px;
+}
+/* ...and a short horizontal stub per child, branching off it at the row's
+   vertical center to meet the child's avatar. */
+.sp-group-row-child::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 9px;
+  height: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Inline "create album inside this group" row, opened from the group's
+   context menu — same shape as a regular child row so it slots in among
+   the existing albums instead of looking like a separate control. */
+.sp-create-child-form {
+  cursor: default;
+}
+.sp-row-icon-new {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+/* Album vs Album Group toggle in the inline create form */
+.sp-create-type-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sp-create-type-toggle button {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sp-create-type-toggle button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
 /* Tag rows */
 /* Play button on sp group rows */
 .sp-play-btn {
@@ -595,6 +760,27 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.sp-header-workspace {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 110px;
+  padding: 2px 8px;
+  background: var(--surface-active);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.sp-header-workspace span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sp-info-hero {

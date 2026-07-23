@@ -10,10 +10,11 @@ export default function DownloadProgress({ onDone, onError }) {
       const p = e.payload;
       setJobs((prev) => ({ ...prev, [p.job_id]: p }));
       if (p.done) {
+        const label = p.file_name || p.label || 'download';
         if (p.error) {
-          onError?.(p.error, p.label);
+          onError?.(p.error, label);
         } else {
-          onDone?.(p.success_count, p.label);
+          onDone?.(p.success_count, label);
         }
         // Auto-dismiss after 4s
         setTimeout(() => {
@@ -55,6 +56,7 @@ export default function DownloadProgress({ onDone, onError }) {
 function DownloadBar({ job, onDismiss }) {
   const indeterminate = job.total === 0;
   const pct = indeterminate ? null : Math.round((job.current / job.total) * 100);
+  const label = job.label || 'download';
 
   if (job.done) {
     return (
@@ -69,7 +71,7 @@ function DownloadBar({ job, onDismiss }) {
             ? `Download failed: ${job.error}`
             : job.success_count > 1
               ? `Downloaded ${job.success_count} items`
-              : `Downloaded "${job.label}"`}
+              : `Downloaded "${job.file_name || label}"`}
         </span>
         <button className="icon-btn ai-progress-dismiss" onClick={onDismiss}>
           <X size={11} />
@@ -100,7 +102,7 @@ function DownloadBar({ job, onDismiss }) {
               )}
             </>
           ) : (
-            `Downloading ${job.label}…`
+            `Downloading ${label}…`
           )}
         </span>
       </div>

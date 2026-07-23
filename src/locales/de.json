@@ -24,7 +24,21 @@
     "toolsTitle": "Medien-Tools (optional)",
     "toolsDesc": "Ermöglicht den Download über Links. Falls bereits installiert, verwendet Vivid Ihre Version — andernfalls können Sie es hier herunterladen.",
     "toolsNote": "Optional — überspringen und bei Bedarf später in den Einstellungen herunterladen.",
-    "done": "Alles bereit"
+    "done": "Alles bereit",
+    "workspace": {
+      "title": "Wo soll deine Bibliothek liegen?",
+      "desc": "Du kannst dies später in den Einstellungen ändern.",
+      "defaultTitle": "Neu beginnen",
+      "defaultDesc": "Vivid verwaltet deine Bibliothek für dich.",
+      "externalTitle": "Vorhandenen Ordner verwenden",
+      "externalDesc": "Verweise Vivid auf einen bereits vorhandenen Ordner — es wird nichts kopiert, und der Ordner wird auf ein anderes Gerät übertragbar.",
+      "chooseTitle": "Wähle einen Ordner als deine Bibliothek",
+      "changeFolder": "Anderen Ordner wählen",
+      "pickFolderFirst": "Wähle zuerst einen Ordner.",
+      "adding": "Wird hinzugefügt…",
+      "restarting": "Wird neu gestartet…",
+      "nameLabel": "Name"
+    }
   },
   "tools": {
     "ytdlpDesc": "Video & Audio von Links herunterladen",
@@ -43,6 +57,7 @@
     "browse": "Stattdessen eine Datei wählen…"
   },
   "sidebar": {
+    "resizePinned": "Zum Anpassen ziehen",
     "allMedia": "Alle Medien",
     "starred": "Markiert",
     "favorites": "Favoriten",
@@ -96,7 +111,18 @@
   "collection": {
     "addDescription": "Beschreibung hinzufügen",
     "editDescription": "Beschreibung bearbeiten",
-    "descriptionPlaceholder": "Beschreibung hinzufügen… (⌘↵ zum Speichern, Esc zum Abbrechen)"
+    "descriptionPlaceholder": "Beschreibung hinzufügen… (⌘↵ zum Speichern, Esc zum Abbrechen)",
+    "albumGroup": "Album-Gruppe",
+    "albumCount_one": "{{count}} Album",
+    "albumCount_other": "{{count}} Alben",
+    "newAlbum": "Neues Album",
+    "newAlbumPlaceholder": "Albumname…",
+    "newGroupPlaceholder": "Gruppenname…",
+    "emptyGroup": "Noch keine Alben in dieser Gruppe.",
+    "moveToGroup": "Zu Gruppe hinzufügen…",
+    "removeFromGroup": "Aus Gruppe entfernen",
+    "newAlbumInside": "Neues Album darin…",
+    "noOtherGroups": "Keine weiteren Gruppen"
   },
   "contextMenu": {
     "viewDetails": "Details anzeigen",
@@ -111,12 +137,13 @@
     "open": "Öffnen",
     "sideBySide": "Nebeneinander anzeigen",
     "showInFinder": "Im Finder anzeigen",
+    "setAsWallpaper": "Als Desktop-Hintergrund festlegen",
     "copyFile": "Datei kopieren",
     "saveTo": "Speichern unter…",
     "exportAs": "Exportieren als…",
     "cleanCopy": "Kopie ohne Metadaten speichern",
     "setThumbnail": "Als Sammlungsvorschaubild festlegen",
-    "moveToCollection": "In Sammlung verschieben…",
+    "moveToCollection": "Zur Sammlung hinzufügen…",
     "moveToFolder": "In Ordner verschieben…",
     "moveToFolderTitle": "In Ordner verschieben",
     "playAsAudio": "Als Audio abspielen",
@@ -126,14 +153,15 @@
     "removeFromCollection": "Aus Sammlung entfernen",
     "colorLabelTitle": "Farbmarkierung",
     "exportAsTitle": "Exportieren als…",
-    "moveToCollTitle": "In Sammlung verschieben",
+    "moveToCollTitle": "Zur Sammlung hinzufügen",
     "format": "Format",
     "chooseDestination": "Ziel wählen…",
     "deleteCollectionTitle": "Sammlung löschen",
     "deleteCollectionMsg": "„{{name}}“ löschen? Medien in dieser Sammlung werden nicht mehr zugeordnet, aber nicht gelöscht.",
     "deleteCollectionConfirm": "Löschen",
     "deleteFolderTitle": "Ordner löschen",
-    "deleteFolderMsg": "„{{name}}“ löschen? Die enthaltenen Dateien werden nach „Nicht kategorisiert“ verschoben, nicht gelöscht."
+    "deleteFolderMsg": "„{{name}}“ löschen? Die enthaltenen Dateien werden nach „Nicht kategorisiert“ verschoben, nicht gelöscht.",
+    "renameFile": "Datei umbenennen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -159,7 +187,8 @@
       "semanticSearch": "Semantische Suche",
       "aiNaming": "KI-Benennung & Beschreibung",
       "about": "Vivid",
-      "pinnedCollections": "Angeheftete Sammlungen"
+      "pinnedCollections": "Angeheftete Sammlungen",
+      "workspace": "Arbeitsbereich"
     },
     "general": {
       "homePage": "Startseite",
@@ -300,12 +329,10 @@
     },
     "homePageOptions": {
       "all": "Alle Medien",
+      "starred": "Markiert",
       "image": "Fotos",
       "video": "Videos",
-      "audio": "Audio",
-      "folders": "Ordner",
-      "albums": "Fotoalben",
-      "music": "Musik-Wiedergabelisten"
+      "audio": "Audio"
     },
     "syncIntervals": {
       "launch": "Bei jedem Start",
@@ -336,6 +363,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Alle Rechte vorbehalten.",
       "viewSource": "Auf GitHub ansehen",
       "website": "Website"
+    },
+    "workspace": {
+      "desc": "Vivid speichert deine Bibliothek standardmäßig in einem eigenen App-Datenordner. Du kannst stattdessen auf einen vorhandenen Ordner verweisen — dessen eigene Datenbank und Miniaturansichten liegen dann in diesem Ordner, sodass alles auf ein anderes Gerät übertragbar ist.",
+      "defaultPath": "Standardbibliothek von Vivid",
+      "active": "Aktiv",
+      "pendingRestart": "Neustart zum Anwenden",
+      "switch": "Wechseln",
+      "remove": "Entfernen",
+      "add": "Arbeitsbereich hinzufügen",
+      "chooseTitle": "Wähle einen Ordner als Arbeitsbereich",
+      "switchTitle": "Arbeitsbereich wechseln?",
+      "switchConfirm": "Vivid muss neu gestartet werden, um zu „{{name}}“ zu wechseln. Nicht gespeicherte Änderungen in anderen Ansichten gehen verloren.",
+      "switchAndRestart": "Wechseln & neu starten",
+      "removeTitle": "Arbeitsbereich entfernen?",
+      "removeConfirm": "Dies vergisst „{{name}}“ nur in Vivid — der Ordner und alles darin (einschließlich seiner Datenbank) bleibt unverändert auf der Festplatte.",
+      "rename": "Umbenennen",
+      "saveName": "Namen speichern",
+      "devRestartNeeded": "Arbeitsbereich gewechselt. Starte den Dev-Server neu (nicht nur dieses Fenster), um die Änderung zu übernehmen — der automatische Neustart funktioniert unter `tauri dev` nicht."
     }
   },
   "trash": {
@@ -422,7 +467,10 @@
     "noFilesDesc": "Importieren Sie Fotos, Videos oder Audio, um loszulegen",
     "noResults": "Keine Ergebnisse",
     "noResultsDesc": "Keine Dateien entsprechen Ihrer aktuellen Suche oder Filtern",
-    "clearFilters": "Suche & Filter zurücksetzen"
+    "clearFilters": "Suche & Filter zurücksetzen",
+    "selectGroup": "Alles in dieser Gruppe auswählen",
+    "deselectGroup": "Auswahl dieser Gruppe aufheben",
+    "noCaptureDate": "Kein Aufnahmedatum – zeigt Hinzugefügt-Datum"
   },
   "filterBar": {
     "filters": "Filter",
@@ -454,6 +502,8 @@
     "camera": "Kamera",
     "camerasCount_one": "{{count}} Kamera",
     "camerasCount_other": "{{count}} Kameras",
+    "resolutionsCount_one": "{{count}} Auflösung",
+    "resolutionsCount_other": "{{count}} Auflösungen",
     "colorsCount_one": "{{count}} Markierung",
     "colorsCount_other": "{{count}} Markierungen",
     "color": {
@@ -485,10 +535,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Auflösung",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K & höher"
+    },
     "inCollection": "In einer Sammlung"
   },
   "panel": {
     "collapsePanel": "Bereich einklappen",
+    "expandGroup": "Gruppe aufklappen",
+    "collapseGroup": "Gruppe einklappen",
     "sortAZ": "A → Z (Klick für Z → A)",
     "sortZA": "Z → A (Klick für Benutzerdefiniert)",
     "sortCustom": "Benutzerdefinierte Reihenfolge (Klick für A → Z)",
@@ -512,6 +571,7 @@
     "setCover": "Cover festlegen…",
     "unpin": "Lösen",
     "pin": "Anheften",
+    "pinned": "Angeheftet",
     "maxPinned": "(max. 5)",
     "delete": "Löschen",
     "noFolders": "Noch keine Ordner",
@@ -552,7 +612,20 @@
     "empty": "Keine geotaggten Fotos oder Videos gefunden.",
     "emptyHint": "Importieren Sie Bilder mit GPS-EXIF-Daten, um sie auf der Karte zu sehen.",
     "clickToOpen": "Zum Öffnen klicken",
-    "clusterHint": "1 von {{count}} Elementen hier · Zum Öffnen klicken"
+    "googleMaps": "Google Maps",
+    "clusterCount": "{{count}} Elemente hier",
+    "resetView": "Ansicht zurücksetzen",
+    "worldView": "Weltansicht",
+    "travelPath": "Reiseroute anzeigen",
+    "stepFirst": "Erster Halt",
+    "stepBack": "Vorheriger Halt",
+    "stepForward": "Nächster Halt",
+    "stepLast": "Letzter Halt",
+    "selectMode": "Punkte auswählen (Ziehen für Rechteckauswahl, Strg+Klick zum Umschalten)",
+    "isolateSelected": "{{count}} isolieren (Rest ausblenden)",
+    "hideSelected": "{{count}} ausblenden",
+    "hiddenCount": "{{count}} ausgeblendet",
+    "showAll": "Alle anzeigen"
   },
   "stats": {
     "empty": "Importieren Sie Dateien, um Mediathek-Statistiken zu sehen.",
@@ -640,8 +713,6 @@
   "sort": {
     "dateNewest": "Aufnahmedatum (neueste zuerst)",
     "dateOldest": "Aufnahmedatum (älteste zuerst)",
-    "addedNewest": "Zu Vivid hinzugefügt (neueste zuerst)",
-    "addedOldest": "Zu Vivid hinzugefügt (älteste zuerst)",
     "nameAz": "Name A→Z",
     "nameZa": "Name Z→A",
     "sizeDesc": "Größte zuerst",
@@ -754,9 +825,21 @@
     "importFailed": "{{count}} Datei fehlgeschlagen",
     "importFailed_other": "{{count}} Dateien fehlgeschlagen",
     "duplicateCollection": "Eine Sammlung namens „{{name}}“ existiert bereits",
+    "duplicateSavedSearch": "Eine gespeicherte Suche namens „{{name}}“ existiert bereits",
     "duplicateFolder": "Ein Ordner namens „{{name}}“ existiert hier bereits",
     "addedToCollection": "{{count}} Element zu {{name}} hinzugefügt",
-    "addedToCollection_other": "{{count}} Elemente zu {{name}} hinzugefügt"
+    "movedToFolder": "{{count}} Element nach {{name}} verschoben",
+    "movedToFolder_other": "{{count}} Elemente nach {{name}} verschoben",
+    "alreadyInFolder": "{{count}} Element ist bereits in {{name}}",
+    "alreadyInFolder_other": "{{count}} Elemente sind bereits in {{name}}",
+    "alreadyInCollection": "{{count}} Element ist bereits in {{name}}",
+    "alreadyInCollection_other": "{{count}} Elemente sind bereits in {{name}}",
+    "addedToCollection_other": "{{count}} Elemente zu {{name}} hinzugefügt",
+    "moveToCollectionFailed_one": "{{count}} Datei konnte nicht verschoben werden (nicht kompatibel mit der Sammlung)",
+    "moveToCollectionFailed_other": "{{count}} Dateien konnten nicht verschoben werden (nicht kompatibel mit der Sammlung)",
+    "noGeotaggedInAlbum": "Dieses Album enthält keine geotaggten Bilder, die auf der Karte angezeigt werden können.",
+    "renameFilesFailed_one": "{{count}} Datei konnte nicht umbenannt werden",
+    "renameFilesFailed_other": "{{count}} Dateien konnten nicht umbenannt werden"
   },
   "results": {
     "count_one": "{{count}} Ergebnis",
@@ -774,7 +857,27 @@
   },
   "search": {
     "aiPlaceholder": "Beschreiben Sie, wonach Sie suchen…",
-    "placeholder": "Nach Name, Tag oder Beschreibung suchen…"
+    "placeholder": "Nach Name, Tag oder Beschreibung suchen…",
+    "placeholderAlbums": "Alben durchsuchen…",
+    "scope": {
+      "title": "Suchen in",
+      "name": "Dateiname",
+      "tags": "Tags",
+      "description": "Beschreibung",
+      "ocr": "Text im Bild (OCR)"
+    },
+    "saved": {
+      "title": "Gespeicherte Suchen",
+      "namePlaceholder": "Suche benennen…",
+      "save": "Speichern",
+      "delete": "Löschen",
+      "empty": "Noch keine gespeicherten Suchen.",
+      "filterPlaceholder": "Lesezeichen durchsuchen…",
+      "noMatches": "Keine Treffer.",
+      "deleteTitle": "Gespeicherte Suche löschen",
+      "deleteMsg": "Die gespeicherte Suche „{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+      "deleteConfirm": "Löschen"
+    }
   },
   "detail": {
     "title": "Details",
@@ -803,6 +906,8 @@
     "track": "Titel-Nr.",
     "file": "Datei",
     "format": "Format",
+    "colorLabel": "Markierung",
+    "noColorLabel": "Keine Markierung",
     "size": "Größe",
     "added": "Zu Vivid hinzugefügt",
     "path": "Pfad",
@@ -815,6 +920,7 @@
     "removeFromLibrary": "Aus Mediathek entfernen",
     "albumLabel": "Album",
     "playlistLabel": "Wiedergabeliste",
+    "collectionsLabel": "Sammlungen",
     "folderLabel": "Ordner",
     "collectionLabel": "Sammlung",
     "folder": "Ordner",
@@ -858,7 +964,7 @@
     "saveAs": "Speichern als",
     "optional": "optional",
     "optionalNoExt": "optional, ohne Dateiendung",
-    "photoPlaceholder": "mein-foto.jpg",
+    "photoPlaceholder": "mein-foto",
     "videoPlaceholder": "mein-video",
     "songPlaceholder": "mein-song",
     "addToCollection": "Zu Wiedergabeliste hinzufügen",
@@ -990,6 +1096,7 @@
     "copyFrame": "Einzelbild in die Zwischenablage kopieren",
     "frameCopied": "Einzelbild in die Zwischenablage kopiert",
     "trimVideo": "Video schneiden",
+    "fitToScreen": "An Bildschirm anpassen",
     "trimDragHint": "Ziehen Sie die Griffe zum Schneiden, spielen Sie zur Vorschau ab",
     "trimSaveNew": "Als neu speichern",
     "trimReplace": "Ersetzen",
@@ -1150,7 +1257,7 @@
     "export": "Exportieren",
     "rename": "Umbenennen",
     "addTags": "Tags hinzufügen",
-    "moveToCollection": "In Sammlung verschieben…",
+    "moveToCollection": "Zur Sammlung hinzufügen…",
     "moveToFolder": "In Ordner verschieben…",
     "noCollection": "Keine Sammlung",
     "searchCollections": "Sammlungen suchen…",
@@ -1162,7 +1269,9 @@
     "albums": "Alben",
     "playlists": "Wiedergabelisten",
     "deleteCount_one": "{{count}} löschen",
-    "deleteCount_other": "{{count}} löschen"
+    "deleteCount_other": "{{count}} löschen",
+    "noCompatibleCollections": "Keine mit dieser Auswahl kompatible Sammlung",
+    "renameFiles": "Dateien auf der Festplatte umbenennen"
   },
   "massTag": {
     "title_one": "Tags zu {{count}} Datei hinzufügen",
@@ -1206,5 +1315,23 @@
     "exportAsZipDesc": "Alle Dateien zu einem einzigen ZIP-Archiv bündeln",
     "close": "Schließen",
     "errorPrefix": "Fehler:"
+  },
+  "renameFile": {
+    "title_one": "{{count}} Datei umbenennen",
+    "title_other": "{{count}} Dateien umbenennen",
+    "conflictHint_one": "{{count}} Dateiname würde in Konflikt geraten — bitte vor dem Umbenennen korrigieren.",
+    "conflictHint_other": "{{count}} Dateinamen würden in Konflikt geraten — bitte vor dem Umbenennen korrigieren.",
+    "newName": "Neuer Name",
+    "titleSingle": "Datei auf der Festplatte umbenennen",
+    "rename": "Umbenennen"
+  },
+  "workspacePicker": {
+    "title": "Welcher Arbeitsbereich?",
+    "desc": "Du hast mehr als einen Arbeitsbereich eingerichtet. Wähle einen aus, um fortzufahren.",
+    "continue": "Weiter",
+    "restarting": "Wird neu gestartet…",
+    "opening": "Wird geöffnet…",
+    "cancel": "Abbrechen",
+    "current": "Aktuell"
   }
 }

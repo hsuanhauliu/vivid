@@ -24,7 +24,21 @@
     "toolsTitle": "メディアツール（任意）",
     "toolsDesc": "リンクからのダウンロードに使用します。すでにインストール済みの場合はそれを使い、なければここで入手できます。",
     "toolsNote": "任意です。スキップして、必要なときに設定からダウンロードできます。",
-    "done": "準備完了"
+    "done": "準備完了",
+    "workspace": {
+      "title": "ライブラリをどこに置きますか？",
+      "desc": "後から設定で変更できます。",
+      "defaultTitle": "新規に始める",
+      "defaultDesc": "Vivid がライブラリを管理します。",
+      "externalTitle": "既存のフォルダを使う",
+      "externalDesc": "既にあるフォルダを Vivid に指定します — 何もコピーされず、そのフォルダごと他のデバイスに持ち運べます。",
+      "chooseTitle": "ライブラリとして使うフォルダを選択",
+      "changeFolder": "別のフォルダを選択",
+      "pickFolderFirst": "先にフォルダを選択してください。",
+      "adding": "追加中…",
+      "restarting": "再起動中…",
+      "nameLabel": "名前"
+    }
   },
   "tools": {
     "ytdlpDesc": "リンクから動画・音声をダウンロード",
@@ -43,6 +57,7 @@
     "browse": "ファイルから選択…"
   },
   "sidebar": {
+    "resizePinned": "ドラッグしてサイズ変更",
     "allMedia": "すべてのメディア",
     "starred": "スター付き",
     "favorites": "お気に入り",
@@ -96,7 +111,17 @@
   "collection": {
     "addDescription": "説明を追加",
     "editDescription": "説明を編集",
-    "descriptionPlaceholder": "説明を追加…（⌘↵ で保存、Esc でキャンセル）"
+    "descriptionPlaceholder": "説明を追加…（⌘↵ で保存、Esc でキャンセル）",
+    "albumGroup": "アルバムグループ",
+    "albumCount": "アルバム{{count}}件",
+    "newAlbum": "新規アルバム",
+    "newAlbumPlaceholder": "アルバム名…",
+    "newGroupPlaceholder": "グループ名…",
+    "emptyGroup": "このグループにはまだアルバムがありません。",
+    "moveToGroup": "グループに移動…",
+    "removeFromGroup": "グループから削除",
+    "newAlbumInside": "新しいアルバムを追加…",
+    "noOtherGroups": "他のグループはありません"
   },
   "contextMenu": {
     "viewDetails": "詳細を表示",
@@ -111,12 +136,13 @@
     "open": "開く",
     "sideBySide": "並べて表示",
     "showInFinder": "Finderに表示",
+    "setAsWallpaper": "デスクトップの背景に設定",
     "copyFile": "ファイルをコピー",
     "saveTo": "保存先を選択…",
     "exportAs": "書き出し…",
     "cleanCopy": "クリーンコピーを保存",
     "setThumbnail": "コレクションのサムネイルに設定",
-    "moveToCollection": "コレクションに移動…",
+    "moveToCollection": "コレクションに追加…",
     "moveToFolder": "フォルダに移動…",
     "moveToFolderTitle": "フォルダに移動",
     "playAsAudio": "オーディオとして再生",
@@ -126,14 +152,15 @@
     "removeFromCollection": "コレクションから削除",
     "colorLabelTitle": "カラーラベル",
     "exportAsTitle": "書き出し…",
-    "moveToCollTitle": "コレクションに移動",
+    "moveToCollTitle": "コレクションに追加",
     "format": "フォーマット",
     "chooseDestination": "保存先を選択…",
     "deleteCollectionTitle": "コレクションを削除",
     "deleteCollectionMsg": "「{{name}}」を削除しますか？このコレクション内のメディアの関連付けは解除されますが、削除はされません。",
     "deleteCollectionConfirm": "削除",
     "deleteFolderTitle": "フォルダを削除",
-    "deleteFolderMsg": "「{{name}}」を削除しますか？中のファイルは未分類に移動され、削除はされません。"
+    "deleteFolderMsg": "「{{name}}」を削除しますか？中のファイルは未分類に移動され、削除はされません。",
+    "renameFile": "ファイル名を変更"
   },
   "settings": {
     "title": "設定",
@@ -159,7 +186,8 @@
       "semanticSearch": "セマンティック検索と自動タグ付け",
       "aiNaming": "AI命名と説明",
       "about": "Vivid",
-      "pinnedCollections": "ピン留めコレクション"
+      "pinnedCollections": "ピン留めコレクション",
+      "workspace": "ワークスペース"
     },
     "general": {
       "homePage": "ホームページ",
@@ -273,12 +301,10 @@
     },
     "homePageOptions": {
       "all": "すべてのメディア",
+      "starred": "スター付き",
       "image": "写真",
       "video": "ビデオ",
-      "audio": "オーディオ",
-      "folders": "フォルダ",
-      "albums": "フォトアルバム",
-      "music": "音楽プレイリスト"
+      "audio": "オーディオ"
     },
     "syncIntervals": {
       "launch": "起動ごと",
@@ -336,6 +362,24 @@
       "scanning": "スキャン中 {{current}}／{{total}}…",
       "scanBtn": "テキストをスキャン",
       "scanningBtn": "スキャン中…"
+    },
+    "workspace": {
+      "desc": "Vivid は既定でライブラリを独自のアプリデータフォルダに保存します。既存のフォルダを指定することもでき、その場合はデータベースとサムネイルもそのフォルダ内に置かれるため、フォルダごと他のデバイスに持ち運べます。",
+      "defaultPath": "Vivid の既定のライブラリ",
+      "active": "使用中",
+      "pendingRestart": "再起動で適用",
+      "switch": "切り替え",
+      "remove": "削除",
+      "add": "ワークスペースを追加",
+      "chooseTitle": "ワークスペースとして使うフォルダを選択",
+      "switchTitle": "ワークスペースを切り替えますか？",
+      "switchConfirm": "「{{name}}」に切り替えるには Vivid の再起動が必要です。他の画面での未保存の変更は失われます。",
+      "switchAndRestart": "切り替えて再起動",
+      "removeTitle": "ワークスペースを削除しますか？",
+      "removeConfirm": "これは Vivid 内で「{{name}}」を削除するだけです。フォルダとその中身（データベースを含む）はディスク上にそのまま残ります。",
+      "rename": "名前を変更",
+      "saveName": "名前を保存",
+      "devRestartNeeded": "ワークスペースを切り替えました。適用するには開発サーバー自体を再起動してください（このウィンドウだけでは不十分です）。`tauri dev` では自動再起動が機能しません。"
     }
   },
   "trash": {
@@ -420,7 +464,10 @@
     "noFilesDesc": "写真、ビデオ、またはオーディオをインポートして始めてください",
     "noResults": "結果なし",
     "noResultsDesc": "現在の検索またはフィルターに一致するファイルがありません",
-    "clearFilters": "検索とフィルターをクリア"
+    "clearFilters": "検索とフィルターをクリア",
+    "selectGroup": "このグループをすべて選択",
+    "deselectGroup": "このグループの選択を解除",
+    "noCaptureDate": "撮影日なし — 追加日を表示"
   },
   "filterBar": {
     "filters": "フィルター",
@@ -448,6 +495,7 @@
     "formatsCount": "{{count}} 形式",
     "camera": "カメラ",
     "camerasCount": "{{count}} 台のカメラ",
+    "resolutionsCount": "解像度 {{count}} 件",
     "colorsCount": "{{count}} 個のラベル",
     "color": {
       "red": "赤",
@@ -478,10 +526,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "解像度",
+      "sd": "SD（720p未満）",
+      "hd": "HD（720p）",
+      "fhd": "フルHD（1080p）",
+      "uhd": "4K以上"
+    },
     "inCollection": "コレクションに含む"
   },
   "panel": {
     "collapsePanel": "パネルを折りたたむ",
+    "expandGroup": "グループを展開",
+    "collapseGroup": "グループを折りたたむ",
     "sortAZ": "A → Z（クリックで Z → A）",
     "sortZA": "Z → A（クリックでカスタム）",
     "sortCustom": "カスタム順（クリックで A → Z）",
@@ -505,6 +562,7 @@
     "setCover": "カバーを設定…",
     "unpin": "固定解除",
     "pin": "固定",
+    "pinned": "固定済み",
     "maxPinned": "（最大30件）",
     "delete": "削除",
     "noFolders": "フォルダがありません",
@@ -544,7 +602,20 @@
     "empty": "ジオタグ付きの写真やビデオが見つかりません。",
     "emptyHint": "GPS EXIFデータを含む画像をインポートすると、地図上に表示されます。",
     "clickToOpen": "クリックして開く",
-    "clusterHint": "ここに {{count}} 件 · クリックして開く"
+    "googleMaps": "Google マップ",
+    "clusterCount": "ここに {{count}} 件",
+    "resetView": "表示をリセット",
+    "worldView": "世界地図表示にズーム",
+    "travelPath": "移動経路を表示",
+    "stepFirst": "最初の地点",
+    "stepBack": "前の地点",
+    "stepForward": "次の地点",
+    "stepLast": "最後の地点",
+    "selectMode": "ピンを選択（ドラッグで範囲選択、Ctrl+クリックで切り替え）",
+    "isolateSelected": "{{count}}件を分離（他を非表示）",
+    "hideSelected": "{{count}}件を非表示",
+    "hiddenCount": "{{count}}件を非表示中",
+    "showAll": "すべて表示"
   },
   "stats": {
     "empty": "ライブラリ統計を表示するにはファイルをインポートしてください。",
@@ -632,8 +703,6 @@
   "sort": {
     "dateNewest": "撮影日（新しい順）",
     "dateOldest": "撮影日（古い順）",
-    "addedNewest": "Vivid に追加（新しい順）",
-    "addedOldest": "Vivid に追加（古い順）",
     "nameAz": "名前 A→Z",
     "nameZa": "名前 Z→A",
     "sizeDesc": "サイズ大きい順",
@@ -675,7 +744,27 @@
   },
   "search": {
     "aiPlaceholder": "探しているものを説明してください…",
-    "placeholder": "名前、タグ、または説明で検索…"
+    "placeholder": "名前、タグ、または説明で検索…",
+    "placeholderAlbums": "アルバムを検索…",
+    "scope": {
+      "title": "検索対象",
+      "name": "ファイル名",
+      "tags": "タグ",
+      "description": "説明",
+      "ocr": "画像内のテキスト（OCR）"
+    },
+    "saved": {
+      "title": "保存された検索",
+      "namePlaceholder": "この検索に名前を付ける…",
+      "save": "保存",
+      "delete": "削除",
+      "empty": "保存された検索はまだありません。",
+      "filterPlaceholder": "ブックマークを検索…",
+      "noMatches": "一致するものがありません。",
+      "deleteTitle": "保存された検索を削除",
+      "deleteMsg": "保存された検索「{{name}}」を削除しますか？元に戻せません。",
+      "deleteConfirm": "削除"
+    }
   },
   "import": {
     "importFiles": "ファイルをインポート",
@@ -746,8 +835,15 @@
     "skippedDupe": "{{count}} 件（ライブラリに既存）",
     "importFailed": "{{count}} ファイルが失敗",
     "duplicateCollection": "「{{name}}」という名前のコレクションは既に存在します",
+    "duplicateSavedSearch": "「{{name}}」という名前の保存済み検索は既に存在します",
     "duplicateFolder": "ここには「{{name}}」という名前のフォルダが既に存在します",
-    "addedToCollection": "{{count}} 件を「{{name}}」に追加しました"
+    "addedToCollection": "{{count}} 件を「{{name}}」に追加しました",
+    "movedToFolder": "{{count}} 件を「{{name}}」に移動しました",
+    "alreadyInFolder": "{{count}} 件はすでに「{{name}}」にあります",
+    "alreadyInCollection": "{{count}} 件はすでに「{{name}}」にあります",
+    "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）",
+    "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。",
+    "renameFilesFailed": "{{count}} 件のファイル名を変更できませんでした"
   },
   "results": {
     "count_one": "{{count}} 件",
@@ -790,6 +886,8 @@
     "track": "トラック #",
     "file": "ファイル",
     "format": "フォーマット",
+    "colorLabel": "ラベル",
+    "noColorLabel": "ラベルなし",
     "size": "サイズ",
     "added": "Vividに追加",
     "path": "パス",
@@ -802,6 +900,7 @@
     "removeFromLibrary": "ライブラリから削除",
     "albumLabel": "アルバム",
     "playlistLabel": "プレイリスト",
+    "collectionsLabel": "コレクション",
     "folderLabel": "フォルダ",
     "collectionLabel": "コレクション",
     "folder": "フォルダ",
@@ -845,7 +944,7 @@
     "saveAs": "名前を付けて保存",
     "optional": "任意",
     "optionalNoExt": "任意、拡張子なし",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "プレイリストに追加",
@@ -976,6 +1075,7 @@
     "copyFrame": "フレームをクリップボードにコピー",
     "frameCopied": "フレームをクリップボードにコピーしました",
     "trimVideo": "動画をトリミング",
+    "fitToScreen": "画面に合わせる",
     "trimDragHint": "ハンドルをドラッグしてトリミング、再生でプレビュー",
     "trimSaveNew": "新規保存",
     "trimReplace": "置き換え",
@@ -1134,7 +1234,7 @@
     "export": "書き出し",
     "rename": "名前を変更",
     "addTags": "タグを追加",
-    "moveToCollection": "コレクションに移動…",
+    "moveToCollection": "コレクションに追加…",
     "moveToFolder": "フォルダに移動…",
     "noCollection": "コレクションなし",
     "searchCollections": "コレクションを検索…",
@@ -1145,7 +1245,9 @@
     "findMore": "さらに検索…（{{count}}）",
     "albums": "アルバム",
     "playlists": "プレイリスト",
-    "deleteCount": "{{count}} 件を削除"
+    "deleteCount": "{{count}} 件を削除",
+    "noCompatibleCollections": "この選択と互換性のあるコレクションがありません",
+    "renameFiles": "ディスク上のファイル名を変更"
   },
   "massTag": {
     "title": "{{count}} 件のファイルにタグを追加",
@@ -1182,5 +1284,21 @@
     "exportAsZipDesc": "すべてのファイルを1つのZIPアーカイブにまとめます",
     "close": "閉じる",
     "errorPrefix": "エラー："
+  },
+  "renameFile": {
+    "title": "{{count}} 件のファイル名を変更",
+    "conflictHint": "{{count}} 件のファイル名が競合します。修正してから変更してください。",
+    "newName": "新しい名前",
+    "titleSingle": "ディスク上のファイル名を変更",
+    "rename": "変更"
+  },
+  "workspacePicker": {
+    "title": "どのワークスペースを使いますか？",
+    "desc": "複数のワークスペースが設定されています。続けるには1つ選んでください。",
+    "continue": "続ける",
+    "restarting": "再起動中…",
+    "opening": "開いています…",
+    "cancel": "キャンセル",
+    "current": "現在"
   }
 }

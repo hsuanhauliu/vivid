@@ -12,11 +12,17 @@ import {
   Map as MapIcon,
   FolderInput,
   RefreshCw,
+  ExternalLink,
+  Palette,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
+import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { useTabCompletion } from '../../hooks/useTabCompletion';
+import useDismiss from '../../hooks/useDismiss';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import CollectionAvatar from '../common/CollectionAvatar';
+import { COLOR_LABELS } from '../common/FilterBar';
 import WorldMapView from '../views/WorldMapView';
 import ScrollArea from '../common/ScrollArea';
 import LocationPickerModal from '../modals/LocationPickerModal';
@@ -120,7 +126,11 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}
       >
         <span>{t('exif.location')}</span>
-        <button className="icon-btn retag-btn" onClick={onOpenPicker} title={t('detail.setLocationTitle')}>
+        <button
+          className="icon-btn retag-btn"
+          onClick={onOpenPicker}
+          title={t('detail.setLocationTitle')}
+        >
           {hasGps ? <MapPin size={12} /> : <MapPinOff size={12} />}
         </button>
       </p>
@@ -129,13 +139,24 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
         <>
           <div className="meta-row meta-gps-row">
             <span>{t('exif.gps')}</span>
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="meta-gps-link">
-              <MapPin size={11} />
+            <button
+              type="button"
+              className="meta-gps-link"
+              title={t('map.googleMaps')}
+              onClick={() => invoke('open_in_browser', { url: mapsUrl }).catch(() => {})}
+            >
               {item.gps_lat.toFixed(5)}, {item.gps_lng.toFixed(5)}
-            </a>
+              <ExternalLink size={10} />
+            </button>
           </div>
           <div className="map-view">
-            <WorldMapView items={mapPin} onOpen={() => {}} showStyleToggle={false} simplePins />
+            <WorldMapView
+              items={mapPin}
+              onOpen={() => {}}
+              showStyleToggle={false}
+              showMapTools={false}
+              simplePins
+            />
           </div>
           <button className="btn btn-secondary btn-sm detail-view-on-map-btn" onClick={onViewOnMap}>
             <MapIcon size={12} /> {t('detail.viewOnMap')}
@@ -143,6 +164,63 @@ function LocationSection({ item, onViewOnMap, onOpenPicker, t }) {
         </>
       ) : (
         <p className="meta-empty-hint">{t('detail.noLocation')}</p>
+      )}
+    </div>
+  );
+}
+
+// Header color-label swatch + popover picker — lives to the left of the star
+// button so setting a color is a one-click action from the detail pane
+// itself, not just a read-only row further down (or a right-click-only
+// context menu action).
+function ColorLabelButton({ item, onColorLabel, t }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismiss(ref, () => setOpen(false), { enabled: open, escape: false });
+
+  if (!onColorLabel) return null;
+  const current = COLOR_LABELS.find((c) => c.value === item.color_label);
+
+  function pick(value) {
+    onColorLabel(item.id, value);
+    setOpen(false);
+  }
+
+  return (
+    <div className="dp-color-wrap" ref={ref}>
+      <button
+        type="button"
+        className="icon-btn dp-color-btn"
+        onClick={() => setOpen((v) => !v)}
+        title={current ? t(current.labelKey) : t('detail.colorLabel')}
+      >
+        {current ? (
+          <span className="dp-color-dot" style={{ background: current.hex }} />
+        ) : (
+          <Palette size={15} />
+        )}
+      </button>
+      {open && (
+        <div className="dp-color-popover">
+          <button
+            type="button"
+            className={`dp-color-none ${!item.color_label ? 'active' : ''}`}
+            onClick={() => pick(null)}
+            title={t('detail.noColorLabel')}
+          >
+            <X size={10} />
+          </button>
+          {COLOR_LABELS.map(({ value, hex, labelKey }) => (
+            <button
+              key={value}
+              type="button"
+              className={`dp-color-swatch ${item.color_label === value ? 'active' : ''}`}
+              style={{ background: hex }}
+              title={t(labelKey)}
+              onClick={() => pick(value)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -167,9 +245,11 @@ export default function DetailPanel({
   onClose,
   onSave,
   onStarToggle,
+  onColorLabel,
   onRemoveAutoTag,
   onRetagImage,
   onNavigateToFolder,
+  onOpenCollection,
   onViewOnMap,
   onSetLocation,
   freshSrc = null,
@@ -183,6 +263,12 @@ export default function DetailPanel({
   const [dirty, setDirty] = useState(false);
   const [exifMeta, setExifMeta] = useState(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const nameInputRef = useRef(null);
+  const descInputRef = useRef(null);
+  const tagInputRef = useRef(null);
+  useTabCompletion(nameInputRef);
+  useTabCompletion(descInputRef);
+  useTabCompletion(tagInputRef);
   const [audioArtist, setAudioArtist] = useState('');
   const [audioAlbum, setAudioAlbum] = useState('');
   const [audioTitle, setAudioTitle] = useState('');
@@ -305,8 +391,8 @@ export default function DetailPanel({
   }
 
   const ext = item.file_name.split('.').pop()?.toUpperCase() ?? '';
-  const activeCollection = collections?.find((g) => g.id === item.collection_id);
-  const itemFolder = folders?.find((f) => f.id === item.folder_id);
+  const itemCollections = (collections ?? []).filter((g) => item.collection_ids?.includes(g.id));
+  const itemFolder = folders?.find((f) => f.id === folderIdOf(item));
   const visibleAutoTags = (item.auto_tags || []).filter((tag) => !removedAutoTags.includes(tag));
 
   return (
@@ -314,6 +400,7 @@ export default function DetailPanel({
       <div className="detail-header">
         <span className="detail-title">{dirty ? t('detail.editing') : t('detail.title')}</span>
         <div style={{ display: 'flex', gap: 4 }}>
+          <ColorLabelButton item={item} onColorLabel={onColorLabel} t={t} />
           <button
             className={`icon-btn star-toggle-btn ${item.starred ? 'starred' : ''}`}
             onClick={() => onStarToggle(item.id)}
@@ -334,6 +421,7 @@ export default function DetailPanel({
         <div className="field">
           <label>{t('detail.name')}</label>
           <input
+            ref={nameInputRef}
             value={displayName}
             onChange={(e) => {
               setDisplayName(e.target.value);
@@ -353,6 +441,7 @@ export default function DetailPanel({
             </span>
           </label>
           <textarea
+            ref={descInputRef}
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
@@ -365,25 +454,40 @@ export default function DetailPanel({
           />
         </div>
 
-        {activeCollection && (
+        {itemCollections.length > 0 && (
           <div className="field">
-            <label>
-              {activeCollection.kind === 'album'
-                ? t('detail.albumLabel')
-                : activeCollection.kind === 'playlist'
-                  ? t('detail.playlistLabel')
-                  : t('detail.albumLabel')}
-            </label>
-            <div className="collection-badge">
-              <CollectionAvatar
-                group={activeCollection}
-                allItems={allItems ?? []}
-                size={22}
-                radius={5}
-                allowAny
-              />
-              <span>{activeCollection.name}</span>
-            </div>
+            <label>{t('detail.collectionsLabel')}</label>
+            {itemCollections.map((g) => (
+              <div className="collection-badge" key={g.id}>
+                <CollectionAvatar
+                  group={g}
+                  allItems={allItems ?? []}
+                  size={22}
+                  radius={5}
+                  allowAny
+                />
+                <div className="detail-collection-info">
+                  {onOpenCollection ? (
+                    <button
+                      type="button"
+                      className="detail-collection-link"
+                      onClick={() => onOpenCollection(g.id)}
+                    >
+                      {g.name}
+                    </button>
+                  ) : (
+                    <span>{g.name}</span>
+                  )}
+                  <span className="detail-collection-type">
+                    {g.kind === 'playlist'
+                      ? t('common.playlist')
+                      : g.kind === 'album_group'
+                        ? t('collection.albumGroup')
+                        : t('common.album')}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -440,6 +544,7 @@ export default function DetailPanel({
           </div>
           <div className="tag-input-row">
             <input
+              ref={tagInputRef}
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}

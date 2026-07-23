@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import SimpleMenu from './SimpleMenu';
 import { COLLECTION_NAME_MAX_LEN } from '../../utils/limits';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import {
   Folder,
   FolderOpen,
   ChevronRight,
-  Minus,
   Plus,
   Pencil,
   Trash2,
@@ -60,9 +60,16 @@ function MovePicker({ folders, sourceFolderId, sourceRelPath, onConfirm, onCance
 
   const candidates = useMemo(() => {
     const prefix = sourceRelPath + '/';
-    return folders
-      .filter((f) => f.id !== sourceFolderId && !f.rel_path.startsWith(prefix))
-      .sort((a, b) => a.rel_path.localeCompare(b.rel_path));
+    return (
+      folders
+        // The virtual Uncategorized bucket isn't a real nesting target — the
+        // "Root level" row above already covers moving a folder there.
+        .filter(
+          (f) =>
+            f.id !== sourceFolderId && f.id !== UNCATEGORIZED_ID && !f.rel_path.startsWith(prefix),
+        )
+        .sort((a, b) => a.rel_path.localeCompare(b.rel_path))
+    );
   }, [folders, sourceFolderId, sourceRelPath]);
 
   const filtered = query.trim()
@@ -195,10 +202,11 @@ export default function FolderTree({
     if (onMoveFolder) onMoveFolder(movingFolder.id, newParentId);
   }
 
-  const nameCmp =
-    sortMode === 'za'
-      ? (a, b) => b.name.localeCompare(a.name)
-      : (a, b) => a.name.localeCompare(b.name);
+  const nameCmp = (a, b) => {
+    if (a.id === UNCATEGORIZED_ID) return -1;
+    if (b.id === UNCATEGORIZED_ID) return 1;
+    return sortMode === 'za' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+  };
 
   function renderNode(folder, depth) {
     const kids = (tree.get(folder.id) || [])
@@ -209,8 +217,15 @@ export default function FolderTree({
       matchSet && query.trim() && folder.name.toLowerCase().includes(query.trim().toLowerCase());
     const isActive = folder.id === activeFolderId;
     const isDragOver = folder.id === dragOverFolderId;
+    // Tree connector line to the parent, mirroring the album group's nesting
+    // indicator. Anchored on the folder icon's center (row margin 6 + padding
+    // 6 + twisty 16 + gap 4 + half the 14px icon = 39, plus 14px per depth
+    // step) so the line visibly runs icon-to-icon instead of through empty
+    // indent space.
+    const guideX = 39 + depth * 14;
     return (
-      <div key={folder.id}>
+      <div key={folder.id} className="ft-node">
+        {depth > 0 && <div className="ft-stub" style={{ left: guideX - 14 }} />}
         <div
           role="button"
           tabIndex={0}
@@ -234,12 +249,15 @@ export default function FolderTree({
               if (kids.length) toggle(folder.id);
             }}
             tabIndex={-1}
+            style={kids.length ? undefined : { cursor: 'default' }}
           >
+            {/* Leaf folders render nothing here — the button keeps its fixed
+                16px footprint (see .ft-twisty) so names still line up with
+                folders that do have a chevron, instead of a "-" that looked
+                like a real (but non-functional) control. */}
             {kids.length ? (
               <ChevronRight size={12} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
-            ) : (
-              <Minus size={12} />
-            )}
+            ) : null}
           </button>
           {isOpen && kids.length ? (
             <FolderOpen size={14} className="ft-icon" />
@@ -258,7 +276,13 @@ export default function FolderTree({
               />
             ) : (
               <>
-                <span className={`ft-name ${isMatch ? 'ft-name-match' : ''}`}>{folder.name}</span>
+                <span
+                  className={`ft-name ${isMatch ? 'ft-name-match' : ''} ${
+                    folder.id === UNCATEGORIZED_ID ? 'ft-name-uncategorized' : ''
+                  }`}
+                >
+                  {folder.name}
+                </span>
                 <span className="ft-count">{counts[folder.id] || 0}</span>
               </>
             )}
@@ -290,7 +314,11 @@ export default function FolderTree({
             />
           </form>
         )}
-        {isOpen && kids.map((k) => renderNode(k, depth + 1))}
+        {isOpen && kids.length > 0 && (
+          <div className="ft-children" style={{ '--ft-guide-x': `${guideX}px` }}>
+            {kids.map((k) => renderNode(k, depth + 1))}
+          </div>
+        )}
       </div>
     );
   }
@@ -374,7 +402,7 @@ export default function FolderTree({
 
       {ctxMenu && (
         <SimpleMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
-          {ctxMenu.folder.rel_path === 'Uncategorized' ? (
+          {ctxMenu.folder.id === UNCATEGORIZED_ID ? (
             <button className="sp-ctx-item" onClick={() => handleShowInFinder(ctxMenu.folder)}>
               <ExternalLink size={12} />
               <span>{t('panel.showInFinder', 'Show in Finder')}</span>

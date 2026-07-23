@@ -1,11 +1,11 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { translateTag } from '../../utils/translateTag';
 import { COLLECTION_NAME_MAX_LEN } from '../../utils/limits';
 import FolderTree from '../common/FolderTree';
 import CollectionAvatar from '../common/CollectionAvatar';
-import SimpleMenu from '../common/SimpleMenu';
+import CollectionContextMenu from '../common/CollectionContextMenu';
 import ScrollArea from '../common/ScrollArea';
 import {
   FolderOpen,
@@ -24,16 +24,14 @@ import {
   Star,
   Layers,
   Sparkles,
-  Pencil,
   ArrowDownAZ,
   ArrowUpAZ,
   GripVertical,
   ListOrdered,
   Play,
-  Pin,
-  Trash2,
   Search,
   ScanText,
+  ChevronDown,
 } from 'lucide-react';
 import { formatBytes } from '../../utils/format';
 import './SecondaryPanel.css';
@@ -89,6 +87,11 @@ function CollectionList({
   onDelete,
   onSetCover,
   dragOverId,
+  // Album-only: album_group rows nest their child albums, collapsible like
+  // the Folders panel. `onSetParent(albumId, groupId|null)` moves an album
+  // into/out of a group.
+  groupable = false,
+  onSetParent,
 }) {
   const { t } = useTranslation();
   const storageKey = `vivid-sp-sort-${sortKey}`;
@@ -116,7 +119,44 @@ function CollectionList({
   const [renamingId, setRenamingId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newKind, setNewKind] = useState('album');
   const newInputRef = useRef(null);
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  const toggleGroupCollapsed = (id) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // Inline "create album inside this group" row, triggered from the group's
+  // context menu — id of the group currently showing the input, or null.
+  const [creatingChildOf, setCreatingChildOf] = useState(null);
+  const [childName, setChildName] = useState('');
+  const childInputRef = useRef(null);
+  const startCreatingChild = (groupId) => {
+    setCollapsedGroups((prev) => {
+      if (!prev.has(groupId)) return prev;
+      const next = new Set(prev);
+      next.delete(groupId);
+      return next;
+    });
+    setCreatingChildOf(groupId);
+    setChildName('');
+    setTimeout(() => childInputRef.current?.focus(), 30);
+  };
+  const cancelCreatingChild = () => {
+    setCreatingChildOf(null);
+    setChildName('');
+  };
+  const submitCreatingChild = async (groupId) => {
+    const n = childName.trim();
+    cancelCreatingChild();
+    if (!n) return;
+    const created = await onCreateCollection?.(n, 'album');
+    if (created) onSetParent?.(created.id, groupId);
+  };
 
   // Pointer-based drag state
   const [dragId, setDragId] = useState(null); // id being dragged
@@ -146,23 +186,42 @@ function CollectionList({
   const counts = useMemo(() => {
     const m = {};
     items.forEach((i) => {
-      if (i.collection_id) m[i.collection_id] = (m[i.collection_id] || 0) + 1;
+      (i.collection_ids ?? []).forEach((cid) => {
+        m[cid] = (m[cid] || 0) + 1;
+      });
     });
     return m;
   }, [items]);
 
+  // Shared by the top-level list and nested group children so both respect
+  // whatever sort mode is active instead of nested rows always reading
+  // alphabetical regardless of the sort toggle. Custom order only applies to
+  // the top-level list — there's no drag handle for reordering albums within
+  // a group, so `allowCustom: false` (used for children) always falls back
+  // to alphabetical instead of leaving them in whatever order they came in.
+  const sortList = useCallback(
+    (list, { allowCustom = true } = {}) => {
+      const out = [...list];
+      if (sortMode === 'za') out.sort((a, b) => b.name.localeCompare(a.name));
+      else if (sortMode === 'custom' && customOrder && allowCustom) {
+        const idx = new Map(customOrder.map((id, i) => [id, i]));
+        out.sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999));
+      } else out.sort((a, b) => a.name.localeCompare(b.name));
+      return out;
+    },
+    [sortMode, customOrder],
+  );
+
   const sorted = useMemo(() => {
-    let list = [...collections].filter(
+    // Searching flattens the hierarchy (matches at any level, top-level or
+    // nested in a group) rather than trying to keep the tree shape — a
+    // search result you have to expand a group to see isn't really "found".
+    const base = groupable && !search ? collections.filter((g) => !g.parent_id) : collections;
+    const list = base.filter(
       (g) => !search || g.name.toLowerCase().includes(search.toLowerCase()),
     );
-    if (sortMode === 'az') list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sortMode === 'za') list.sort((a, b) => b.name.localeCompare(a.name));
-    else if (sortMode === 'custom' && customOrder) {
-      const idx = new Map(customOrder.map((id, i) => [id, i]));
-      list.sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999));
-    }
-    return list;
-  }, [collections, search, sortMode, customOrder]);
+    return sortList(list);
+  }, [collections, search, groupable, sortList]);
 
   // ── Pointer-based drag reorder ────────────────────────────────────────────────
 
@@ -350,15 +409,42 @@ function CollectionList({
           onSubmit={(e) => {
             e.preventDefault();
             const n = newName.trim();
-            if (n) onCreateCollection(n);
+            if (n) onCreateCollection(n, groupable ? newKind : undefined);
             setCreating(false);
             setNewName('');
+            setNewKind('album');
           }}
         >
+          {groupable && (
+            <div className="sp-create-type-toggle">
+              <button
+                type="button"
+                className={newKind === 'album' ? 'active' : ''}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setNewKind('album')}
+              >
+                {t('common.album')}
+              </button>
+              <button
+                type="button"
+                className={newKind === 'album_group' ? 'active' : ''}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setNewKind('album_group')}
+              >
+                {t('collection.albumGroup')}
+              </button>
+            </div>
+          )}
           <input
             ref={newInputRef}
             className="sp-rename-input"
-            placeholder={createPlaceholderKey ? t(createPlaceholderKey) : t('panel.collectionName')}
+            placeholder={
+              groupable && newKind === 'album_group'
+                ? t('collection.newGroupPlaceholder')
+                : createPlaceholderKey
+                  ? t(createPlaceholderKey)
+                  : t('panel.collectionName')
+            }
             value={newName}
             maxLength={COLLECTION_NAME_MAX_LEN}
             onChange={(e) => setNewName(e.target.value)}
@@ -366,11 +452,13 @@ function CollectionList({
               if (e.key === 'Escape') {
                 setCreating(false);
                 setNewName('');
+                setNewKind('album');
               }
             }}
             onBlur={() => {
               setCreating(false);
               setNewName('');
+              setNewKind('album');
             }}
           />
         </form>
@@ -381,11 +469,20 @@ function CollectionList({
       )}
 
       {sorted.map((g, idx) => {
-        const count = counts[g.id] || 0;
         const isDragging = g.id === dragId;
         const showLineBefore = editMode && insertIdx === idx && dragId && !isDragging;
         const showLineAfter =
           editMode && insertIdx === sorted.length && idx === sorted.length - 1 && dragId;
+        const isGroupKind = g.kind === 'album_group';
+        const children =
+          groupable && isGroupKind && !search
+            ? sortList(
+                collections.filter((c) => c.parent_id === g.id),
+                { allowCustom: false },
+              )
+            : [];
+        const collapsed = collapsedGroups.has(g.id);
+        const count = isGroupKind ? children.length : counts[g.id] || 0;
         return (
           <div key={g.id}>
             {showLineBefore && <div className="sp-drop-line" />}
@@ -413,18 +510,40 @@ function CollectionList({
                   onPointerDown={(e) => handleDragHandleDown(e, g.id)}
                 />
               )}
-              <CollectionAvatar
-                group={g}
-                allItems={allItems ?? items}
-                size={32}
-                radius={7}
-                style={{ isolation: 'isolate' }}
-                draggable={false}
-                onDragStart={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              />
+              <div className="sp-avatar-wrap">
+                <CollectionAvatar
+                  group={g}
+                  allItems={allItems ?? items}
+                  size={32}
+                  radius={7}
+                  style={{ isolation: 'isolate' }}
+                  draggable={false}
+                  onDragStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                />
+                {groupable && isGroupKind && (
+                  // A subtle "this is a group" badge by default; hovering the
+                  // row swaps it for the collapse/expand chevron, so nothing
+                  // is reserved in the row's normal flow (every row — album
+                  // or group — starts flush left, no extra padding) and the
+                  // toggle only appears when it's actually actionable.
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    className={`sp-group-toggle ${collapsed ? 'collapsed' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroupCollapsed(g.id);
+                    }}
+                    title={collapsed ? t('panel.expandGroup') : t('panel.collapseGroup')}
+                  >
+                    <Layers size={8} className="sp-group-badge-icon" />
+                    <ChevronDown size={11} className="sp-group-chevron-icon" />
+                  </span>
+                )}
+              </div>
               <div className="sp-group-info">
                 {renamingId === g.id ? (
                   <RenameInline
@@ -438,17 +557,21 @@ function CollectionList({
                 ) : (
                   <>
                     <span className="sp-group-name">{g.name}</span>
-                    <span className="sp-group-count">{t('panel.item', { count })}</span>
+                    <span className="sp-group-count">
+                      {isGroupKind
+                        ? t('collection.albumCount', { count })
+                        : t('panel.item', { count })}
+                    </span>
                   </>
                 )}
               </div>
-              {onPlayAll && count > 0 && !editMode && (
+              {onPlayAll && !isGroupKind && count > 0 && !editMode && (
                 <button
                   className="sp-play-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     onPlayAll(
-                      items.filter((i) => i.collection_id === g.id),
+                      items.filter((i) => i.collection_ids?.includes(g.id)),
                       g.name,
                     );
                   }}
@@ -459,74 +582,110 @@ function CollectionList({
               )}
             </div>
             {showLineAfter && <div className="sp-drop-line" />}
+
+            {isGroupKind && !collapsed && (children.length > 0 || creatingChildOf === g.id) && (
+              <div className="sp-group-children">
+                {children.map((child) => {
+                  const childCount = counts[child.id] || 0;
+                  return (
+                    <div
+                      key={child.id}
+                      role="button"
+                      tabIndex={0}
+                      data-collection-id={child.id}
+                      className={`sp-group-row sp-group-row-child ${child.id === activeCollectionId ? 'sp-group-active' : ''} ${child.id === dragOverId ? 'sp-drag-over' : ''}`}
+                      onClick={() => renamingId !== child.id && onCollectionClick(child.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renamingId !== child.id)
+                          onCollectionClick(child.id);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setCtxMenu({ x: e.clientX, y: e.clientY, group: child });
+                      }}
+                    >
+                      <CollectionAvatar
+                        group={child}
+                        allItems={allItems ?? items}
+                        size={28}
+                        radius={6}
+                        style={{ isolation: 'isolate' }}
+                        draggable={false}
+                        onDragStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      />
+                      <div className="sp-group-info">
+                        {renamingId === child.id ? (
+                          <RenameInline
+                            name={child.name}
+                            onConfirm={(val) => {
+                              setRenamingId(null);
+                              onRename?.(child.id, val);
+                            }}
+                            onCancel={() => setRenamingId(null)}
+                          />
+                        ) : (
+                          <>
+                            <span className="sp-group-name">{child.name}</span>
+                            <span className="sp-group-count">
+                              {t('panel.item', { count: childCount })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {creatingChildOf === g.id && (
+                  <form
+                    className="sp-group-row sp-group-row-child sp-create-child-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      submitCreatingChild(g.id);
+                    }}
+                  >
+                    <div className="sp-row-icon-new">
+                      <Plus size={14} />
+                    </div>
+                    <input
+                      ref={childInputRef}
+                      className="sp-rename-input"
+                      placeholder={t('collection.newAlbumPlaceholder')}
+                      value={childName}
+                      maxLength={COLLECTION_NAME_MAX_LEN}
+                      onChange={(e) => setChildName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') cancelCreatingChild();
+                      }}
+                      onBlur={cancelCreatingChild}
+                    />
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
 
       {ctxMenu && (
-        <SimpleMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
-          <button
-            className="sp-ctx-item"
-            onClick={() => {
-              setRenamingId(ctxMenu.group.id);
-              setCtxMenu(null);
-            }}
-          >
-            <Pencil size={12} />
-            <span>{t('panel.rename')}</span>
-          </button>
-          {onSetCover && (
-            <button
-              className="sp-ctx-item"
-              onClick={() => {
-                onSetCover(ctxMenu.group);
-                setCtxMenu(null);
-              }}
-            >
-              <Image size={12} />
-              <span>{t('panel.setCover')}</span>
-            </button>
-          )}
-          {onSidebarPin && (
-            <button
-              className="sp-ctx-item"
-              onClick={() => {
-                const g = ctxMenu.group;
-                const pinnedCount = collections.filter((x) => x.sidebar_pin).length;
-                if (!g.sidebar_pin && pinnedCount >= 5) {
-                  setCtxMenu(null);
-                  return;
-                }
-                onSidebarPin(g.id, !g.sidebar_pin);
-                setCtxMenu(null);
-              }}
-            >
-              <Pin size={12} />
-              <span>{ctxMenu.group.sidebar_pin ? t('panel.unpin') : t('panel.pin')}</span>
-              {!ctxMenu.group.sidebar_pin &&
-                collections.filter((x) => x.sidebar_pin).length >= 5 && (
-                  <span style={{ fontSize: 10, color: 'var(--fg-dim)', marginLeft: 4 }}>
-                    {t('panel.maxPinned')}
-                  </span>
-                )}
-            </button>
-          )}
-          {onDelete && (
-            <>
-              <div className="sp-ctx-sep" />
-              <button
-                className="sp-ctx-item sp-ctx-item-danger"
-                onClick={() => {
-                  onDelete(ctxMenu.group.id, ctxMenu.group.name);
-                  setCtxMenu(null);
-                }}
-              >
-                <Trash2 size={12} />
-                <span>{t('panel.delete')}</span>
-              </button>
-            </>
-          )}
-        </SimpleMenu>
+        <CollectionContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          target={ctxMenu.group}
+          collections={collections}
+          onRename={() => setRenamingId(ctxMenu.group.id)}
+          onSetCover={onSetCover}
+          onSidebarPin={onSidebarPin}
+          onSetParent={groupable ? onSetParent : undefined}
+          onCreateChildAlbum={
+            groupable && onCreateCollection ? () => startCreatingChild(ctxMenu.group.id) : undefined
+          }
+          onDelete={onDelete}
+        />
       )}
     </div>
   );
@@ -792,12 +951,23 @@ export default function SecondaryPanel({
   onRenameFolder,
   onDeleteFolder,
   onMoveFolder,
+  onSetCollectionParent,
 }) {
   const { t } = useTranslation();
   const Icon = PANEL_ICONS[type] || BarChart2;
 
+  // Only the Stats panel's header shows this — fetched here (not inside
+  // StatsPanel) since the header itself lives in this component.
+  const [workspace, setWorkspace] = useState(null);
+  useEffect(() => {
+    if (type !== 'stats') return;
+    invoke('get_active_workspace')
+      .then(setWorkspace)
+      .catch(() => {});
+  }, [type]);
+
   const albumCollections = useMemo(
-    () => collections.filter((g) => g.kind === 'album'),
+    () => collections.filter((g) => g.kind === 'album' || g.kind === 'album_group'),
     [collections],
   );
   const playlistCollections = useMemo(
@@ -810,6 +980,15 @@ export default function SecondaryPanel({
       <div className="sp-header">
         <Icon size={14} className="sp-header-icon" />
         <span className="sp-header-title">{t(PANEL_TITLE_KEYS[type] ?? 'sidebar.folders')}</span>
+        {type === 'stats' && workspace && (
+          <span
+            className="sp-header-workspace"
+            title={workspace.kind === 'default' ? undefined : workspace.path}
+          >
+            {workspace.kind === 'default' ? <HardDrive size={11} /> : <FolderOpen size={11} />}
+            <span>{workspace.name}</span>
+          </span>
+        )}
         <button className="sp-collapse-btn" onClick={onClose} title={t('panel.collapsePanel')}>
           <ChevronsLeft size={13} />
         </button>
@@ -837,7 +1016,9 @@ export default function SecondaryPanel({
             onCollectionClick={onCollectionClick}
             onRename={onRenameCollection}
             onCreateCollection={
-              onCreateCollection ? (name) => onCreateCollection(name, '', null, 'album') : undefined
+              onCreateCollection
+                ? (name, kind) => onCreateCollection(name, '', null, kind || 'album')
+                : undefined
             }
             emptyTextKey="panel.noAlbums"
             sortKey="albums"
@@ -849,6 +1030,8 @@ export default function SecondaryPanel({
             onDelete={onDeleteCollection}
             onSetCover={onSetCollectionCover}
             dragOverId={dragOverId}
+            groupable
+            onSetParent={onSetCollectionParent}
           />
         )}
         {type === 'playlists' && (

@@ -12,6 +12,32 @@ use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 /// truncated to whole seconds) always is.
 const MIN_TRIM_DURATION_SECS: f64 = 1.0;
 
+/// Runs the Swift `vivid-helper` binary with `args`, verifying `out_path`
+/// exists afterward and cleaning it up on failure. Shared by `trim_video` and
+/// `export_video_gif`, which differ only in the subcommand/args and the error
+/// message prefix. Blocking (spawns a subprocess and waits for it) — callers
+/// run it via `spawn_blocking` so a multi-second encode doesn't stall the
+/// async runtime.
+fn run_video_helper(
+    helper: &Path,
+    args: &[String],
+    out_path: &Path,
+    err_context: &str,
+) -> Result<(), String> {
+    let out = std::process::Command::new(helper)
+        .args(args)
+        .output()
+        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
+    if !out.status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!(
+            "{err_context}: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
 // ── Basic export ──────────────────────────────────────────────────────────────
 
 /// Reveal a file in Finder (macOS `open -R`).
@@ -29,6 +55,26 @@ pub fn reveal_in_finder(file_path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn export_file(src_path: String, dest_path: String) -> Result<(), String> {
     fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Set an image as the desktop wallpaper (macOS, via System Events).
+#[tauri::command]
+pub fn set_desktop_wallpaper(file_path: String) -> Result<(), String> {
+    if !Path::new(&file_path).exists() {
+        return Err(format!("File not found: {file_path}"));
+    }
+    let escaped = file_path.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        r#"tell application "System Events" to set picture of every desktop to "{escaped}""#
+    );
+    let out = std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
     Ok(())
 }
 
@@ -223,20 +269,8 @@ pub fn export_files_to_folder(
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let fname = src.file_name().ok_or("Invalid file path")?;
-        let mut dest_path = dest.join(fname);
-        if dest_path.exists() {
-            let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-            let ext  = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-            for i in 1u32.. {
-                let candidate = dest.join(if ext.is_empty() {
-                    format!("{stem}_{i}")
-                } else {
-                    format!("{stem}_{i}.{ext}")
-                });
-                if !candidate.exists() { dest_path = candidate; break; }
-            }
-        }
+        let fname = src.file_name().and_then(|n| n.to_str()).ok_or("Invalid file path")?;
+        let dest_path = unique_path(dest, fname);
         fs::copy(src, &dest_path).map_err(|e| format!("Copy failed for {src_str}: {e}"))?;
     }
     Ok(())
@@ -308,29 +342,36 @@ pub fn export_files_as_zip(
 
 // ── HEIC / displayable path ───────────────────────────────────────────────────
 
-/// Return a displayable path. HEIC/HEIF files are converted to a cached JPEG in /tmp.
+/// Return a displayable path or, for HEIC/HEIF (which the webview can't
+/// render directly), a `data:image/jpeg;base64,...` URL converted entirely
+/// in memory. Deliberately never writes a converted copy to disk anywhere —
+/// not even to system temp — both because a stray full-resolution JPEG
+/// duplicate of every HEIC ever viewed is exactly the kind of derived file
+/// Vivid shouldn't be creating, and because a file under `/tmp` was never
+/// covered by the webview's asset-protocol scope in the first place (that's
+/// why this was silently failing to display full-size, even though the
+/// small pre-generated thumbnail — a different code path — showed up fine).
 #[tauri::command]
 pub fn get_displayable_path(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
 
-    if ext == "heic" || ext == "heif" {
-        use sha2::{Digest, Sha256};
-        let hash = hex::encode(Sha256::digest(file_path.as_bytes()));
-        let out_path = format!("/tmp/vivid_heic_{}.jpg", &hash[..16]);
-        if !Path::new(&out_path).exists() {
-            let status = std::process::Command::new("sips")
-                .args(["-s", "format", "jpeg", "--out", &out_path, &file_path])
-                .status()
-                .map_err(|e| format!("sips not available: {e}"))?;
-            if !status.success() {
-                return Err("sips conversion failed".into());
-            }
-        }
-        Ok(out_path)
-    } else {
-        Ok(file_path)
+    if ext != "heic" && ext != "heif" {
+        return Ok(file_path);
     }
+
+    use crate::clip::heif_to_jpeg_if_needed;
+    use base64::Engine;
+
+    let converted = heif_to_jpeg_if_needed(path).map_err(|e| e.to_string())?;
+    let jpeg_path = converted.as_deref().unwrap_or(path);
+    let bytes = fs::read(jpeg_path).map_err(|e| e.to_string())?;
+    if let Some(tmp) = &converted {
+        let _ = fs::remove_file(tmp);
+    }
+
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/jpeg;base64,{b64}"))
 }
 
 // ── Video playback fallback ────────────────────────────────────────────────────
@@ -507,9 +548,9 @@ pb's writeObjects_({{theImage}})"#
 /// rather than literally overwriting the same path, so the webview never
 /// serves a stale cached copy of a file whose path didn't change.
 #[tauri::command]
-pub fn trim_video(
+pub async fn trim_video(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
     id: String,
     start: f64,
@@ -526,7 +567,7 @@ pub fn trim_video(
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -534,23 +575,24 @@ pub fn trim_video(
     let tmp_out = std::env::temp_dir().join(format!("vivid_trim_{ts}.mp4"));
 
     let helper = super::helper_path(&app);
-    let mut cmd = std::process::Command::new(&helper);
-    cmd.arg("trim")
-        .arg(&file_path)
-        .arg(&tmp_out)
-        .arg(start.to_string())
-        .arg(end.to_string());
+    let mut args = vec![
+        "trim".to_string(),
+        file_path.clone(),
+        tmp_out.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+    ];
     if let Some(h) = max_height {
-        cmd.arg(h.to_string());
+        args.push(h.to_string());
     }
-    let out = cmd.output().map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !tmp_out.exists() {
-        let _ = fs::remove_file(&tmp_out);
-        return Err(format!(
-            "could not trim the video: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let tmp_out_c = tmp_out.clone();
+    // The helper's video re-encode can take real time — run it off the main
+    // thread so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        run_video_helper(&helper, &args, &tmp_out_c, "could not trim the video")
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     if save_mode == "copy" {
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_trimmed.mp4"));
@@ -590,9 +632,9 @@ pub fn trim_video(
 /// conventional "Xp" video resolution naming (e.g. 1080 → 1080p, which for a
 /// 16:9 source is 1920×1080) and defaults to 720px when not given.
 #[tauri::command]
-pub fn export_video_gif(
+pub async fn export_video_gif(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
     start: f64,
     end: f64,
@@ -607,26 +649,26 @@ pub fn export_video_gif(
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
     let helper = super::helper_path(&app);
-    let out = std::process::Command::new(&helper)
-        .arg("gif")
-        .arg(&file_path)
-        .arg(&dest)
-        .arg(start.to_string())
-        .arg(end.to_string())
-        .arg(max_height.unwrap_or(720).to_string())
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !dest.exists() {
-        let _ = fs::remove_file(&dest);
-        return Err(format!(
-            "could not export the GIF: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let args = vec![
+        "gif".to_string(),
+        file_path.clone(),
+        dest.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+        max_height.unwrap_or(720).to_string(),
+    ];
+    let dest_c = dest.clone();
+    // GIF sampling/encoding can take real time — run it off the main thread
+    // so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        run_video_helper(&helper, &args, &dest_c, "could not export the GIF")
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest, None)?;

@@ -24,7 +24,21 @@
     "toolsTitle": "Herramientas multimedia (opcional)",
     "toolsDesc": "Permite descargar contenido desde enlaces. Si ya lo tienes instalado, Vivid usará esa versión — si no, puedes obtenerlo aquí.",
     "toolsNote": "Opcional — omite este paso y descárgalo más tarde desde Configuración cuando lo necesites.",
-    "done": "Todo listo"
+    "done": "Todo listo",
+    "workspace": {
+      "title": "¿Dónde debería vivir tu biblioteca?",
+      "desc": "Puedes cambiarlo más tarde en Ajustes.",
+      "defaultTitle": "Empezar de cero",
+      "defaultDesc": "Vivid gestiona tu biblioteca por ti.",
+      "externalTitle": "Usar una carpeta existente",
+      "externalDesc": "Indícale a Vivid una carpeta que ya tengas — no se copia nada, y la carpeta se vuelve portátil a otro dispositivo.",
+      "chooseTitle": "Elige una carpeta para usar como tu biblioteca",
+      "changeFolder": "Elegir otra carpeta",
+      "pickFolderFirst": "Elige primero una carpeta.",
+      "adding": "Añadiendo…",
+      "restarting": "Reiniciando…",
+      "nameLabel": "Nombre"
+    }
   },
   "tools": {
     "ytdlpDesc": "Descarga video y audio desde enlaces",
@@ -43,6 +57,7 @@
     "browse": "Elegir un archivo en su lugar…"
   },
   "sidebar": {
+    "resizePinned": "Arrastrar para ajustar",
     "allMedia": "Todo el contenido",
     "starred": "Destacados",
     "favorites": "Favoritos",
@@ -96,7 +111,18 @@
   "collection": {
     "addDescription": "Añadir descripción",
     "editDescription": "Editar descripción",
-    "descriptionPlaceholder": "Añade una descripción… (⌘↵ para guardar, Esc para cancelar)"
+    "descriptionPlaceholder": "Añade una descripción… (⌘↵ para guardar, Esc para cancelar)",
+    "albumGroup": "Grupo de álbumes",
+    "albumCount_one": "{{count}} álbum",
+    "albumCount_other": "{{count}} álbumes",
+    "newAlbum": "Nuevo álbum",
+    "newAlbumPlaceholder": "Nombre del álbum…",
+    "newGroupPlaceholder": "Nombre del grupo…",
+    "emptyGroup": "Aún no hay álbumes en este grupo.",
+    "moveToGroup": "Mover al grupo…",
+    "removeFromGroup": "Quitar del grupo",
+    "newAlbumInside": "Nuevo álbum dentro…",
+    "noOtherGroups": "No hay otros grupos"
   },
   "contextMenu": {
     "viewDetails": "Ver detalles",
@@ -111,12 +137,13 @@
     "open": "Abrir",
     "sideBySide": "Comparar en paralelo",
     "showInFinder": "Mostrar en Finder",
+    "setAsWallpaper": "Establecer como fondo de escritorio",
     "copyFile": "Copiar archivo",
     "saveTo": "Guardar en…",
     "exportAs": "Exportar como…",
     "cleanCopy": "Guardar copia sin metadatos",
     "setThumbnail": "Usar como miniatura de la colección",
-    "moveToCollection": "Mover a colección…",
+    "moveToCollection": "Añadir a la colección…",
     "moveToFolder": "Mover a carpeta…",
     "moveToFolderTitle": "Mover a carpeta",
     "playAsAudio": "Reproducir como audio",
@@ -126,14 +153,15 @@
     "removeFromCollection": "Quitar de la colección",
     "colorLabelTitle": "Etiqueta de color",
     "exportAsTitle": "Exportar como…",
-    "moveToCollTitle": "Mover a colección",
+    "moveToCollTitle": "Añadir a la colección",
     "format": "Formato",
     "chooseDestination": "Elegir destino…",
     "deleteCollectionTitle": "Eliminar colección",
     "deleteCollectionMsg": "¿Eliminar \"{{name}}\"? El contenido de esta colección se desvinculará, pero no se eliminará.",
     "deleteCollectionConfirm": "Eliminar",
     "deleteFolderTitle": "Eliminar carpeta",
-    "deleteFolderMsg": "¿Eliminar \"{{name}}\"? Sus archivos se moverán a Sin categoría, no se eliminarán."
+    "deleteFolderMsg": "¿Eliminar \"{{name}}\"? Sus archivos se moverán a Sin categoría, no se eliminarán.",
+    "renameFile": "Renombrar archivo"
   },
   "settings": {
     "title": "Configuración",
@@ -159,7 +187,8 @@
       "semanticSearch": "Búsqueda semántica",
       "aiNaming": "Nombres y descripciones con IA",
       "about": "Vivid",
-      "pinnedCollections": "Colecciones fijadas"
+      "pinnedCollections": "Colecciones fijadas",
+      "workspace": "Espacio de trabajo"
     },
     "general": {
       "homePage": "Página de inicio",
@@ -300,12 +329,10 @@
     },
     "homePageOptions": {
       "all": "Todo el contenido",
+      "starred": "Destacados",
       "image": "Fotos",
       "video": "Videos",
-      "audio": "Audio",
-      "folders": "Carpetas",
-      "albums": "Álbumes de fotos",
-      "music": "Listas de música"
+      "audio": "Audio"
     },
     "syncIntervals": {
       "launch": "Cada vez que se abre",
@@ -336,6 +363,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Todos los derechos reservados.",
       "viewSource": "Ver en GitHub",
       "website": "Sitio web"
+    },
+    "workspace": {
+      "desc": "De forma predeterminada, Vivid guarda tu biblioteca en su propia carpeta de datos de la aplicación. En su lugar, puedes indicarle una carpeta existente: su propia base de datos y miniaturas vivirán dentro de esa carpeta, por lo que todo es portátil a otro dispositivo.",
+      "defaultPath": "Biblioteca predeterminada de Vivid",
+      "active": "Activo",
+      "pendingRestart": "Reiniciar para aplicar",
+      "switch": "Cambiar",
+      "remove": "Eliminar",
+      "add": "Añadir espacio de trabajo",
+      "chooseTitle": "Elige una carpeta para usar como espacio de trabajo",
+      "switchTitle": "¿Cambiar de espacio de trabajo?",
+      "switchConfirm": "Vivid necesita reiniciarse para cambiar a \"{{name}}\". Se perderán los cambios no guardados en otras vistas.",
+      "switchAndRestart": "Cambiar y reiniciar",
+      "removeTitle": "¿Eliminar espacio de trabajo?",
+      "removeConfirm": "Esto solo olvida \"{{name}}\" en Vivid — su carpeta y todo lo que contiene (incluida su base de datos) permanece intacto en el disco.",
+      "rename": "Renombrar",
+      "saveName": "Guardar nombre",
+      "devRestartNeeded": "Espacio de trabajo cambiado. Reinicia el servidor de desarrollo (no solo esta ventana) para aplicarlo: el reinicio automático no funciona en `tauri dev`."
     }
   },
   "trash": {
@@ -422,7 +467,10 @@
     "noFilesDesc": "Importa fotos, videos o audio para comenzar",
     "noResults": "Sin resultados",
     "noResultsDesc": "Ningún archivo coincide con tu búsqueda o filtros actuales",
-    "clearFilters": "Borrar búsqueda y filtros"
+    "clearFilters": "Borrar búsqueda y filtros",
+    "selectGroup": "Seleccionar todo en este grupo",
+    "deselectGroup": "Deseleccionar todo en este grupo",
+    "noCaptureDate": "Sin fecha de captura: se muestra la fecha de adición"
   },
   "filterBar": {
     "filters": "Filtros",
@@ -454,6 +502,8 @@
     "camera": "Cámara",
     "camerasCount_one": "{{count}} cámara",
     "camerasCount_other": "{{count}} cámaras",
+    "resolutionsCount_one": "{{count}} resolución",
+    "resolutionsCount_other": "{{count}} resoluciones",
     "colorsCount_one": "{{count}} etiqueta",
     "colorsCount_other": "{{count}} etiquetas",
     "color": {
@@ -485,10 +535,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Resolución",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K y superior"
+    },
     "inCollection": "En una colección"
   },
   "panel": {
     "collapsePanel": "Contraer panel",
+    "expandGroup": "Expandir grupo",
+    "collapseGroup": "Contraer grupo",
     "sortAZ": "A → Z (clic para Z → A)",
     "sortZA": "Z → A (clic para orden personalizado)",
     "sortCustom": "Orden personalizado (clic para A → Z)",
@@ -512,6 +571,7 @@
     "setCover": "Establecer portada…",
     "unpin": "Dejar de fijar",
     "pin": "Fijar",
+    "pinned": "Fijados",
     "maxPinned": "(máx. 5)",
     "delete": "Eliminar",
     "noFolders": "Aún no hay carpetas",
@@ -552,7 +612,20 @@
     "empty": "No se encontraron fotos ni videos con ubicación.",
     "emptyHint": "Importa imágenes con datos GPS en el EXIF para verlas en el mapa.",
     "clickToOpen": "Clic para abrir",
-    "clusterHint": "1 de {{count}} elementos aquí · Clic para abrir"
+    "googleMaps": "Google Maps",
+    "clusterCount": "{{count}} elementos aquí",
+    "resetView": "Restablecer vista",
+    "worldView": "Alejar a la vista mundial",
+    "travelPath": "Mostrar ruta de viaje",
+    "stepFirst": "Primera parada",
+    "stepBack": "Parada anterior",
+    "stepForward": "Siguiente parada",
+    "stepLast": "Última parada",
+    "selectMode": "Seleccionar puntos (arrastra para selección por área, ctrl+clic para alternar)",
+    "isolateSelected": "Aislar {{count}} (ocultar el resto)",
+    "hideSelected": "Ocultar {{count}}",
+    "hiddenCount": "{{count}} ocultos",
+    "showAll": "Mostrar todo"
   },
   "stats": {
     "empty": "Importa algunos archivos para ver las estadísticas de la biblioteca.",
@@ -640,8 +713,6 @@
   "sort": {
     "dateNewest": "Fecha de captura (más reciente)",
     "dateOldest": "Fecha de captura (más antigua)",
-    "addedNewest": "Añadido a Vivid (más reciente)",
-    "addedOldest": "Añadido a Vivid (más antiguo)",
     "nameAz": "Nombre A→Z",
     "nameZa": "Nombre Z→A",
     "sizeDesc": "Tamaño: mayor primero",
@@ -754,9 +825,21 @@
     "importFailed": "{{count}} archivo falló",
     "importFailed_other": "{{count}} archivos fallaron",
     "duplicateCollection": "Ya existe una colección llamada \"{{name}}\"",
+    "duplicateSavedSearch": "Ya existe una búsqueda guardada llamada \"{{name}}\"",
     "duplicateFolder": "Ya existe una carpeta llamada \"{{name}}\" aquí",
     "addedToCollection": "Se añadió {{count}} elemento a {{name}}",
-    "addedToCollection_other": "Se añadieron {{count}} elementos a {{name}}"
+    "addedToCollection_other": "Se añadieron {{count}} elementos a {{name}}",
+    "movedToFolder": "Se movió {{count}} elemento a {{name}}",
+    "movedToFolder_other": "Se movieron {{count}} elementos a {{name}}",
+    "alreadyInFolder": "{{count}} elemento ya está en {{name}}",
+    "alreadyInFolder_other": "{{count}} elementos ya están en {{name}}",
+    "alreadyInCollection": "{{count}} elemento ya está en {{name}}",
+    "alreadyInCollection_other": "{{count}} elementos ya están en {{name}}",
+    "moveToCollectionFailed_one": "{{count}} archivo no se pudo mover (incompatible con la colección)",
+    "moveToCollectionFailed_other": "{{count}} archivos no se pudieron mover (incompatibles con la colección)",
+    "noGeotaggedInAlbum": "No hay imágenes con ubicación en este álbum para mostrar en el mapa.",
+    "renameFilesFailed_one": "No se pudo renombrar {{count}} archivo",
+    "renameFilesFailed_other": "No se pudieron renombrar {{count}} archivos"
   },
   "results": {
     "count_one": "{{count}} resultado",
@@ -774,7 +857,27 @@
   },
   "search": {
     "aiPlaceholder": "Describe lo que buscas…",
-    "placeholder": "Buscar por nombre, etiqueta o descripción…"
+    "placeholder": "Buscar por nombre, etiqueta o descripción…",
+    "placeholderAlbums": "Buscar álbumes…",
+    "scope": {
+      "title": "Buscar en",
+      "name": "Nombre de archivo",
+      "tags": "Etiquetas",
+      "description": "Descripción",
+      "ocr": "Texto en la imagen (OCR)"
+    },
+    "saved": {
+      "title": "Búsquedas guardadas",
+      "namePlaceholder": "Nombra esta búsqueda…",
+      "save": "Guardar",
+      "delete": "Eliminar",
+      "empty": "Aún no hay búsquedas guardadas.",
+      "filterPlaceholder": "Buscar marcadores…",
+      "noMatches": "Sin resultados.",
+      "deleteTitle": "Eliminar búsqueda guardada",
+      "deleteMsg": "¿Eliminar la búsqueda guardada \"{{name}}\"? Esto no se puede deshacer.",
+      "deleteConfirm": "Eliminar"
+    }
   },
   "detail": {
     "title": "Detalles",
@@ -803,6 +906,8 @@
     "track": "N.° de pista",
     "file": "Archivo",
     "format": "Formato",
+    "colorLabel": "Etiqueta",
+    "noColorLabel": "Sin etiqueta",
     "size": "Tamaño",
     "added": "Añadido a Vivid",
     "path": "Ruta",
@@ -815,6 +920,7 @@
     "removeFromLibrary": "Quitar de la biblioteca",
     "albumLabel": "Álbum",
     "playlistLabel": "Lista de reproducción",
+    "collectionsLabel": "Colecciones",
     "folderLabel": "Carpeta",
     "collectionLabel": "Colección",
     "folder": "Carpeta",
@@ -858,7 +964,7 @@
     "saveAs": "Guardar como",
     "optional": "opcional",
     "optionalNoExt": "opcional, sin extensión",
-    "photoPlaceholder": "mi-foto.jpg",
+    "photoPlaceholder": "mi-foto",
     "videoPlaceholder": "mi-video",
     "songPlaceholder": "mi-cancion",
     "addToCollection": "Añadir a lista de reproducción",
@@ -990,6 +1096,7 @@
     "copyFrame": "Copiar fotograma al portapapeles",
     "frameCopied": "Fotograma copiado al portapapeles",
     "trimVideo": "Recortar video",
+    "fitToScreen": "Ajustar a la pantalla",
     "trimDragHint": "Arrastra los controles para recortar, reproduce para previsualizar",
     "trimSaveNew": "Guardar como nuevo",
     "trimReplace": "Reemplazar",
@@ -1150,7 +1257,7 @@
     "export": "Exportar",
     "rename": "Renombrar",
     "addTags": "Añadir etiquetas",
-    "moveToCollection": "Mover a colección…",
+    "moveToCollection": "Añadir a la colección…",
     "moveToFolder": "Mover a carpeta…",
     "noCollection": "Sin colección",
     "searchCollections": "Buscar colecciones…",
@@ -1162,7 +1269,9 @@
     "albums": "Álbumes",
     "playlists": "Listas de reproducción",
     "deleteCount_one": "Eliminar {{count}}",
-    "deleteCount_other": "Eliminar {{count}}"
+    "deleteCount_other": "Eliminar {{count}}",
+    "noCompatibleCollections": "No hay colecciones compatibles con esta selección",
+    "renameFiles": "Renombrar archivos en disco"
   },
   "massTag": {
     "title_one": "Añadir etiquetas a {{count}} archivo",
@@ -1206,5 +1315,23 @@
     "exportAsZipDesc": "Agrupa todos los archivos en un único archivo ZIP",
     "close": "Cerrar",
     "errorPrefix": "Error:"
+  },
+  "renameFile": {
+    "title_one": "Renombrar {{count}} archivo",
+    "title_other": "Renombrar {{count}} archivos",
+    "conflictHint_one": "{{count}} nombre de archivo entraría en conflicto — corrígelo antes de renombrar.",
+    "conflictHint_other": "{{count}} nombres de archivo entrarían en conflicto — corrígelos antes de renombrar.",
+    "newName": "Nuevo nombre",
+    "titleSingle": "Renombrar archivo en disco",
+    "rename": "Renombrar"
+  },
+  "workspacePicker": {
+    "title": "¿Qué espacio de trabajo?",
+    "desc": "Tienes más de un espacio de trabajo configurado. Elige uno para continuar.",
+    "continue": "Continuar",
+    "restarting": "Reiniciando…",
+    "opening": "Abriendo…",
+    "cancel": "Cancelar",
+    "current": "Actual"
   }
 }

@@ -55,11 +55,16 @@ const HOME_OPTIONS = [
 const STEP_COUNT = 4;
 
 /**
- * First-run onboarding. Surfaces the handful of settings new users most want to
- * review (language, theme, accent, default view) with sensible defaults already
- * selected, then offers the optional AI model download. Every choice writes
- * through to the app's real state, so picks preview live behind the modal and
- * persist whether or not the user finishes.
+ * First-run onboarding. Surfaces the handful of settings new users most want
+ * to review (language, theme, accent, default view) with sensible defaults
+ * already selected, then offers the optional AI model download. Every choice
+ * writes through to the app's real state, so picks preview live behind the
+ * modal and persist whether or not the user finishes.
+ *
+ * Which workspace to use is resolved *before* this ever mounts (see
+ * `WorkspaceGate`/`FirstRunWorkspaceChoice`) — by the time a user reaches
+ * this flow, some workspace is already loaded and running, so there's
+ * nothing about it left to ask here.
  */
 export default function WelcomeFlow({
   onFinish,

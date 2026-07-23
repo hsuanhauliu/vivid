@@ -7,6 +7,7 @@
 //   audiocover <audioPath> <outPath>          → {"ok": true}       (embedded picture track → JPEG)
 //   trim <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true} (time-range export → MP4)
 //   gif <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true, "frames": N} (time-range → animated GIF)
+//   complete <partialWord>                    → {"completions": [...]} (NSSpellChecker word completion)
 //
 // All video/audio work here goes through AVFoundation/ImageIO — no ffmpeg or
 // any other external process. AVFoundation only demuxes Apple's own container
@@ -24,6 +25,7 @@ import CoreImage
 import ImageIO
 import AVFoundation
 import CoreMedia
+import AppKit
 
 // Print a JSON object to stdout and exit.
 func emit(_ object: [String: Any]) -> Never {
@@ -72,6 +74,20 @@ func runOCR(_ path: String) -> Never {
         }
     }
     emit(["text": lines.joined(separator: "\n")])
+}
+
+// Word completion via the system spell checker (same engine behind Notes/
+// TextEdit tab-completion). No network, no model — just NSSpellChecker's
+// built-in dictionary + learned-words list for the current input language.
+func runComplete(_ partial: String) -> Never {
+    guard !partial.isEmpty else { emit(["completions": []]) }
+    let checker = NSSpellChecker.shared
+    let range = NSRange(location: 0, length: (partial as NSString).length)
+    let language = checker.language()
+    let completions = checker.completions(
+        forPartialWordRange: range, in: partial, language: language, inSpellDocumentWithTag: 0
+    ) ?? []
+    emit(["completions": completions])
 }
 
 // ── Video/image helpers ──────────────────────────────────────────────────────
@@ -288,6 +304,9 @@ case "gif":
         maxHeight = CGFloat(parsed)
     }
     exportGif(args[2], args[3], start, end, maxHeight)
+case "complete":
+    guard args.count >= 3 else { fail("usage: vivid-helper complete <partialWord>") }
+    runComplete(args[2])
 default:
     fail("unknown subcommand: \(args[1])")
 }

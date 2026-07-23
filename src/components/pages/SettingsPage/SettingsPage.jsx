@@ -6,9 +6,11 @@ import LibraryPane from './LibraryPane';
 import AiPane from './AiPane';
 import AboutPane from './AboutPane';
 import { TABS } from './constants';
+import ScrollArea from '../../common/ScrollArea';
 import './SettingsPage.css';
 
 export default function SettingsPage({
+  initialTab = null,
   theme,
   onThemeChange,
   colorTheme,
@@ -47,7 +49,7 @@ export default function SettingsPage({
   allItems = [],
 }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState(initialTab || 'general');
 
   return (
     <div className="settings-page">
@@ -68,7 +70,7 @@ export default function SettingsPage({
       </nav>
 
       <div className="settings-content">
-        <div className="settings-body">
+        <ScrollArea className="settings-body-wrap" innerClassName="settings-body">
           {activeTab === 'general' && (
             <GeneralPane
               title={t('settings.tabs.general')}
@@ -128,7 +130,7 @@ export default function SettingsPage({
             />
           )}
           {activeTab === 'about' && <AboutPane />}
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

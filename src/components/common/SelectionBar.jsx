@@ -5,6 +5,7 @@ import {
   Trash2,
   Tag,
   Pencil,
+  FileCog,
   Download,
   FolderInput,
   FolderTree,
@@ -13,14 +14,21 @@ import {
   Disc,
 } from 'lucide-react';
 import CollectionAvatar from './CollectionAvatar';
+import ScrollArea from './ScrollArea';
 import useDismiss from '../../hooks/useDismiss';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './SelectionBar.css';
 
 const VISIBLE_LIMIT = 6;
 
 // "Move to Collection" menu: collections collections by type (albums / playlists),
 // shows real cover thumbnails, and reveals a search box when there are many.
-function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
+// Only offers collection kinds every selected item is compatible with (same
+// rule the backend enforces: album ⇔ image/video, playlist ⇔ audio/video) —
+// a mixed image+audio selection is compatible with neither, so both lists
+// come back empty rather than letting the user pick a target that will
+// silently fail for part of the selection.
+function MoveToCollectionMenu({ collections, allItems, selectedItems, onMassCollection }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -39,8 +47,21 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
     setOpen(false);
   }
 
-  const albums = useMemo(() => collections.filter((g) => g.kind === 'album'), [collections]);
-  const playlists = useMemo(() => collections.filter((g) => g.kind === 'playlist'), [collections]);
+  const albumCompatible =
+    selectedItems.length > 0 &&
+    selectedItems.every((i) => i.media_type === 'image' || i.media_type === 'video');
+  const playlistCompatible =
+    selectedItems.length > 0 &&
+    selectedItems.every((i) => i.media_type === 'audio' || i.media_type === 'video');
+
+  const albums = useMemo(
+    () => (albumCompatible ? collections.filter((g) => g.kind === 'album') : []),
+    [collections, albumCompatible],
+  );
+  const playlists = useMemo(
+    () => (playlistCompatible ? collections.filter((g) => g.kind === 'playlist') : []),
+    [collections, playlistCompatible],
+  );
 
   const q = search.trim().toLowerCase();
   const showAll = expanded || q.length > 0;
@@ -86,13 +107,7 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
               />
             </div>
           )}
-          <div className="sel-collection-list">
-            <button
-              className="sel-collection-item sel-collection-none"
-              onClick={() => pick('__none__')}
-            >
-              <X size={12} /> {t('selection.noCollection')}
-            </button>
+          <ScrollArea className="sel-collection-list" innerClassName="sel-collection-list-inner">
             {sections.map(({ key, label, icon: Icon, items }) => {
               const rows = items.slice(0, budget);
               budget -= rows.length;
@@ -119,10 +134,14 @@ function MoveToCollectionMenu({ collections, allItems, onMassCollection }) {
             })}
             {sections.length === 0 && (
               <div className="sel-collection-empty">
-                {q ? t('selection.noMatches') : t('selection.noCollections')}
+                {q
+                  ? t('selection.noMatches')
+                  : !albumCompatible && !playlistCompatible
+                    ? t('selection.noCompatibleCollections')
+                    : t('selection.noCollections')}
               </div>
             )}
-          </div>
+          </ScrollArea>
           {hasMore && (
             <button className="sel-collection-more" onClick={() => setExpanded(true)}>
               <Search size={11} /> {t('selection.findMore', { count: totalReal - VISIBLE_LIMIT })}
@@ -149,8 +168,8 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
   const sorted = useMemo(
     () =>
       [...folders].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],
@@ -188,7 +207,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
               />
             </div>
           )}
-          <div className="sel-collection-list">
+          <ScrollArea className="sel-collection-list" innerClassName="sel-collection-list-inner">
             {shown.map((f) => {
               const depth = (f.rel_path.match(/\//g) || []).length;
               return (
@@ -203,7 +222,7 @@ function MoveToFolderMenu({ folders, onMassMoveFolder }) {
             {shown.length === 0 && (
               <div className="sel-collection-empty">{t('selection.noFolders')}</div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>
@@ -220,10 +239,12 @@ export default function SelectionBar({
   onMassCollection,
   onMassMoveFolder,
   onBatchRename,
+  onRenameFiles,
   onExport,
   collections,
   folders,
   allItems,
+  selectedItems = [],
   hasPlayer,
 }) {
   const { t } = useTranslation();
@@ -246,7 +267,11 @@ export default function SelectionBar({
       </div>
 
       <div className="selection-bar-actions">
-        <button className="btn btn-secondary selection-action" onClick={onExport} title={t('selection.export')}>
+        <button
+          className="btn btn-secondary selection-action"
+          onClick={onExport}
+          title={t('selection.export')}
+        >
           <Download size={16} />
         </button>
         <button
@@ -258,6 +283,13 @@ export default function SelectionBar({
         </button>
         <button
           className="btn btn-secondary selection-action"
+          onClick={onRenameFiles}
+          title={t('selection.renameFiles')}
+        >
+          <FileCog size={16} />
+        </button>
+        <button
+          className="btn btn-secondary selection-action"
           onClick={onMassTag}
           title={t('selection.addTags')}
         >
@@ -266,6 +298,7 @@ export default function SelectionBar({
         <MoveToCollectionMenu
           collections={collections}
           allItems={allItems}
+          selectedItems={selectedItems}
           onMassCollection={onMassCollection}
         />
         {folders?.length > 0 && onMassMoveFolder && (

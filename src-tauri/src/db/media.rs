@@ -1,9 +1,9 @@
 //! Media item persistence: insert/update/query, audio metadata, color
 //! labels, GPS, OCR, and thumbnail bookkeeping.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 
 pub fn source_path_exists(conn: &Connection, source_path: &str) -> Result<bool> {
     let count: i64 = conn.query_row(
@@ -14,20 +14,26 @@ pub fn source_path_exists(conn: &Connection, source_path: &str) -> Result<bool> 
     Ok(count > 0)
 }
 
+/// A tracked item's current file path — for callers that only need the path,
+/// not a full row (e.g. resolving a file to run AI inference on by id).
+pub fn file_path(conn: &Connection, id: &str) -> Result<String> {
+    conn.query_row("SELECT file_path FROM media_items WHERE id=?1", params![id], |r| r.get(0))
+}
+
 pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
     conn.execute(
         "INSERT OR IGNORE INTO media_items
          (id, file_path, source_path, file_name, display_name, media_type, file_size,
-          description, tags, starred, collection_id, color_label, gps_lat, gps_lng,
+          description, tags, starred, color_label, gps_lat, gps_lng,
           created_at, updated_at, sort_order,
           audio_title, audio_artist, audio_album, audio_track, audio_duration_secs, audio_year,
           date_taken, favorited, audio_cover, width, height, folder_id, camera_make, camera_model)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30)",
         params![
             item.id, item.file_path, item.source_path, item.file_name, item.display_name,
             item.media_type, item.file_size, item.description,
             serde_json::to_string(&item.tags).unwrap_or_else(|_| "[]".into()),
-            item.starred as i64, item.collection_id, item.color_label,
+            item.starred as i64, item.color_label,
             item.gps_lat, item.gps_lng, item.created_at, item.updated_at, item.sort_order,
             item.audio_title, item.audio_artist, item.audio_album,
             item.audio_track, item.audio_duration, item.audio_year,
@@ -35,6 +41,11 @@ pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
             item.width, item.height, item.folder_id, item.camera_make, item.camera_model,
         ],
     )?;
+    if !item.collection_ids.is_empty() {
+        for cid in &item.collection_ids {
+            add_to_collection(conn, &item.id, cid)?;
+        }
+    }
     Ok(())
 }
 
@@ -189,10 +200,11 @@ pub fn get_ocr_counts(conn: &Connection) -> Result<(i64, i64)> {
 pub fn get_all(conn: &Connection) -> Result<Vec<MediaItem>> {
     let sql = format!("{SELECT_MEDIA} WHERE deleted_at IS NULL ORDER BY created_at DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map([], row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
@@ -202,13 +214,18 @@ pub fn get_audio_tracks(conn: &Connection) -> Result<Vec<MediaItem>> {
          ORDER BY audio_album ASC, audio_track ASC, display_name ASC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt.query_map([], row_to_item)?.filter_map(|r| r.ok()).collect();
+    let mut items: Vec<MediaItem> =
+        stmt.query_map([], row_to_item)?.filter_map(|r| r.ok()).collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
 pub fn fetch_one(conn: &Connection, id: &str) -> Result<MediaItem> {
     let sql = format!("{SELECT_MEDIA} WHERE id=?1");
-    conn.query_row(&sql, params![id], row_to_item)
+    let item = conn.query_row(&sql, params![id], row_to_item)?;
+    let mut items = vec![item];
+    attach_collections(conn, &mut items)?;
+    Ok(items.into_iter().next().unwrap())
 }
 
 pub fn update(
@@ -246,6 +263,20 @@ pub fn repoint_file(
     fetch_one(conn, id)
 }
 
+/// Rename an item's on-disk file (path + file_name only — `display_name`,
+/// the library-facing title, is untouched). Distinct from `repoint_file`,
+/// which updates `display_name` instead: that's for the file being silently
+/// re-encoded to a new location as a side effect of some other edit, not a
+/// deliberate rename of the visible filename.
+pub fn rename_file(conn: &Connection, id: &str, new_path: &str, new_name: &str) -> Result<MediaItem> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET file_path=?1, file_name=?2, updated_at=?3 WHERE id=?4",
+        params![new_path, new_name, now, id],
+    )?;
+    fetch_one(conn, id)
+}
+
 pub fn toggle_star(conn: &Connection, id: &str) -> Result<MediaItem> {
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
@@ -255,12 +286,112 @@ pub fn toggle_star(conn: &Connection, id: &str) -> Result<MediaItem> {
     fetch_one(conn, id)
 }
 
-pub fn set_collection(conn: &Connection, id: &str, collection_id: Option<&str>) -> Result<MediaItem> {
+/// Add an item to a collection — idempotent, and additive: unlike the old
+/// single-`collection_id` model this doesn't touch the item's membership in
+/// any other collection.
+pub fn add_to_collection(conn: &Connection, id: &str, collection_id: &str) -> Result<()> {
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
-        "UPDATE media_items SET collection_id=?1, updated_at=?2 WHERE id=?3",
-        params![collection_id, now, id],
+        "INSERT OR IGNORE INTO collection_items (collection_id, item_id, added_at) VALUES (?1,?2,?3)",
+        params![collection_id, id, now],
     )?;
-    fetch_one(conn, id)
+    Ok(())
+}
+
+pub fn remove_from_collection(conn: &Connection, id: &str, collection_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM collection_items WHERE collection_id=?1 AND item_id=?2",
+        params![collection_id, id],
+    )?;
+    Ok(())
+}
+
+// ── Workspace reconciliation ─────────────────────────────────────────────────
+//
+// A workspace's folder can change while Vivid isn't running (files added,
+// removed, or edited outside the app). These narrow, reconciliation-specific
+// queries stay off `MediaItem`/`SELECT_MEDIA`/`row_to_item` deliberately —
+// `mtime` is a backend-internal bookkeeping detail, not something the
+// frontend needs serialized on every item.
+
+/// A tracked file's disk identity, as last recorded in the database —
+/// compared against a fresh directory walk to detect files added, removed,
+/// or modified since Vivid last ran.
+pub struct FileIdentity {
+    pub id: String,
+    pub file_path: String,
+    pub file_size: i64,
+    /// `None` for a row reconciliation hasn't established a baseline for
+    /// yet — see `set_mtime`.
+    pub mtime: Option<i64>,
+}
+
+/// Every non-deleted item's disk identity.
+pub fn get_reconcile_snapshot(conn: &Connection) -> Result<Vec<FileIdentity>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, file_path, file_size, mtime FROM media_items WHERE deleted_at IS NULL",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok(FileIdentity {
+            id: r.get(0)?,
+            file_path: r.get(1)?,
+            file_size: r.get(2)?,
+            mtime: r.get(3)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// A file's size and/or mtime genuinely changed on disk since last seen —
+/// update the tracked values and drop everything derived from the old
+/// content (thumbnail, dimensions, embedding, OCR) so it's regenerated.
+pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) -> Result<()> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "UPDATE media_items SET file_size=?1, mtime=?2, thumb_path=NULL, width=NULL, height=NULL, \
+         embedding=NULL, ocr_scanned=0, ocr_text=NULL, updated_at=?3 WHERE id=?4",
+        params![file_size, mtime, now, id],
+    )?;
+    Ok(())
+}
+
+/// Establish a row's `mtime` baseline without treating it as a content
+/// change (no thumb/embedding invalidation) — a freshly-adopted row has no
+/// baseline yet (`insert` doesn't set `mtime`), so the first reconciliation
+/// pass that sees it records one here instead of treating "no baseline" as
+/// "modified".
+pub fn set_mtime(conn: &Connection, id: &str, mtime: i64) -> Result<()> {
+    conn.execute("UPDATE media_items SET mtime=?1 WHERE id=?2", params![mtime, id])?;
+    Ok(())
+}
+
+/// The active (non-trashed) row currently tracked at `file_path`, if any.
+/// Used by the live filesystem watcher to tell whether a changed path is a
+/// known file (update) or brand new (adopt).
+pub fn active_identity_by_path(conn: &Connection, file_path: &str) -> Result<Option<FileIdentity>> {
+    conn.query_row(
+        "SELECT id, file_path, file_size, mtime FROM media_items WHERE file_path=?1 AND deleted_at IS NULL",
+        params![file_path],
+        |r| Ok(FileIdentity {
+            id: r.get(0)?,
+            file_path: r.get(1)?,
+            file_size: r.get(2)?,
+            mtime: r.get(3)?,
+        }),
+    )
+    .optional()
+}
+
+/// Hard-delete every row in `ids` in one statement. Used when reconciliation
+/// or the live watcher finds a previously-tracked file genuinely gone from
+/// disk — unlike `trash::remove`, this isn't a user action and there's no
+/// file left to restore, so trash semantics don't apply.
+pub fn remove_missing(conn: &Connection, ids: &[String]) -> Result<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let sql = format!("DELETE FROM media_items WHERE id IN ({})", super::in_placeholders(ids.len()));
+    conn.execute(&sql, rusqlite::params_from_iter(ids))?;
+    Ok(())
 }
 

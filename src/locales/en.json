@@ -24,7 +24,21 @@
     "toolsTitle": "Media tools (optional)",
     "toolsDesc": "Powers downloading from links. If you already have it installed, Vivid uses yours — otherwise you can grab it here.",
     "toolsNote": "Optional — skip and download later from Settings whenever you need them.",
-    "done": "You're all set"
+    "done": "You're all set",
+    "workspace": {
+      "title": "Where should your library live?",
+      "desc": "You can change this later in Settings.",
+      "defaultTitle": "Start fresh",
+      "defaultDesc": "Vivid manages your library for you.",
+      "externalTitle": "Use an existing folder",
+      "externalDesc": "Point Vivid at a folder you already have — nothing is copied, and the folder becomes portable to another device.",
+      "chooseTitle": "Choose a folder to use as your library",
+      "changeFolder": "Choose a different folder",
+      "pickFolderFirst": "Choose a folder first.",
+      "adding": "Adding…",
+      "restarting": "Restarting…",
+      "nameLabel": "Name"
+    }
   },
   "tools": {
     "ytdlpDesc": "Download video & audio from links",
@@ -43,6 +57,7 @@
     "browse": "Choose a file instead…"
   },
   "sidebar": {
+    "resizePinned": "Drag to resize",
     "allMedia": "All Media",
     "starred": "Starred",
     "favorites": "Favorites",
@@ -96,7 +111,18 @@
   "collection": {
     "addDescription": "Add description",
     "editDescription": "Edit description",
-    "descriptionPlaceholder": "Add a description… (⌘↵ to save, Esc to cancel)"
+    "descriptionPlaceholder": "Add a description… (⌘↵ to save, Esc to cancel)",
+    "albumGroup": "Album Group",
+    "albumCount_one": "{{count}} album",
+    "albumCount_other": "{{count}} albums",
+    "newAlbum": "New Album",
+    "newAlbumPlaceholder": "Album name…",
+    "newGroupPlaceholder": "Group name…",
+    "emptyGroup": "No albums in this group yet.",
+    "moveToGroup": "Move to Group…",
+    "removeFromGroup": "Remove from Group",
+    "newAlbumInside": "New Album Inside…",
+    "noOtherGroups": "No other groups"
   },
   "contextMenu": {
     "viewDetails": "View Details",
@@ -111,12 +137,13 @@
     "open": "Open",
     "sideBySide": "Side by Side",
     "showInFinder": "Show in Finder",
+    "setAsWallpaper": "Set as Desktop Background",
     "copyFile": "Copy File",
     "saveTo": "Save to…",
     "exportAs": "Export as…",
     "cleanCopy": "Save Clean Copy",
     "setThumbnail": "Set as Collection Thumbnail",
-    "moveToCollection": "Move to Collection…",
+    "moveToCollection": "Add to Collection…",
     "moveToFolder": "Move to Folder…",
     "moveToFolderTitle": "Move to Folder",
     "playAsAudio": "Play as Audio",
@@ -126,14 +153,15 @@
     "removeFromCollection": "Remove from collection",
     "colorLabelTitle": "Color Label",
     "exportAsTitle": "Export as…",
-    "moveToCollTitle": "Move to Collection",
+    "moveToCollTitle": "Add to Collection",
     "format": "Format",
     "chooseDestination": "Choose destination…",
     "deleteCollectionTitle": "Delete Collection",
     "deleteCollectionMsg": "Delete \"{{name}}\"? Media in this collection will be unassigned but not deleted.",
     "deleteCollectionConfirm": "Delete",
     "deleteFolderTitle": "Delete Folder",
-    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Uncategorized, not deleted."
+    "deleteFolderMsg": "Delete \"{{name}}\"? Its files will be moved to Other, not deleted.",
+    "renameFile": "Rename File"
   },
   "settings": {
     "title": "Settings",
@@ -159,7 +187,8 @@
       "semanticSearch": "Semantic Search",
       "aiNaming": "AI Naming & Description",
       "about": "Vivid",
-      "pinnedCollections": "Pinned Collections"
+      "pinnedCollections": "Pinned Collections",
+      "workspace": "Workspace"
     },
     "general": {
       "homePage": "Home page",
@@ -300,12 +329,10 @@
     },
     "homePageOptions": {
       "all": "All Media",
+      "starred": "Starred",
       "image": "Photos",
       "video": "Videos",
-      "audio": "Audio",
-      "folders": "Folders",
-      "albums": "Photo Albums",
-      "music": "Music Playlists"
+      "audio": "Audio"
     },
     "syncIntervals": {
       "launch": "On every launch",
@@ -336,6 +363,31 @@
       "copyright": "© 2026 Hsuan-Hau Liu. All rights reserved.",
       "viewSource": "View on GitHub",
       "website": "Website"
+    },
+    "workspace": {
+      "desc": "Vivid stores your library in its own app data folder by default. You can instead point it at an existing folder — files are indexed in place, in a hidden .vivid folder inside it. Nothing is ever copied, converted, or duplicated: thumbnails and format-converted previews are cached in Vivid's own app data folder instead, never written near your files.",
+      "defaultPath": "Vivid's default library",
+      "active": "Active",
+      "pendingRestart": "Restart to apply",
+      "switch": "Switch",
+      "add": "Add Workspace",
+      "addDefault": "Add Vivid's Managed Library",
+      "chooseTitle": "Choose a folder to use as a workspace",
+      "switchTitle": "Switch workspace?",
+      "switchConfirm": "Vivid needs to restart to switch to \"{{name}}\". Any unsaved changes in other views will be lost.",
+      "switchAndRestart": "Switch & Restart",
+      "unlink": "Unlink",
+      "unlinkTitle": "Unlink workspace?",
+      "unlinkConfirm": "This only forgets \"{{name}}\" in Vivid — its folder and everything inside it (including its database) is left untouched on disk.",
+      "unlinkActiveConfirm": "Vivid needs to restart to switch to another workspace after unlinking \"{{name}}\". Its folder and everything inside it (including its database) is left untouched on disk.",
+      "rename": "Rename",
+      "saveName": "Save name",
+      "devRestartNeeded": "Workspace switched. Restart the dev server (not just this window) to apply it — automatic restart doesn’t work in `tauri dev`.",
+      "invalid": "Folder missing",
+      "fixPath": "Fix path…",
+      "fixPathTitle": "Locate \"{{name}}\"",
+      "fixPathDesc": "Vivid can't find this workspace's folder anymore. Choose its new location (or where you moved it to) to reconnect it.",
+      "fixPathConfirm": "Reconnect"
     }
   },
   "trash": {
@@ -422,7 +474,10 @@
     "noFilesDesc": "Import photos, videos, or audio to get started",
     "noResults": "No results",
     "noResultsDesc": "No files match your current search or filters",
-    "clearFilters": "Clear search & filters"
+    "clearFilters": "Clear search & filters",
+    "selectGroup": "Select all in this group",
+    "deselectGroup": "Deselect all in this group",
+    "noCaptureDate": "No capture date — showing date added"
   },
   "filterBar": {
     "filters": "Filters",
@@ -454,6 +509,8 @@
     "camera": "Camera",
     "camerasCount_one": "{{count}} camera",
     "camerasCount_other": "{{count}} cameras",
+    "resolutionsCount_one": "{{count}} resolution",
+    "resolutionsCount_other": "{{count}} resolutions",
     "colorsCount_one": "{{count}} label",
     "colorsCount_other": "{{count}} labels",
     "color": {
@@ -485,10 +542,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Resolution",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K & up"
+    },
     "inCollection": "In a collection"
   },
   "panel": {
     "collapsePanel": "Collapse panel",
+    "expandGroup": "Expand group",
+    "collapseGroup": "Collapse group",
     "sortAZ": "A → Z (click for Z → A)",
     "sortZA": "Z → A (click for Custom)",
     "sortCustom": "Custom order (click for A → Z)",
@@ -512,6 +578,7 @@
     "setCover": "Set cover…",
     "unpin": "Unpin",
     "pin": "Pin",
+    "pinned": "Pinned",
     "maxPinned": "(max 5)",
     "delete": "Delete",
     "noFolders": "No folders yet",
@@ -552,7 +619,20 @@
     "empty": "No geotagged photos or videos found.",
     "emptyHint": "Import images with GPS EXIF data to see them on the map.",
     "clickToOpen": "Click to open",
-    "clusterHint": "1 of {{count}} items here · Click to open"
+    "googleMaps": "Google Maps",
+    "clusterCount": "{{count}} items here",
+    "resetView": "Reset view",
+    "worldView": "Zoom to world view",
+    "travelPath": "Show travel path",
+    "stepFirst": "First stop",
+    "stepBack": "Previous stop",
+    "stepForward": "Next stop",
+    "stepLast": "Last stop",
+    "selectMode": "Select pins (drag to box-select, ctrl+click to toggle)",
+    "isolateSelected": "Isolate {{count}} (hide the rest)",
+    "hideSelected": "Hide {{count}} from view",
+    "hiddenCount": "{{count}} hidden",
+    "showAll": "Show all"
   },
   "stats": {
     "empty": "Import some files to see library stats.",
@@ -640,8 +720,6 @@
   "sort": {
     "dateNewest": "Capture date (newest)",
     "dateOldest": "Capture date (oldest)",
-    "addedNewest": "Added to Vivid (newest)",
-    "addedOldest": "Added to Vivid (oldest)",
     "nameAz": "Name A→Z",
     "nameZa": "Name Z→A",
     "sizeDesc": "Largest first",
@@ -754,9 +832,21 @@
     "importFailed": "{{count}} file failed",
     "importFailed_other": "{{count}} files failed",
     "duplicateCollection": "A collection named \"{{name}}\" already exists",
+    "duplicateSavedSearch": "A saved search named \"{{name}}\" already exists",
     "duplicateFolder": "A folder named \"{{name}}\" already exists here",
     "addedToCollection": "Added {{count}} item to {{name}}",
-    "addedToCollection_other": "Added {{count}} items to {{name}}"
+    "addedToCollection_other": "Added {{count}} items to {{name}}",
+    "movedToFolder": "Moved {{count}} item to {{name}}",
+    "movedToFolder_other": "Moved {{count}} items to {{name}}",
+    "alreadyInFolder": "{{count}} item is already in {{name}}",
+    "alreadyInFolder_other": "{{count}} items are already in {{name}}",
+    "alreadyInCollection": "{{count}} item is already in {{name}}",
+    "alreadyInCollection_other": "{{count}} items are already in {{name}}",
+    "moveToCollectionFailed_one": "{{count}} file couldn't be moved (incompatible with collection)",
+    "moveToCollectionFailed_other": "{{count}} files couldn't be moved (incompatible with collection)",
+    "noGeotaggedInAlbum": "No geotagged images in this album to show on the map.",
+    "renameFilesFailed_one": "{{count}} file could not be renamed",
+    "renameFilesFailed_other": "{{count}} files could not be renamed"
   },
   "results": {
     "count_one": "{{count}} result",
@@ -774,7 +864,27 @@
   },
   "search": {
     "aiPlaceholder": "Describe what you're looking for…",
-    "placeholder": "Search by name, tag, or description…"
+    "placeholder": "Search by name, tag, or description…",
+    "placeholderAlbums": "Search albums…",
+    "scope": {
+      "title": "Search in",
+      "name": "File name",
+      "tags": "Tags",
+      "description": "Description",
+      "ocr": "Text in image (OCR)"
+    },
+    "saved": {
+      "title": "Saved searches",
+      "namePlaceholder": "Name this search…",
+      "save": "Save",
+      "delete": "Delete",
+      "empty": "No saved searches yet.",
+      "filterPlaceholder": "Search bookmarks…",
+      "noMatches": "No matches.",
+      "deleteTitle": "Delete Saved Search",
+      "deleteMsg": "Delete the saved search \"{{name}}\"? This can't be undone.",
+      "deleteConfirm": "Delete"
+    }
   },
   "detail": {
     "title": "Details",
@@ -803,6 +913,8 @@
     "track": "Track #",
     "file": "File",
     "format": "Format",
+    "colorLabel": "Label",
+    "noColorLabel": "No label",
     "size": "Size",
     "added": "Added to Vivid",
     "path": "Path",
@@ -815,6 +927,7 @@
     "removeFromLibrary": "Remove from library",
     "albumLabel": "Album",
     "playlistLabel": "Playlist",
+    "collectionsLabel": "Collections",
     "folderLabel": "Folder",
     "collectionLabel": "Collection",
     "folder": "Folder",
@@ -858,7 +971,7 @@
     "saveAs": "Save as",
     "optional": "optional",
     "optionalNoExt": "optional, no extension",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "Add to playlist",
@@ -866,7 +979,7 @@
     "createNew": "Create new playlist",
     "collectionPlaceholder": "e.g. My Liked Songs",
     "saveToFolder": "Save to folder",
-    "uncategorized": "Uncategorized",
+    "uncategorized": "Other",
     "ytdlpHint": "Supports YouTube, SoundCloud, Spotify, and 1000+ sites via yt-dlp. Requires yt-dlp (brew install yt-dlp).",
     "playlistHint": "Paste a playlist or album URL. yt-dlp will download every track. This may take a while.",
     "none": "None",
@@ -990,6 +1103,7 @@
     "copyFrame": "Copy frame to clipboard",
     "frameCopied": "Frame copied to clipboard",
     "trimVideo": "Trim video",
+    "fitToScreen": "Fit to screen",
     "trimDragHint": "Drag the handles to trim, play to preview",
     "trimSaveNew": "Save as new",
     "trimReplace": "Replace",
@@ -1150,7 +1264,7 @@
     "export": "Export",
     "rename": "Rename",
     "addTags": "Add Tags",
-    "moveToCollection": "Move to Collection…",
+    "moveToCollection": "Add to Collection…",
     "moveToFolder": "Move to Folder…",
     "noCollection": "No collection",
     "searchCollections": "Search collections…",
@@ -1162,7 +1276,9 @@
     "albums": "Albums",
     "playlists": "Playlists",
     "deleteCount_one": "Delete {{count}}",
-    "deleteCount_other": "Delete {{count}}"
+    "deleteCount_other": "Delete {{count}}",
+    "noCompatibleCollections": "No compatible collections for this selection",
+    "renameFiles": "Rename files on disk"
   },
   "massTag": {
     "title_one": "Add Tags to {{count}} file",
@@ -1206,5 +1322,28 @@
     "exportAsZipDesc": "Bundle all files into a single ZIP archive",
     "close": "Close",
     "errorPrefix": "Error:"
+  },
+  "renameFile": {
+    "title_one": "Rename {{count}} File",
+    "title_other": "Rename {{count}} Files",
+    "conflictHint_one": "{{count}} file name would conflict — fix it before renaming.",
+    "conflictHint_other": "{{count}} file names would conflict — fix them before renaming.",
+    "newName": "New name",
+    "titleSingle": "Rename File on Disk",
+    "rename": "Rename"
+  },
+  "workspacePicker": {
+    "title": "Which workspace?",
+    "desc": "You have more than one workspace set up. Pick one to continue.",
+    "continue": "Continue",
+    "restarting": "Restarting…",
+    "opening": "Opening…",
+    "cancel": "Cancel",
+    "current": "Current",
+    "invalid": "Missing",
+    "pathMissing": "That workspace's folder can't be found — it may have been moved, renamed, or is on a drive that isn't connected. You can fix its path from Settings once you're in the app.",
+    "unavailableTitle": "Workspace folder unavailable",
+    "unavailableDesc": "\"{{name}}\"'s folder can no longer be found — it may have been removed, renamed, or unmounted. Vivid needs to restart to recover.",
+    "unavailableConfirm": "Restart Vivid"
   }
 }

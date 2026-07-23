@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
+import { folderIdOf, UNCATEGORIZED_ID } from '../../utils/folders';
 import {
   Info,
   Star,
@@ -15,14 +16,17 @@ import {
   Share2,
   ScanSearch,
   Pencil,
+  FileCog,
   Columns2,
   ShieldOff,
   FolderInput,
+  FolderMinus,
   FolderOpen,
   FolderTree,
   ChevronLeft,
   Check,
   Search,
+  Monitor,
 } from 'lucide-react';
 import { COLOR_LABELS } from './FilterBar';
 import CollectionAvatar from './CollectionAvatar';
@@ -63,6 +67,7 @@ export default function ContextMenu({
   activeCollection,
   onSetCover,
   onEdit,
+  onRenameFile,
   onError,
 }) {
   const { t } = useTranslation();
@@ -197,15 +202,6 @@ export default function ContextMenu({
           <span>{t('contextMenu.moveToCollTitle')}</span>
         </div>
         <div className="context-separator" />
-        <button
-          className="context-subitem context-subitem-none"
-          onClick={() => {
-            onSetCollection(item.id, null);
-            onClose();
-          }}
-        >
-          — {t('contextMenu.removeFromCollection')} —
-        </button>
         {visibleCollections.map((g, i) =>
           g._header ? (
             <div key={`h-${i}`} className="context-submenu-label">
@@ -214,15 +210,14 @@ export default function ContextMenu({
           ) : (
             <button
               key={g.id}
-              className={`context-subitem ${item.collection_id === g.id ? 'active' : ''}`}
+              className={`context-subitem ${item.collection_ids?.includes(g.id) ? 'active' : ''}`}
               onClick={() => {
-                onSetCollection(item.id, g.id);
-                onClose();
+                onSetCollection(item.id, g.id, !!item.collection_ids?.includes(g.id));
               }}
             >
               <CollectionAvatar group={g} allItems={allItems} size={18} radius="round" />
               <span style={{ flex: 1 }}>{g.name}</span>
-              {item.collection_id === g.id && <Check size={12} />}
+              {item.collection_ids?.includes(g.id) && <Check size={12} />}
             </button>
           ),
         )}
@@ -241,8 +236,8 @@ export default function ContextMenu({
   // ── Move-to-folder mode (on-disk relocation) ──────────────────────────────
   if (mode === 'movefolder') {
     const sorted = [...(diskFolders ?? [])].sort((a, b) => {
-      if (a.rel_path === 'Uncategorized') return -1;
-      if (b.rel_path === 'Uncategorized') return 1;
+      if (a.id === UNCATEGORIZED_ID) return -1;
+      if (b.id === UNCATEGORIZED_ID) return 1;
       return a.rel_path.localeCompare(b.rel_path);
     });
     const q = folderSearch.trim().toLowerCase();
@@ -283,7 +278,7 @@ export default function ContextMenu({
         <div className="context-folder-list">
           {shown.map((f) => {
             const depth = (f.rel_path.match(/\//g) || []).length;
-            const isCurrent = item.folder_id === f.id;
+            const isCurrent = folderIdOf(item) === f.id;
             return (
               <button
                 key={f.id}
@@ -450,6 +445,18 @@ export default function ContextMenu({
           {t('contextMenu.moveToCollection')}
         </button>
       )}
+      {onSetCollection && activeCollection && item.collection_ids?.includes(activeCollection) && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onSetCollection(item.id, activeCollection, true);
+            onClose();
+          }}
+        >
+          <FolderMinus size={14} />
+          {t('contextMenu.removeFromCollection')}
+        </button>
+      )}
       {onMoveToFolder && diskFolders?.length > 0 && (
         <button className="context-item" onClick={() => setMode('movefolder')}>
           <FolderTree size={14} />
@@ -484,6 +491,32 @@ export default function ContextMenu({
       >
         <FolderOpen size={14} /> {t('contextMenu.showInFinder')}
       </button>
+      {isImage && (
+        <button
+          className="context-item"
+          onClick={async () => {
+            try {
+              await invoke('set_desktop_wallpaper', { filePath: item.file_path });
+            } catch (e) {
+              onError?.(`Set wallpaper failed: ${e}`);
+            }
+            onClose();
+          }}
+        >
+          <Monitor size={14} /> {t('contextMenu.setAsWallpaper')}
+        </button>
+      )}
+      {onRenameFile && (
+        <button
+          className="context-item"
+          onClick={() => {
+            onRenameFile(item);
+            onClose();
+          }}
+        >
+          <FileCog size={14} /> {t('contextMenu.renameFile')}
+        </button>
+      )}
       {isImage && activeCollection && onSetCover && (
         <button
           className="context-item"

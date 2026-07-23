@@ -73,7 +73,7 @@ pub async fn download_url(
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
     let mdir = media_dir(&app)?;
     let dest_path = unique_path(&mdir, &fname);
-    fs::write(&dest_path, &bytes).map_err(|e| e.to_string())?;
+    super::write_bytes_durably(&dest_path, &bytes).map_err(|e| e.to_string())?;
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest_path, Some(url))?;
@@ -102,225 +102,15 @@ fn ffmpeg_location_args() -> Vec<String> {
     }
 }
 
-/// Download audio from a URL using yt-dlp and import it.
-#[tauri::command]
-pub async fn download_ytdlp(
-    url: String,
-    filename: Option<String>,
-    folder_id: Option<String>,
-    app: tauri::AppHandle,
-    state: State<'_, DbState>,
-) -> Result<MediaItem, String> {
-    let ytdlp = ytdlp_bin()?;
-    let loc = ffmpeg_location_args();
-
-    let mdir = media_dir(&app)?;
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs()).unwrap_or(0);
-    let stem = filename.unwrap_or_else(|| format!("ytdlp_{ts}"));
-    let dest = unique_path(&mdir, &format!("{stem}.mp3"));
-    let dest_stem = dest.file_stem().and_then(|s| s.to_str()).unwrap_or("audio").to_string();
-    let out_template = format!("{}.%(ext)s", mdir.join(&dest_stem).to_string_lossy());
-    let url2 = url.clone();
-
-    let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(&ytdlp)
-            .args(&loc)
-            .args([
-                "--no-playlist", "-x",
-                "--audio-format", "mp3",
-                "--audio-quality", "0",
-                "--embed-thumbnail", "--add-metadata",
-                "-o", &out_template,
-                &url2,
-            ])
-            .output()
-    }).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("yt-dlp failed: {}", stderr.lines().last().unwrap_or("unknown error")));
-    }
-
-    let expected = mdir.join(format!("{dest_stem}.mp3"));
-    let path = if expected.exists() {
-        expected
-    } else {
-        find_stem_file(&mdir, &dest_stem)
-            .ok_or("yt-dlp completed but output file not found.")?
-    };
-
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let mut item = build_item(&path, Some(url))?;
-    apply_audio_meta(&mut item, &path);
-    item.folder_id = folder_id;
-    insert_imported(&conn, &mut item, &app)?;
-    Ok(item)
-}
-
-/// Download video from a URL using yt-dlp and import it.
-#[tauri::command]
-pub async fn download_ytdlp_video(
-    url: String,
-    filename: Option<String>,
-    folder_id: Option<String>,
-    app: tauri::AppHandle,
-    state: State<'_, DbState>,
-) -> Result<MediaItem, String> {
-    let ytdlp = ytdlp_bin()?;
-    let loc = ffmpeg_location_args();
-
-    let mdir = media_dir(&app)?;
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs()).unwrap_or(0);
-    let stem = filename.unwrap_or_else(|| format!("ytdlp_{ts}"));
-    let dest = unique_path(&mdir, &format!("{stem}.mp4"));
-    let dest_stem = dest.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
-    let out_template = format!("{}.%(ext)s", mdir.join(&dest_stem).to_string_lossy());
-    let url2 = url.clone();
-
-    let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(&ytdlp)
-            .args(&loc)
-            .args([
-                "--no-playlist",
-                "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-                "--merge-output-format", "mp4",
-                "--add-metadata",
-                "-o", &out_template,
-                &url2,
-            ])
-            .output()
-    }).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("yt-dlp failed: {}", stderr.lines().last().unwrap_or("unknown error")));
-    }
-
-    let expected = mdir.join(format!("{dest_stem}.mp4"));
-    let path = if expected.exists() {
-        expected
-    } else {
-        find_stem_file(&mdir, &dest_stem)
-            .ok_or("yt-dlp completed but output file not found.")?
-    };
-
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let mut item = build_item(&path, Some(url))?;
-    item.folder_id = folder_id;
-    insert_imported(&conn, &mut item, &app)?;
-    Ok(item)
-}
-
-/// Download an entire playlist using yt-dlp and import every track.
-#[tauri::command]
-pub async fn download_ytdlp_playlist(
-    url: String,
-    collection_name: Option<String>,
-    collection_id: Option<String>,
-    format: String,
-    folder_id: Option<String>,
-    app: tauri::AppHandle,
-    state: State<'_, DbState>,
-) -> Result<usize, String> {
-    let ytdlp = ytdlp_bin()?;
-
-    let mdir = media_dir(&app)?;
-
-    let before: std::collections::HashSet<std::path::PathBuf> = fs::read_dir(&mdir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .collect();
-
-    let out_template = format!("{}/%(title)s.%(ext)s", mdir.to_string_lossy());
-    let format2 = format.clone();
-    let url2 = url.clone();
-
-    let mut args: Vec<String> = ffmpeg_location_args();
-    if format == "audio" {
-        args.extend([
-            "-x".into(), "--audio-format".into(), "mp3".into(),
-            "--audio-quality".into(), "0".into(),
-            "--embed-thumbnail".into(), "--add-metadata".into(),
-        ]);
-    } else {
-        args.extend([
-            "-f".into(), "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best".into(),
-            "--merge-output-format".into(), "mp4".into(),
-            "--add-metadata".into(),
-        ]);
-    }
-    args.push("-o".into());
-    args.push(out_template);
-    args.push(url.clone());
-
-    let output = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(&ytdlp).args(&args).output()
-    }).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("yt-dlp failed: {}", stderr.lines().last().unwrap_or("unknown error")));
-    }
-
-    let mut new_files: Vec<std::path::PathBuf> = fs::read_dir(&mdir)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| !before.contains(p) && p.is_file())
-        .collect();
-    new_files.sort();
-
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-
-    // A playlist *collection* applies only to audio downloads; video tracks are
-    // organized purely by their destination folder.
-    let gid: Option<String> = if format2 == "audio" {
-        if let Some(id) = collection_id.filter(|s| !s.trim().is_empty()) {
-            Some(id)
-        } else {
-            match collection_name.filter(|n| !n.trim().is_empty()) {
-                Some(name) => {
-                    let g = db::create_collection(&conn, &name, "", None, "playlist")
-                        .map_err(|e| e.to_string())?;
-                    Some(g.id)
-                }
-                None => None,
-            }
-        }
-    } else {
-        None
-    };
-
-    let mut count = 0usize;
-    for path in &new_files {
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if extension_to_media_type(ext).is_none() { continue; }
-        if let Ok(mut item) = build_item(path, None) {
-            if let Some(ref g) = gid {
-                item.collection_id = Some(g.clone());
-            }
-            item.folder_id = folder_id.clone();
-            if format2 == "audio" {
-                apply_audio_meta(&mut item, path);
-            }
-            if insert_imported(&conn, &mut item, &app).is_ok() {
-                count += 1;
-            }
-        }
-    }
-    drop(conn);
-
-    tracing::info!(count, url = %url2, "Playlist download complete");
-    if count > 0 {
-        trigger_embed_if_ready(&app);
-    }
-    Ok(count)
-}
-
 // ── Background download commands ──────────────────────────────────────────────
+//
+// The synchronous counterparts of these (single-request yt-dlp audio/video/
+// playlist downloads with no progress reporting) were removed as dead code —
+// nothing in the frontend called them, only these `_bg` variants, which do
+// strictly more (progress events, and for audio, collection creation that
+// the old sync versions lacked). If a blocking variant is ever needed again,
+// these `_bg` functions' inner `async move` bodies are the reference
+// implementation to factor a shared helper out of.
 
 #[derive(Clone, serde::Serialize)]
 struct DlProgress {
@@ -389,7 +179,7 @@ pub async fn start_download_bg(
             let bytes = response.bytes().await.map_err(|e| e.to_string())?;
             let mdir = media_dir(&app2)?;
             let dest = unique_path(&mdir, &fname);
-            fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+            super::write_bytes_durably(&dest, &bytes).map_err(|e| e.to_string())?;
             let db = app2.state::<DbState>();
             let conn = db.0.lock().map_err(|e| e.to_string())?;
             let mut item = build_item(&dest, Some(url.clone()))?;
@@ -481,7 +271,7 @@ pub async fn start_ytdlp_bg(
                     Some(g.id)
                 } else { None }
             } else { None };
-            if let Some(cid) = resolved_cid { item.collection_id = Some(cid); }
+            if let Some(cid) = resolved_cid { item.collection_ids.push(cid); }
             insert_imported(&conn, &mut item, &app2)
         }.await;
 
@@ -514,7 +304,7 @@ pub async fn start_playlist_bg(
 
     let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result: Result<usize, String> = async {
+        let result: Result<(usize, Option<String>), String> = async {
             let ytdlp = ytdlp_bin()?;
             let mdir  = media_dir(&app2)?;
 
@@ -574,32 +364,48 @@ pub async fn start_playlist_bg(
             };
 
             let mut count = 0usize;
+            let mut last_file_name: Option<String> = None;
             for (i, path) in new_files.iter().enumerate() {
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                 if extension_to_media_type(ext).is_none() { continue; }
 
+                let file_name = path.file_stem().and_then(|n| n.to_str()).map(String::from);
                 emit_dl(&app2, DlProgress {
                     job_id: job_id.clone(), label: label.clone(),
                     current: i, total,
-                    file_name: path.file_stem().and_then(|n| n.to_str()).map(String::from),
+                    file_name: file_name.clone(),
                     done: false, error: None, success_count: count,
                 });
 
                 if let Ok(mut item) = build_item(path, None) {
-                    if let Some(ref g) = gid { item.collection_id = Some(g.clone()); }
+                    if let Some(ref g) = gid { item.collection_ids.push(g.clone()); }
                     item.folder_id = folder_id.clone();
                     if format2 == "audio" { apply_audio_meta(&mut item, path); }
-                    if insert_imported(&conn, &mut item, &app2).is_ok() { count += 1; }
+                    if insert_imported(&conn, &mut item, &app2).is_ok() {
+                        count += 1;
+                        last_file_name = file_name;
+                    }
                 }
             }
             drop(conn);
             tracing::info!(count, url = %url2, "Playlist bg download complete");
             if count > 0 { trigger_embed_if_ready(&app2); }
-            Ok(count)
+            Ok((count, last_file_name))
         }.await;
 
-        let (err, cnt) = match result { Ok(n) => (None, n), Err(e) => (Some(e), 0) };
-        emit_dl(&app2, DlProgress { job_id, label, current: cnt, total: cnt, file_name: None, done: true, error: err, success_count: cnt });
+        let (err, cnt, last_file_name) = match result {
+            Ok((n, name)) => (None, n, name),
+            Err(e) => (Some(e), 0, None),
+        };
+        // For a single-track result, prefer the actual track name over the
+        // playlist/collection label so the completion toast doesn't read
+        // "Downloaded <playlist name>" for a job that only fetched one file.
+        emit_dl(&app2, DlProgress {
+            job_id, label,
+            current: cnt, total: cnt,
+            file_name: if cnt == 1 { last_file_name } else { None },
+            done: true, error: err, success_count: cnt,
+        });
     });
 
     Ok(())

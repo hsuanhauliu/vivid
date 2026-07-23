@@ -14,9 +14,18 @@ function Toast({ toast, onDismiss }) {
   const Icon = TYPE_ICON[toast.type] ?? Info;
   const [hovered, setHovered] = useState(false);
   const remainingRef = useRef(toast.duration);
-  const startedAtRef = useRef(Date.now());
+  // Real value is always assigned by the mount-time run of the effect below
+  // (hovered starts false, so the `else` branch sets it) before anything
+  // ever reads it — 0 here is just a placeholder, not a real timestamp, so
+  // this avoids calling the impure `Date.now()` during render itself.
+  const startedAtRef = useRef(0);
   const timerRef = useRef(null);
 
+  // Pause the auto-dismiss timer on hover, resume with whatever time was left.
+  // Deliberately only depends on `hovered` — `toast.id`/`toast.duration` are
+  // fixed for this Toast instance's whole lifetime (a new toast is a new key,
+  // never a prop update), and `onDismiss` is stable, so re-running on those
+  // would just restart the same timer for no reason.
   useEffect(() => {
     if (hovered) {
       clearTimeout(timerRef.current);
@@ -26,7 +35,8 @@ function Toast({ toast, onDismiss }) {
       timerRef.current = setTimeout(() => onDismiss(toast.id), remainingRef.current);
     }
     return () => clearTimeout(timerRef.current);
-  }, [hovered]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hovered]);
 
   return (
     <div

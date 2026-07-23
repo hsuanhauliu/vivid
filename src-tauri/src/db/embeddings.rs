@@ -1,6 +1,6 @@
 //! CLIP embedding storage and the queries that feed AI indexing.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
 use rusqlite::{params, Connection, Result};
 
@@ -47,16 +47,16 @@ pub fn fetch_items_by_ids(conn: &Connection, ids: &[String]) -> Result<Vec<Media
     if ids.is_empty() {
         return Ok(vec![]);
     }
-    let placeholders = (1..=ids.len())
-        .map(|i| format!("?{i}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!("{SELECT_MEDIA} WHERE id IN ({placeholders}) AND deleted_at IS NULL");
+    let sql = format!(
+        "{SELECT_MEDIA} WHERE id IN ({}) AND deleted_at IS NULL",
+        super::in_placeholders(ids.len())
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map(rusqlite::params_from_iter(ids.iter()), row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { thumbSrcOf } from '../../utils/path';
 import {
   Play,
   Pause,
@@ -30,6 +31,7 @@ function shuffleArr(arr) {
 
 export default function AudioPlayer({
   item,
+  playToken = 0,
   queue: rawQueue,
   playlistMode = false,
   playlistName = null,
@@ -94,6 +96,9 @@ export default function AudioPlayer({
     return () => ro.disconnect();
   }, []);
 
+  // Depends on `playToken`, not just `item?.id` — clicking play on the track
+  // that's already loaded doesn't change its id, but should still restart it
+  // from the beginning rather than silently doing nothing.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -104,7 +109,7 @@ export default function AudioPlayer({
       .play()
       .then(() => setPlaying(true))
       .catch(() => setPlaying(false));
-  }, [item?.id]);
+  }, [item?.id, playToken]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -243,7 +248,7 @@ export default function AudioPlayer({
         <div className="ap-icon">
           {item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt=""
               className="ap-cover-art"
             />

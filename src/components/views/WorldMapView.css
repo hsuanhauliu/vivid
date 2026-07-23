@@ -26,6 +26,56 @@
   isolation: isolate;
 }
 
+.map-left-menus {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 800;
+  display: flex;
+  gap: 8px;
+}
+
+.map-feature-menu {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.map-feature-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.map-feature-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.map-feature-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.map-feature-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.map-feature-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-dim);
+}
+
 .map-style-toggle {
   position: absolute;
   top: 10px;
@@ -113,6 +163,13 @@
   cursor: crosshair;
 }
 
+/* Select mode disables map dragPan (see the marquee-drag effect), so the
+   canvas shouldn't keep showing its normal drag-to-pan "grab" cursor —
+   a plain arrow better signals "click/drag to select" instead. */
+.world-map-selecting .maplibregl-canvas {
+  cursor: default;
+}
+
 /* Map marker thumbnail */
 .map-thumb-icon {
   background: transparent !important;
@@ -123,6 +180,9 @@
   width: 48px;
   height: 48px;
   isolation: isolate;
+  /* Otherwise inherits the map canvas container's drag-pan "grab" cursor —
+     these are clickable thumbnails, not part of the draggable map surface. */
+  cursor: pointer;
 }
 .map-thumb-wrap {
   width: 48px;
@@ -143,6 +203,89 @@
   align-items: center;
   justify-content: center;
   font-size: 22px;
+}
+
+/* Highlight ring for pins caught by marquee-drag/ctrl-click select */
+.map-thumb-outer.selected .map-thumb-wrap {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Marquee-drag selection rectangle */
+.map-marquee {
+  position: absolute;
+  z-index: 700;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+/* Right-click context menu on selected pins */
+.map-context-menu {
+  position: fixed;
+  z-index: 1200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  min-width: 160px;
+}
+.map-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.map-context-menu button:hover {
+  background: var(--surface-hover);
+}
+
+/* "N hidden — show all" banner, shown while any pins are hidden from view */
+.map-hidden-banner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 6px 5px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.map-hidden-banner button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  border: none;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.map-hidden-banner button:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* Map cluster count badge */
@@ -166,7 +309,10 @@
   pointer-events: none;
 }
 
-/* Map selected item card */
+/* Map selected item card — the card itself isn't clickable (only the "Click
+   to open" text/button and any per-item action buttons inside it are), so
+   there's room to add more buttons without the whole card fighting them for
+   the click. */
 .map-item-card {
   position: absolute;
   bottom: 20px;
@@ -182,11 +328,6 @@
   align-items: center;
   gap: 10px;
   min-width: 240px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.map-item-card:hover {
-  border-color: var(--accent);
 }
 .map-item-thumb {
   width: 56px;
@@ -194,6 +335,7 @@
   border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .map-item-info {
   flex: 1;
@@ -211,10 +353,34 @@
   color: var(--text-muted);
   margin-top: 2px;
 }
-.map-item-hint {
+.map-item-count {
   font-size: 11px;
-  color: var(--accent);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.map-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: 4px;
+}
+.map-item-open,
+.map-item-gmaps {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.map-item-open:hover,
+.map-item-gmaps:hover {
+  text-decoration: underline;
 }
 .map-item-close {
   background: none;

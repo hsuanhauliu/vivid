@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Select from '../../common/Select';
 import { SettingsPane, SettingsSection, SettingRow, ToggleSwitch } from './primitives';
+import WorkspaceSection from './WorkspaceSection';
 import { RETENTION_OPTIONS } from './constants';
 
 export default function LibraryPane({
@@ -128,6 +129,8 @@ export default function LibraryPane({
 
   return (
     <SettingsPane title={title}>
+      <WorkspaceSection onRequestConfirm={onRequestConfirm} />
+
       <SettingsSection title={t('settings.sections.libraryView')}>
         <SettingRow
           label={t('settings.general.moodBar')}

@@ -1,11 +1,41 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play } from 'lucide-react';
+import { FolderOpen, Upload, Music, GripVertical, Check, Star, Play, Clock } from 'lucide-react';
 import MediaCard, { VideoThumb, GifThumb } from './MediaCard';
-import { formatDuration } from '../../utils/format';
+import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { thumbSrcOf } from '../../utils/path';
+import { formatBytes, formatDate, formatDuration } from '../../utils/format';
+import { groupByMonth } from '../../utils/timeline';
 import ScrollArea from '../common/ScrollArea';
 import './MediaGrid.css';
+
+// Images without a cached thumbnail fall back to the original, resolving HEIC
+// via the backend — same reasoning as MediaCard's FallbackImageThumb (see its
+// comment): kept as its own component so the HEIC-decoding hook only mounts
+// for the uncommon no-thumbnail case, never for the common cached-thumbnail
+// path that covers most of a normal grid. This matters most right after
+// adopting a large external workspace, where thumbnail generation for a
+// folder that already had thousands of files can take a while to catch up —
+// without this, HEIC originals (the default iPhone photo format) would render
+// as a broken image in the meantime instead of the real photo.
+function MasonryFallbackImg({ item, onRatio }) {
+  const src = useDisplayableSrc(item.file_path);
+  return (
+    <img
+      src={src ?? undefined}
+      alt=""
+      className="masonry-img"
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      onLoad={(e) => {
+        const { naturalWidth: w, naturalHeight: h } = e.target;
+        if (w && h) onRatio(w / h);
+      }}
+    />
+  );
+}
 
 const MasonryItem = memo(function MasonryItem({
   item,
@@ -19,16 +49,18 @@ const MasonryItem = memo(function MasonryItem({
   onCardDragStart,
   freshThumbSrc,
 }) {
+  const { t } = useTranslation();
   // Stable src — convertFileSrc output is deterministic for a given path.
   const src = useMemo(() => convertFileSrc(item.file_path ?? ''), [item.file_path]);
   // Images (GIFs included) render the cheap cached static thumbnail when
   // available — huge decode win on fast scroll, and for GIFs specifically
   // avoids every tile independently decoding/looping its full animated
   // original at once. Falls back to the original until a thumbnail exists.
+  const hasCachedThumb = !!freshThumbSrc || (item.media_type === 'image' && !!item.thumb_path);
   const imgSrc = useMemo(
     () =>
       freshThumbSrc ||
-      (item.media_type === 'image' && item.thumb_path ? convertFileSrc(item.thumb_path) : src),
+      (item.media_type === 'image' && item.thumb_path ? thumbSrcOf(item.thumb_path) : src),
     [freshThumbSrc, item.media_type, item.thumb_path, src],
   );
   const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
@@ -105,10 +137,15 @@ const MasonryItem = memo(function MasonryItem({
       >
         {checked && <Check size={11} strokeWidth={3} />}
       </button>
+      {item.media_type !== 'audio' && !item.date_taken && (
+        <span className="masonry-no-capture-date" title={t('mediaGrid.noCaptureDate')}>
+          <Clock size={10} />
+        </span>
+      )}
       {item.media_type === 'video' ? (
         <VideoThumb
           src={src}
-          poster={item.thumb_path ? convertFileSrc(item.thumb_path) : null}
+          poster={item.thumb_path ? thumbSrcOf(item.thumb_path) : null}
           alt=""
           imgClassName="masonry-img"
           onRatio={handleRatio}
@@ -121,7 +158,7 @@ const MasonryItem = memo(function MasonryItem({
           imgClassName="masonry-img"
           onRatio={handleRatio}
         />
-      ) : item.media_type === 'image' ? (
+      ) : item.media_type === 'image' && hasCachedThumb ? (
         <img
           src={imgSrc}
           alt=""
@@ -134,11 +171,13 @@ const MasonryItem = memo(function MasonryItem({
             if (w && h) handleRatio(w / h);
           }}
         />
+      ) : item.media_type === 'image' ? (
+        <MasonryFallbackImg item={item} onRatio={handleRatio} />
       ) : item.media_type === 'audio' ? (
         <>
           {item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt=""
               className="masonry-img"
               loading="lazy"
@@ -168,6 +207,26 @@ const MasonryItem = memo(function MasonryItem({
   );
 });
 
+// Cached cover art (album art or a generated thumbnail) renders directly; an
+// image with neither yet falls back to the original, same HEIC-safe path as
+// MasonryFallbackImg above — otherwise a HEIC original would show broken in
+// list view until its thumbnail catches up.
+function ListRowCover({ item }) {
+  const cachedCover = item.audio_cover || item.thumb_path;
+  if (cachedCover) {
+    return <img src={thumbSrcOf(cachedCover)} alt="" loading="lazy" draggable={false} />;
+  }
+  if (item.media_type === 'image') {
+    return <ListRowFallbackCover item={item} />;
+  }
+  return <Music size={15} color="rgba(255,255,255,0.4)" />;
+}
+
+function ListRowFallbackCover({ item }) {
+  const src = useDisplayableSrc(item.file_path);
+  return <img src={src ?? undefined} alt="" loading="lazy" draggable={false} />;
+}
+
 // A single line in the music-player "list" view. Shares the selection / open
 // semantics of MasonryItem (single click = details, double click = play/open,
 // click while selecting = toggle check). The optional `reorderHandle` slot holds
@@ -186,9 +245,7 @@ const ListRow = memo(function ListRow({
   onCardDragStart,
   reorderHandle = null,
 }) {
-  const coverPath =
-    item.audio_cover || item.thumb_path || (item.media_type === 'image' ? item.file_path : null);
-
+  const { t } = useTranslation();
   const dblFired = useRef(false);
   const clickTimer = useRef(null);
 
@@ -214,9 +271,14 @@ const ListRow = memo(function ListRow({
     onOpen(item);
   }, [item, onOpen, isSelecting]);
 
+  // Only audio tracks get a hover play button in the index column — images
+  // and videos don't "play" inline in a list row, so the overlay there was
+  // just a misleading affordance.
+  const playable = item.media_type === 'audio';
+
   return (
     <div
-      className={`media-list-row ${checked ? 'checked' : ''} ${highlighted ? 'highlighted' : ''} ${isSelecting ? 'selecting' : ''}`}
+      className={`media-list-row ${checked ? 'checked' : ''} ${highlighted ? 'highlighted' : ''} ${isSelecting ? 'selecting' : ''} ${playable ? 'playable' : ''}`}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={(e) => {
@@ -241,31 +303,42 @@ const ListRow = memo(function ListRow({
         {checked && <Check size={11} strokeWidth={3} />}
       </button>
       <span className="list-row-index">{index + 1}</span>
-      <button
-        className="list-row-play"
-        title="Play"
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen(item);
-        }}
-      >
-        <span className="list-row-play-circle">
-          <Play size={13} />
-        </span>
-      </button>
+      {playable && (
+        <button
+          className="list-row-play"
+          title="Play"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(item);
+          }}
+        >
+          <span className="list-row-play-circle">
+            <Play size={13} />
+          </span>
+        </button>
+      )}
       <span className="list-row-cover">
-        {coverPath ? (
-          <img src={convertFileSrc(coverPath)} alt="" loading="lazy" draggable={false} />
-        ) : (
-          <Music size={15} color="rgba(255,255,255,0.4)" />
-        )}
+        <ListRowCover item={item} />
       </span>
       <span className="list-row-main">
         <span className="list-row-title">{item.audio_title || item.display_name}</span>
         {item.audio_artist && <span className="list-row-artist">{item.audio_artist}</span>}
       </span>
-      <span className="list-row-album">{item.audio_album ?? ''}</span>
-      <span className="list-row-dur">{formatDuration(item.audio_duration)}</span>
+      <span className="list-row-album">
+        {item.media_type === 'audio' ? (item.audio_album ?? '') : formatBytes(item.file_size)}
+      </span>
+      <span className="list-row-dur">
+        {item.media_type === 'audio' ? (
+          formatDuration(item.audio_duration)
+        ) : item.date_taken ? (
+          formatDate(item.date_taken)
+        ) : (
+          <span className="list-row-date-estimated" title={t('mediaGrid.noCaptureDate')}>
+            <Clock size={10} />
+            {formatDate(item.created_at)}
+          </span>
+        )}
+      </span>
       <button
         className={`list-row-star ${item.starred ? 'starred' : ''}`}
         title={item.starred ? 'Unstar' : 'Star'}
@@ -279,26 +352,6 @@ const ListRow = memo(function ListRow({
     </div>
   );
 });
-
-function groupByMonth(items, order = 'desc') {
-  const buckets = new Map();
-  for (const item of items) {
-    const key = (item.date_taken || item.created_at)?.slice(0, 7) ?? 'Unknown';
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(item);
-  }
-  const sorted = [...buckets.entries()].sort(([a], [b]) => {
-    if (a === 'Unknown') return 1;
-    if (b === 'Unknown') return -1;
-    return order === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
-  });
-  // Reverse files within each month too, so 'asc' truly flips the file order
-  // (not just the section order).
-  return sorted.map(([month, items]) => ({
-    month,
-    items: order === 'asc' ? [...items].reverse() : items,
-  }));
-}
 
 function monthLabel(key, locale) {
   if (key === 'Unknown') return 'Unknown Date';
@@ -449,7 +502,7 @@ function QuickLookPopup({ item, rect, onClose }) {
         {item.media_type === 'audio' &&
           (item.audio_cover || item.thumb_path ? (
             <img
-              src={convertFileSrc(item.audio_cover || item.thumb_path)}
+              src={thumbSrcOf(item.audio_cover || item.thumb_path)}
               alt={item.display_name}
               className="ql-img"
             />
@@ -686,6 +739,18 @@ export default function MediaGrid({
     [items, onCheckToggle, onCheckRange],
   );
 
+  // Timeline group header's select-all button: additive (onCheckRange) when
+  // the group isn't fully selected yet, otherwise flips each one off —
+  // there's no batch-uncheck action, so that direction just toggles each id.
+  const handleGroupSelectToggle = useCallback(
+    (group) => {
+      const allChecked = group.every((it) => checkedIds.has(it.id));
+      if (allChecked) group.forEach((it) => onCheckToggle?.(it.id));
+      else onCheckRange?.(group.map((it) => it.id));
+    },
+    [checkedIds, onCheckToggle, onCheckRange],
+  );
+
   const handleQuickLook = useCallback((item, rect) => {
     setQlItem(item);
     setQlRect(rect);
@@ -708,15 +773,28 @@ export default function MediaGrid({
   const isManual = sortBy === 'manual' && reorderable;
 
   // ── Incremental rendering ────────────────────────────────────────────────
-  // Cap how many cards are mounted at once and grow the window as the user
-  // scrolls. Keeps the DOM small for large libraries without the risk of fully
-  // windowing the masonry/timeline layouts. Manual (drag-reorder) and timeline
-  // render in full — drag needs every node, timeline is already chunked by month.
+  // Mount only a sliding window [windowStart, limit) of cards and grow/shift
+  // it as the user scrolls, instead of accumulating every item ever scrolled
+  // past. Keeps the DOM bounded for very large libraries (tens of thousands
+  // of items) rather than growing forever across a long scroll session.
+  // Manual (drag-reorder) and timeline render in full — drag needs every
+  // node, timeline is already chunked by month.
   const CHUNK = 250;
+  const MAX_WINDOW = CHUNK * 4; // evict once the mounted range exceeds this
   const capEnabled = !timelineGrouping && !isManual;
   const [limit, setLimit] = useState(() => restoreScrollRef?.current?.limit || CHUNK);
+  // Seed consistently with the restored `limit` so a deep scroll position
+  // doesn't briefly re-mount every item up to it before the eviction effect
+  // below has a chance to catch up.
+  const [windowStart, setWindowStart] = useState(() => Math.max(0, limit - MAX_WINDOW));
   const gridScrollRef = useRef(null);
   const sentinelRef = useRef(null);
+  const topSentinelRef = useRef(null);
+  // Snapshot of scrollHeight taken right before a windowStart-shifting DOM
+  // change, so the compensating useLayoutEffect below can keep the viewport
+  // visually still (adding/removing content above it would otherwise cause
+  // a jump) regardless of masonry's variable item heights.
+  const pendingScrollAdjustRef = useRef(null);
   // scrollAreaRef lives on a stable object so TimelineScrubber doesn't remount on re-render.
   // Timeline mode scrolls this nested element instead of gridScrollRef itself.
   const scrollAreaRef = useRef(null);
@@ -732,9 +810,54 @@ export default function MediaGrid({
   const resetSig = `${items.length}:${items[0]?.id ?? ''}:${viewMode}:${timelineGrouping}`;
   const prevResetSig = useRef(resetSig);
   useEffect(() => {
-    if (prevResetSig.current !== resetSig) setLimit(CHUNK);
+    if (prevResetSig.current !== resetSig) {
+      setLimit(CHUNK);
+      setWindowStart(0);
+    }
     prevResetSig.current = resetSig;
   }, [resetSig]);
+
+  // Once the mounted window grows past MAX_WINDOW, evict a chunk from the
+  // trailing edge (opposite the edge that just grew) so the DOM stays bounded
+  // no matter how far the user keeps scrolling in one direction.
+  useEffect(() => {
+    if (limit - windowStart <= MAX_WINDOW) return;
+    const el = getScrollEl();
+    if (el) pendingScrollAdjustRef.current = el.scrollHeight;
+    setWindowStart((s) => Math.min(s + CHUNK, limit - CHUNK));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, windowStart]);
+
+  // Compensate scrollTop for whatever just changed the rendered range above
+  // the viewport (eviction from the front, or growth back into it below).
+  useLayoutEffect(() => {
+    const el = getScrollEl();
+    if (el && pendingScrollAdjustRef.current != null) {
+      el.scrollTop += el.scrollHeight - pendingScrollAdjustRef.current;
+      pendingScrollAdjustRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowStart]);
+
+  // Top sentinel: scrolling back up near the start of the mounted window
+  // brings earlier items back in, symmetric to the bottom sentinel below.
+  useEffect(() => {
+    if (!capEnabled || windowStart === 0) return undefined;
+    const root = gridScrollRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!root || !sentinel) return undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        const el = getScrollEl();
+        if (el) pendingScrollAdjustRef.current = el.scrollHeight;
+        setWindowStart((s) => Math.max(0, s - CHUNK));
+      },
+      { root, rootMargin: '800px 0px' },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [capEnabled, windowStart, getScrollEl]);
 
   // Restore scroll position once, after the restored chunk-window above has
   // had a chance to render (returning from the file viewer, for instance).
@@ -763,7 +886,7 @@ export default function MediaGrid({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [onScrollStateChange, limit, getScrollEl]);
 
-  const shownItems = capEnabled ? items.slice(0, limit) : items;
+  const shownItems = capEnabled ? items.slice(windowStart, limit) : items;
   const hasMore = capEnabled && items.length > limit;
 
   useEffect(() => {
@@ -1006,17 +1129,31 @@ export default function MediaGrid({
           {timelineGrouping ? (
             <div className="timeline-with-scrubber">
               <div className="timeline-scroll-area" ref={scrollAreaRef}>
-                {monthGroups.map(({ month, items: group }) => (
-                  <div key={month} id={`tl-${month}`} className="timeline-section">
-                    <div className="timeline-section-header">
-                      <h3 className="timeline-month">{monthLabel(month, i18n.language)}</h3>
-                      <span className="timeline-month-count">
-                        {t('common.item', { count: group.length })}
-                      </span>
+                {monthGroups.map(({ month, items: group }) => {
+                  const groupAllChecked = group.every((it) => checkedIds.has(it.id));
+                  return (
+                    <div key={month} id={`tl-${month}`} className="timeline-section">
+                      <div className="timeline-section-header">
+                        <button
+                          className={`timeline-select-btn ${groupAllChecked ? 'checked' : ''}`}
+                          onClick={() => handleGroupSelectToggle(group)}
+                          title={
+                            groupAllChecked
+                              ? t('mediaGrid.deselectGroup')
+                              : t('mediaGrid.selectGroup')
+                          }
+                        >
+                          {groupAllChecked && <Check size={11} strokeWidth={3} />}
+                        </button>
+                        <h3 className="timeline-month">{monthLabel(month, i18n.language)}</h3>
+                        <span className="timeline-month-count">
+                          {t('common.item', { count: group.length })}
+                        </span>
+                      </div>
+                      {renderGroup(group)}
                     </div>
-                    {renderGroup(group)}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <TimelineScrubber
                 monthKeys={monthKeys}
@@ -1026,6 +1163,9 @@ export default function MediaGrid({
             </div>
           ) : (
             <>
+              {windowStart > 0 && (
+                <div ref={topSentinelRef} className="grid-load-sentinel" aria-hidden="true" />
+              )}
               {renderGroup(shownItems)}
               {hasMore && (
                 <div ref={sentinelRef} className="grid-load-sentinel" aria-hidden="true" />

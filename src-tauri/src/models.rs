@@ -32,7 +32,7 @@ pub struct MediaItem {
     pub description: String,
     pub tags: Vec<String>,
     pub starred: bool,
-    pub collection_id: Option<String>,
+    pub collection_ids: Vec<String>, // an item may belong to any number of collections
     pub folder_id: Option<String>, // the on-disk folder this item lives in
     pub color_label: Option<String>,
     pub gps_lat: Option<f64>,
@@ -69,12 +69,16 @@ pub struct Collection {
     pub pinned: bool,
     pub cover_item_id: Option<String>,
     pub created_at: String,
-    /// "album" (images + videos) | "playlist" (audio). Collections only —
+    /// "album" (images + videos) | "playlist" (audio) | "album_group" (holds
+    /// other albums, never media items directly). Collections only —
     /// on-disk organization lives in `Folder`.
     pub kind: String,
     pub sidebar_pin: bool,
     /// Optional free-text description shown on the collection page.
     pub description: Option<String>,
+    /// The album_group this album currently sits in, if any. Only ever set
+    /// on kind="album" rows, pointing at a kind="album_group" row.
+    pub parent_id: Option<String>,
 }
 
 /// A node in the on-disk folder tree under the managed library root. Distinct
@@ -87,6 +91,18 @@ pub struct Folder {
     pub parent_id: Option<String>,
     pub rel_path: String,
     pub created_at: String,
+}
+
+/// Aggregate library counts for the About/Info tab.
+#[derive(Debug, Serialize)]
+pub struct LibraryStats {
+    pub total_images:    i64,
+    pub total_videos:    i64,
+    pub total_audio:     i64,
+    pub total_indexed:   i64,
+    pub total_unindexed: i64,
+    pub total_tags:      i64,
+    pub total_size_bytes: i64,
 }
 
 pub fn extension_to_media_type(ext: &str) -> Option<&'static str> {

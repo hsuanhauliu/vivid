@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
+import { relaunch } from '@tauri-apps/plugin-process';
 import {
   Search,
   X,
@@ -29,11 +31,13 @@ import SecondaryPanel from './components/layout/SecondaryPanel';
 import MediaGrid from './components/views/MediaGrid';
 import DetailPanel from './components/layout/DetailPanel';
 import CollectionBanner from './components/layout/CollectionBanner';
+import AlbumGroupView from './components/views/AlbumGroupView';
 import FileViewer from './components/views/FileViewer';
 import ContextMenu from './components/common/ContextMenu';
 import SelectionBar from './components/common/SelectionBar';
 import MassTagModal from './components/modals/MassTagModal';
 import BatchRenameModal from './components/modals/BatchRenameModal';
+import RenameFileModal from './components/modals/RenameFileModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import DownloadModal from './components/modals/DownloadModal';
 import UploadServerModal from './components/modals/UploadServerModal';
@@ -42,13 +46,14 @@ import SettingsPage from './components/pages/SettingsPage';
 import AudioPlayer from './components/common/AudioPlayer';
 import KeyboardHelpModal from './components/modals/KeyboardHelpModal';
 import ExportModal from './components/modals/ExportModal';
-import FilterBar, { applyFilters } from './components/common/FilterBar';
+import FilterBar, { applyAllFilters, hasActiveFilterFields } from './components/common/FilterBar';
+import SearchScopeMenu, { DEFAULT_SEARCH_SCOPE } from './components/common/SearchScopeMenu';
+import SavedSearchesMenu from './components/common/SavedSearchesMenu';
 import WorldMapView from './components/views/WorldMapView';
 import MusicView from './components/views/MusicView';
 import CommandPalette from './components/common/CommandPalette';
 import DuplicatesModal from './components/modals/DuplicatesModal';
 import TrashView from './components/views/TrashView';
-import StatsPage from './components/pages/StatsPage';
 import AiIndexProgress from './components/common/AiIndexProgress';
 import DownloadProgress from './components/common/DownloadProgress';
 import GoogleTakeoutModal from './components/modals/GoogleTakeoutModal';
@@ -74,6 +79,7 @@ import CollectionDragGhost from './components/common/CollectionDragGhost';
 import ToastStack from './components/common/ToastStack';
 import useMultilingual from './hooks/useMultilingual';
 import useTheme from './hooks/useTheme';
+import { useTabCompletion } from './hooks/useTabCompletion';
 import useToasts from './hooks/useToasts';
 import usePersistentState, {
   boolDefaultTrue,
@@ -81,6 +87,9 @@ import usePersistentState, {
   jsonParse,
 } from './hooks/usePersistentState';
 import { sortItems } from './utils/sort';
+import { matchesSearch } from './utils/search';
+import { switchWorkspaceAndApply } from './utils/workspace';
+import { folderIdOf } from './utils/folders';
 import SortDropdown from './components/common/SortDropdown';
 import ResultsBar from './components/common/ResultsBar';
 import SystemMessagesPage from './components/pages/SystemMessagesPage';
@@ -103,6 +112,7 @@ const EMPTY_FILTERS = {
   hasText: false,
   orientation: null,
   fileSize: null,
+  resolution: [],
   collection: false,
   cameras: [],
 };
@@ -119,9 +129,30 @@ export default function App() {
   const [activeTag, setActiveTag] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [search, setSearch] = useState('');
+  // Which fields keyword search checks (name/tags/description/OCR) — all on
+  // by default, narrowed via the toggle menu next to the search bar.
+  const [searchScope, setSearchScope] = usePersistentState(
+    'vivid-search-scope',
+    DEFAULT_SEARCH_SCOPE,
+    jsonParse(DEFAULT_SEARCH_SCOPE),
+    JSON.stringify,
+  );
+  // Named search text + search-scope + filter-bar snapshots the user can
+  // re-apply later — distinct from searchHistory below, which auto-records
+  // recent plain-text queries rather than a deliberately named bookmark.
+  const [savedSearches, setSavedSearches] = usePersistentState(
+    'vivid-saved-searches',
+    [],
+    jsonParse([]),
+    JSON.stringify,
+  );
   const [sortBy, setSortBy] = useState('date-desc');
   // Manual sort + drag-reorder is only offered on playlist pages.
-  const isPlaylistView = collections.find((g) => g.id === activeCollection)?.kind === 'playlist';
+  const activeCollectionObj = collections.find((g) => g.id === activeCollection);
+  const isPlaylistView = activeCollectionObj?.kind === 'playlist';
+  // Album groups hold other albums, not media items — their page shows a
+  // grid of child albums instead of the normal media grid/toolbar.
+  const isAlbumGroupView = activeCollectionObj?.kind === 'album_group';
   useEffect(() => {
     if (!isPlaylistView && sortBy === 'manual') setSortBy('date-desc');
   }, [isPlaylistView, sortBy]);
@@ -143,8 +174,29 @@ export default function App() {
   const [freshUrls, setFreshUrls] = useState({});
   const [screensaverItems, setScreensaverItems] = useState(null); // screensaver mode items
   const [playerItem, setPlayerItem] = useState(null); // bottom audio player
+  // Bumped on every explicit "play" action (card click, play-all, shuffle)
+  // so AudioPlayer restarts from the beginning even when it's asked to play
+  // the track that's already loaded — item identity alone doesn't change in
+  // that case, so this is what actually signals "start over".
+  const [playToken, setPlayToken] = useState(0);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, item }
   const [mapFocusId, setMapFocusId] = useState(null); // item to center the World Map on
+  // Scopes FileViewer's nav (prev/next + filmstrip) to a map pin/cluster
+  // instead of the full library — set by handleCardOpen, cleared by passing
+  // navItems=null (the default for every other caller).
+  const [mapViewerItems, setMapViewerItems] = useState(null);
+  // World Map's pan/zoom and selected pin, lifted up here because
+  // WorldMapView unmounts while FileViewer is open (it's one branch of the
+  // same view-switch ternary), so its own internal state can't survive a
+  // round trip through the viewer.
+  const [mapViewState, setMapViewState] = useState(null);
+  const [mapSelectedId, setMapSelectedId] = useState(null);
+  // Restricts the World Map to a specific set of items (e.g. "View on Map"
+  // from an album) instead of the whole library — null means no restriction.
+  // Reset to null by default on every handleViewChange call, so navigating
+  // to the map any other way (sidebar, etc.) always goes back to the full
+  // library.
+  const [mapScopeItems, setMapScopeItems] = useState(null);
   const [view, setView] = useState(() => {
     const home = localStorage.getItem('vivid-home-page') || 'all';
     // Folders is a panel (file tree) rather than a page — open it via
@@ -160,6 +212,7 @@ export default function App() {
   const [showICloud, setShowICloud] = useState(false);
   const [showMassTag, setShowMassTag] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
+  const [renameFileTargets, setRenameFileTargets] = useState(null); // items whose on-disk filename is being renamed
   const [showHelp, setShowHelp] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showCmdPalette, setShowCmdPalette] = useState(false);
@@ -266,21 +319,12 @@ export default function App() {
     audio: 'grid',
     playlist: 'list',
   });
-  // The line-by-line "list" mode is a music-player layout, offered only where the
-  // content is songs: playlists and the audio filter.
-  const supportsList = isPlaylistView || filter === 'audio';
   // Playlists get their own view-mode slot ('playlist') so the choice doesn't
   // bleed into the shared 'all' library page (a playlist sets filter='all').
   const viewKey = isPlaylistView ? 'playlist' : filter;
   const rawViewMode = viewModeMap[viewKey] ?? 'masonry';
-  // Map old 'timeline' value to 'grid' — timeline is now a separate toggle. A
-  // stored 'list' choice falls back to cards where list isn't supported.
-  const viewMode =
-    rawViewMode === 'timeline'
-      ? 'grid'
-      : rawViewMode === 'list' && !supportsList
-        ? 'grid'
-        : rawViewMode;
+  // Map old 'timeline' value to 'grid' — timeline is now a separate toggle.
+  const viewMode = rawViewMode === 'timeline' ? 'grid' : rawViewMode;
   const setViewMode = (mode) => setViewModeMap((m) => ({ ...m, [viewKey]: mode }));
   // false | 'desc' (newest first) | 'asc' (oldest first)
   const [timelineGrouping, setTimelineGrouping] = usePersistentState(
@@ -350,6 +394,8 @@ export default function App() {
   ); // null | 'folders' | 'albums' | 'playlists' | 'tags' | 'stats'
 
   const searchInputRef = useRef(null);
+  useTabCompletion(searchInputRef);
+  const bellBtnRef = useRef(null);
 
   // Search history
   const [searchHistoryEnabled, setSearchHistoryEnabled] = usePersistentState(
@@ -392,6 +438,16 @@ export default function App() {
       delete window.__vividShowWelcome;
     };
   }, []);
+
+  // Workspace picker while already running (e.g. from the macOS menu's
+  // "Switch Workspace…") — see the `menu-switch-workspace` listener below,
+  // which populates this. The *startup* check (shown before anything is
+  // loaded at all) now happens earlier, in `WorkspaceGate` — by the time
+  // `App` mounts, some workspace is always already loaded.
+  // Which Settings tab to land on next time it opens — used by the
+  // "Switch Workspace…" menu item to jump straight to the workspace list
+  // when there's nothing to pick between yet (see the effect below).
+  const [settingsInitialTab, setSettingsInitialTab] = useState(null);
 
   // Intercept all external link clicks — open in system browser, not in-app
   useEffect(() => {
@@ -625,32 +681,42 @@ export default function App() {
     return updated;
   }, []);
 
-  const handleSetCollection = useCallback(async (id, collectionId) => {
-    const updated = await invoke('set_collection', { id, collectionId: collectionId ?? null });
+  // Toggles a single collection's membership for one item — `isMember` tells
+  // it which way to flip. An item can belong to any number of collections at
+  // once, so this only ever touches the one collection being clicked.
+  const handleSetCollection = useCallback(async (id, collectionId, isMember) => {
+    const updated = await invoke(isMember ? 'remove_from_collection' : 'add_to_collection', {
+      id,
+      collectionId,
+    });
     setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
     setSelected((prev) => (prev?.id === id ? updated : prev));
+    setViewerItem((prev) => (prev?.id === id ? updated : prev));
   }, []);
 
-  const handleRemove = useCallback((id) => {
-    setContextMenu(null);
-    setConfirm({
-      title: t('trash.moveTitle'),
-      message: t('trash.moveMsg'),
-      confirmLabel: t('trash.moveConfirmBtn'),
-      onConfirm: async () => {
-        await invoke('trash_media', { id });
-        setAllItems((prev) => prev.filter((it) => it.id !== id));
-        setSelected((prev) => (prev?.id === id ? null : prev));
-        setViewerItem((prev) => (prev?.id === id ? null : prev));
-        setCheckedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-        setConfirm(null);
-      },
-    });
-  }, [t]);
+  const handleRemove = useCallback(
+    (id) => {
+      setContextMenu(null);
+      setConfirm({
+        title: t('trash.moveTitle'),
+        message: t('trash.moveMsg'),
+        confirmLabel: t('trash.moveConfirmBtn'),
+        onConfirm: async () => {
+          await invoke('trash_media', { id });
+          setAllItems((prev) => prev.filter((it) => it.id !== id));
+          setSelected((prev) => (prev?.id === id ? null : prev));
+          setViewerItem((prev) => (prev?.id === id ? null : prev));
+          setCheckedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setConfirm(null);
+        },
+      });
+    },
+    [t],
+  );
 
   // ── Multi-select mutations ────────────────────────────────────────────────
 
@@ -693,44 +759,89 @@ export default function App() {
     [checkedIds, allItems],
   );
 
+  // Adds every checked item to a collection — additive, doesn't disturb
+  // membership in any collection they're already in.
   const handleMassCollection = useCallback(
     async (collectionId) => {
       const ids = [...checkedIds];
-      const gid = collectionId === '__none__' ? null : collectionId;
-      const updated = await Promise.all(
-        ids.map((id) => invoke('set_collection', { id, collectionId: gid })),
+      const alreadyCount = ids.filter((id) =>
+        allItems.find((it) => it.id === id)?.collection_ids?.includes(collectionId),
+      ).length;
+      // allSettled (not all): one incompatible item must not abort the whole
+      // batch mid-flight or skip applying the state update for the others
+      // that already succeeded in the DB.
+      const results = await Promise.allSettled(
+        ids.map((id) => invoke('add_to_collection', { id, collectionId })),
       );
-      setAllItems((prev) => {
-        const map = Object.fromEntries(updated.map((it) => [it.id, it]));
-        return prev.map((it) => map[it.id] ?? it);
-      });
+      const updated = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (updated.length > 0) {
+        setAllItems((prev) => {
+          const map = Object.fromEntries(updated.map((it) => [it.id, it]));
+          return prev.map((it) => map[it.id] ?? it);
+        });
+        const name = collections.find((g) => g.id === collectionId)?.name ?? collectionId;
+        const added = updated.length - alreadyCount;
+        if (added > 0) {
+          showToast('success', t('notif.addedToCollection', { count: added, name }));
+        } else {
+          showToast('info', t('notif.alreadyInCollection', { count: alreadyCount, name }));
+        }
+      }
+      if (failed.length > 0) {
+        showToast('error', t('notif.moveToCollectionFailed', { count: failed.length }));
+      }
     },
-    [checkedIds],
+    [checkedIds, allItems, collections, showToast, t],
   );
 
   const handleMassMoveFolder = useCallback(
     async (folderId) => {
       const ids = [...checkedIds];
+      const alreadyCount = ids.filter(
+        (id) => folderIdOf(allItems.find((it) => it.id === id) ?? {}) === folderId,
+      ).length;
       const moved = await invoke('move_to_folder', { itemIds: ids, folderId });
       setAllItems((prev) => {
         const map = Object.fromEntries(moved.map((it) => [it.id, it]));
         return prev.map((it) => map[it.id] ?? it);
       });
+      if (moved.length > 0) {
+        const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+        const movedCount = moved.length - alreadyCount;
+        if (movedCount > 0) {
+          showToast('success', t('notif.movedToFolder', { count: movedCount, name }));
+        } else {
+          showToast('info', t('notif.alreadyInFolder', { count: alreadyCount, name }));
+        }
+      }
     },
-    [checkedIds],
+    [checkedIds, allItems, folders, showToast, t],
   );
 
-  const handleMoveToFolder = useCallback(async (itemId, folderId) => {
-    const moved = await invoke('move_to_folder', { itemIds: [itemId], folderId });
-    setAllItems((prev) => {
-      const map = Object.fromEntries(moved.map((it) => [it.id, it]));
-      return prev.map((it) => map[it.id] ?? it);
-    });
-  }, []);
+  const handleMoveToFolder = useCallback(
+    async (itemId, folderId) => {
+      const alreadyThere = folderIdOf(allItems.find((it) => it.id === itemId) ?? {}) === folderId;
+      const moved = await invoke('move_to_folder', { itemIds: [itemId], folderId });
+      setAllItems((prev) => {
+        const map = Object.fromEntries(moved.map((it) => [it.id, it]));
+        return prev.map((it) => map[it.id] ?? it);
+      });
+      if (moved.length > 0) {
+        const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+        if (alreadyThere) {
+          showToast('info', t('notif.alreadyInFolder', { count: 1, name }));
+        } else {
+          showToast('success', t('notif.movedToFolder', { count: 1, name }));
+        }
+      }
+    },
+    [allItems, folders, showToast, t],
+  );
 
   const handleAddResultsToCollection = useCallback(async (collectionId, items) => {
     const updated = await Promise.all(
-      items.map((i) => invoke('set_collection', { id: i.id, collectionId })),
+      items.map((i) => invoke('add_to_collection', { id: i.id, collectionId })),
     );
     setAllItems((prev) => {
       const map = Object.fromEntries(updated.map((it) => [it.id, it]));
@@ -745,26 +856,46 @@ export default function App() {
       // Folder drop wins when both are hit: moving files on disk is the stronger
       // intent than adding to a metadata collection.
       if (folderId) {
+        const alreadyCount = items.filter((it) => folderIdOf(it) === folderId).length;
         const moved = await invoke('move_to_folder', { itemIds: ids, folderId });
         setAllItems((prev) => {
           const map = Object.fromEntries(moved.map((it) => [it.id, it]));
           return prev.map((it) => map[it.id] ?? it);
         });
+        if (moved.length > 0) {
+          const name = folders.find((f) => f.id === folderId)?.name ?? folderId;
+          const movedCount = moved.length - alreadyCount;
+          if (movedCount > 0) {
+            showToast('success', t('notif.movedToFolder', { count: movedCount, name }));
+          } else {
+            showToast('info', t('notif.alreadyInFolder', { count: alreadyCount, name }));
+          }
+        }
         return;
       }
-      if (collectionId) {
+      // Album groups only organize other albums — dropping media files onto
+      // one isn't a valid target, unlike a regular album/playlist row.
+      if (collectionId && collections.find((g) => g.id === collectionId)?.kind !== 'album_group') {
+        const alreadyCount = items.filter((it) => it.collection_ids?.includes(collectionId)).length;
         const updated = await Promise.all(
-          ids.map((id) => invoke('set_collection', { id, collectionId: collectionId })),
+          ids.map((id) => invoke('add_to_collection', { id, collectionId })),
         );
         setAllItems((prev) => {
           const map = Object.fromEntries(updated.map((it) => [it.id, it]));
           return prev.map((it) => map[it.id] ?? it);
         });
+        if (updated.length > 0) {
+          const name = collections.find((g) => g.id === collectionId)?.name ?? collectionId;
+          const added = updated.length - alreadyCount;
+          if (added > 0) {
+            showToast('success', t('notif.addedToCollection', { count: added, name }));
+          } else {
+            showToast('info', t('notif.alreadyInCollection', { count: alreadyCount, name }));
+          }
+        }
       }
-      // No notification: the items visibly move. The messages page is for
-      // warnings/errors only, not routine success confirmations.
     },
-    [setAllItems],
+    [setAllItems, collections, folders, showToast, t],
   );
 
   const { drag: collectionDrag, beginCollectionDrag } = useCollectionDrag(handleCollectionDrop);
@@ -808,6 +939,23 @@ export default function App() {
     setCollections((prev) => prev.map((g) => (g.id === collectionId ? updated : g)));
   }, []);
 
+  // Moves an album into an album_group (or, passing null, back out to
+  // top-level) — used by the secondary panel's "Move to Group…"/"Remove from
+  // Group" context menu actions.
+  const handleSetCollectionParent = useCallback(
+    async (id, parentId) => {
+      try {
+        const updated = await invoke('set_collection_parent', { id, parentId: parentId ?? null });
+        setCollections((prev) => prev.map((g) => (g.id === id ? updated : g)));
+        return updated;
+      } catch (e) {
+        showToast('error', String(e));
+        return null;
+      }
+    },
+    [showToast],
+  );
+
   const handleSetCollectionDescription = useCallback(async (id, description) => {
     const updated = await invoke('set_collection_description', { id, description });
     setCollections((prev) => prev.map((g) => (g.id === id ? updated : g)));
@@ -833,6 +981,37 @@ export default function App() {
       });
     },
     [allItems],
+  );
+
+  // Renames the actual on-disk filename — distinct from handleBatchRename
+  // above, which only touches display_name/library metadata. RenameFileModal
+  // already validated the batch against conflicts before calling this, but
+  // the backend re-checks per file (a race, or a file outside the DB), so
+  // partial failure is a real possibility here — allSettled + toast for
+  // whichever ones didn't make it, same pattern as handleMassCollection.
+  const handleRenameFiles = useCallback(
+    async (renames) => {
+      const results = await Promise.allSettled(
+        renames.map(({ id, newStem }) => invoke('rename_file', { id, newStem })),
+      );
+      const updated = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (updated.length > 0) {
+        setAllItems((prev) => {
+          const map = Object.fromEntries(updated.map((it) => [it.id, it]));
+          return prev.map((it) => map[it.id] ?? it);
+        });
+      }
+      if (failed.length > 0) {
+        showToast(
+          'error',
+          failed.length === 1
+            ? failed[0].reason?.toString()
+            : t('notif.renameFilesFailed', { count: failed.length }),
+        );
+      }
+    },
+    [showToast, t],
   );
 
   const handleColorLabel = useCallback(async (id, label) => {
@@ -885,6 +1064,45 @@ export default function App() {
   const removeFromHistory = useCallback((term) => {
     setSearchHistory((prev) => prev.filter((h) => h !== term));
   }, []);
+
+  const handleSaveSearch = useCallback(
+    (name, snapshot) => {
+      if (savedSearches.some((s) => s.name === name)) {
+        showToast('error', t('notif.duplicateSavedSearch', { name }));
+        return;
+      }
+      setSavedSearches((prev) => [{ id: crypto.randomUUID(), name, ...snapshot }, ...prev]);
+    },
+    [savedSearches, setSavedSearches, showToast, t],
+  );
+
+  const handleApplySavedSearch = useCallback(
+    (entry) => {
+      setSearch(entry.search ?? '');
+      setSearchScope(entry.searchScope ?? DEFAULT_SEARCH_SCOPE);
+      setFilters(entry.filters ?? EMPTY_FILTERS);
+      setSemanticMode(false);
+      setMoodFilter(null);
+      if (hasActiveFilterFields(entry.filters ?? EMPTY_FILTERS, null)) setShowFilterBar(true);
+    },
+    [setSearchScope, setFilters],
+  );
+
+  const handleDeleteSavedSearch = useCallback(
+    (id) => {
+      const entry = savedSearches.find((s) => s.id === id);
+      setConfirm({
+        title: t('search.saved.deleteTitle'),
+        message: t('search.saved.deleteMsg', { name: entry?.name ?? '' }),
+        confirmLabel: t('search.saved.deleteConfirm'),
+        onConfirm: () => {
+          setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+          setConfirm(null);
+        },
+      });
+    },
+    [savedSearches, t],
+  );
 
   const handleSearchGo = useCallback(() => {
     if (!search.trim()) return;
@@ -1011,7 +1229,6 @@ export default function App() {
       setActiveCollection(null);
       setActiveFolder(null);
       setView('library');
-      setSecondaryPanel(null);
       setShowFilterBar(true);
       setFilters((prev) => ({ ...prev, tags: [tag] }));
       pushNav({
@@ -1080,7 +1297,7 @@ export default function App() {
   );
 
   const handleViewChange = useCallback(
-    (v, { mapFocusId: focusId = null } = {}) => {
+    (v, { mapFocusId: focusId = null, mapScope = null } = {}) => {
       guardedNav(() => {
         setView(v);
         setActiveFolder(null);
@@ -1088,6 +1305,7 @@ export default function App() {
         clearSearchAndFilters();
         setShowDuplicates(false);
         setMapFocusId(focusId);
+        setMapScopeItems(mapScope);
         pushNav({ filter, activeTag, activeCollection, activeFolder: null, search: '', view: v });
       });
     },
@@ -1103,16 +1321,107 @@ export default function App() {
     ],
   );
 
+  // macOS menu bar: Workspace > Switch Workspace > <one item per workspace>.
+  // The native submenu (rebuilt on the Rust side whenever the registry
+  // changes — see `rebuild_workspace_menu` in lib.rs) already shows every
+  // choice, so picking one here is a deliberate, specific action — no
+  // confirmation dialog, no intermediate picker UI, just switch.
+  useEffect(() => {
+    let unlisten;
+    listen('menu-switch-to-workspace', async (event) => {
+      const id = event.payload;
+      try {
+        const { relaunched } = await switchWorkspaceAndApply(id);
+        if (!relaunched) {
+          showToast('info', t('settings.workspace.devRestartNeeded'));
+        }
+      } catch (e) {
+        showToast('error', String(e));
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [showToast, t]);
+
+  // macOS menu bar: Workspace > New Workspace…. The actual "pick a folder"
+  // flow lives in Settings (WorkspaceSection), so this just navigates there
+  // rather than duplicating it at the top level.
+  useEffect(() => {
+    let unlisten;
+    listen('menu-add-workspace', () => {
+      setSettingsInitialTab('library');
+      handleViewChange('settings');
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [handleViewChange]);
+
+  // The active external workspace's folder disappeared while Vivid was
+  // running (removed, renamed, or the drive it's on was unmounted) — the
+  // live watcher and a periodic health check both feed this. Nothing in the
+  // running process can recover cleanly (the DB connection, thumbnails, and
+  // in-memory index all point at that folder), so the only way back to a
+  // consistent state is a relaunch: `resolve_startup_workspace` then falls
+  // back to the Default workspace exactly as it would for any other
+  // unreachable external folder.
+  useEffect(() => {
+    let unlisten;
+    listen('workspace-unavailable', (event) => {
+      const name = event.payload?.name ?? '';
+      setConfirm({
+        title: t('workspacePicker.unavailableTitle'),
+        message: t('workspacePicker.unavailableDesc', { name }),
+        confirmLabel: t('workspacePicker.unavailableConfirm'),
+        onConfirm: async () => {
+          setConfirm(null);
+          await relaunch();
+        },
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [t]);
+
   // "View on Map" from the detail panel — jumps to the World Map centered on
   // this specific item instead of the usual fit-to-all-pins behavior.
   const handleViewOnMap = useCallback(
     (item) => {
       setViewerItem(null);
       setViewerDetails(false);
+      setMapViewerItems(null);
+      setMapSelectedId(null);
       setSelected(null);
       handleViewChange('worldmap', { mapFocusId: item.id });
     },
     [handleViewChange],
+  );
+
+  // "View on Map" from an album's title bar — restricts the World Map to
+  // just that album's images instead of the whole library. Geotagging is
+  // per-item, so an album can have zero geotagged images even with photos
+  // in it; that's not a nav-worthy error, just a toast.
+  const handleViewAlbumOnMap = useCallback(
+    (albumImages) => {
+      const hasGeo = albumImages.some((i) => i.gps_lat != null && i.gps_lng != null);
+      if (!hasGeo) {
+        showToast('error', t('notif.noGeotaggedInAlbum'));
+        return;
+      }
+      setMapViewerItems(null);
+      setMapSelectedId(null);
+      setSelected(null);
+      handleViewChange('worldmap', { mapScope: albumImages });
+    },
+    [handleViewChange, showToast, t],
   );
 
   const handleSetLocation = useCallback(async (id, lat, lng) => {
@@ -1122,15 +1431,21 @@ export default function App() {
     setViewerItem((prev) => (prev?.id === id ? updated : prev));
   }, []);
 
+  // `navItems` scopes FileViewer's prev/next navigation to something other
+  // than the default `visible` set — e.g. the World Map passes just the
+  // cluster that was clicked, so navigating away from a map pin doesn't leak
+  // into the full library. null means "use the default scope".
   const handleCardOpen = useCallback(
-    (item) => {
+    (item, navItems = null) => {
       if (isSelecting) return;
       if (item.media_type === 'audio') {
         // Single-track click — no playlist mode, no auto-advance
         setPlayerPlaylist(false);
         setPlayerExplicitQueue(null);
         setPlayerItem(item);
+        setPlayToken((v) => v + 1);
       } else {
+        setMapViewerItems(navItems);
         setViewerItem(item);
       }
     },
@@ -1141,6 +1456,7 @@ export default function App() {
     setPlayerPlaylist(false);
     setPlayerExplicitQueue(null);
     setPlayerItem(item);
+    setPlayToken((v) => v + 1);
   }, []);
 
   // Play a collection of tracks as a playlist (enables auto-advance controls)
@@ -1150,6 +1466,7 @@ export default function App() {
     setPlayerPlaylist(true);
     setPlayerPlaylistName(typeof name === 'string' ? name : null);
     setPlayerItem(tracks[0]);
+    setPlayToken((v) => v + 1);
   }, []);
 
   const [playerPlaylist, setPlayerPlaylist] = useState(false);
@@ -1217,7 +1534,7 @@ export default function App() {
         }
       }
       if (dest.collectionId) {
-        updated = await invoke('set_collection', {
+        updated = await invoke('add_to_collection', {
           id: updated.id,
           collectionId: dest.collectionId,
         });
@@ -1339,7 +1656,6 @@ export default function App() {
     const q = debouncedSearch.trim().toLowerCase();
     const grp = activeCollection ? collections.find((g) => g.id === activeCollection) : null;
     const albumScope = grp?.kind === 'album';
-    const exts = (filters.extension || []).map((e) => '.' + e.toLowerCase());
     const isSemantic = semanticMode && semanticResults !== null;
 
     // AI modes (semantic search / find-similar / vibe) supply results already
@@ -1360,11 +1676,11 @@ export default function App() {
       } else if (filter !== 'all' && i.media_type !== filter) return false;
 
       // Folder filter (a folder and its descendants)
-      if (folderScope && !folderScope.has(i.folder_id)) return false;
+      if (folderScope && !folderScope.has(folderIdOf(i))) return false;
 
       // Group / album filter
       if (activeCollection) {
-        if (i.collection_id !== activeCollection) return false;
+        if (!i.collection_ids?.includes(activeCollection)) return false;
         if (albumScope && i.media_type !== 'image' && i.media_type !== 'video') return false;
       }
 
@@ -1374,45 +1690,16 @@ export default function App() {
 
       // Text search (debounced) — skipped in semantic mode, where the same
       // search box is the AI query rather than a literal substring match.
-      if (
-        !isSemantic &&
-        q &&
-        !(
-          i.display_name.toLowerCase().includes(q) ||
-          i.file_name.toLowerCase().includes(q) ||
-          i.description?.toLowerCase().includes(q) ||
-          i.ocr_text?.toLowerCase().includes(q) ||
-          i.tags?.some((t) => t.includes(q)) ||
-          i.auto_tags?.some((t) => t.includes(q))
-        )
-      )
-        return false;
-
-      // Filter-bar predicates
-      if (filters.exactDay && (i.date_taken || i.created_at)?.slice(0, 10) !== filters.exactDay)
-        return false;
-      if (
-        filters.tags?.length &&
-        !filters.tags.every((t) => i.tags?.includes(t) || i.auto_tags?.includes(t))
-      )
-        return false;
-      if (filters.mediaType?.length && !filters.mediaType.includes(i.media_type)) return false;
-      if (exts.length && !exts.some((e) => i.file_name.toLowerCase().endsWith(e))) return false;
-      if (filters.starred && !i.starred) return false;
-      if (filters.hasGps && !(i.gps_lat != null && i.gps_lng != null)) return false;
-      if (filters.hasText && !(i.ocr_text && i.ocr_text.trim())) return false;
-      if (filters.collection && !i.collection_id) return false;
-      if (
-        filters.cameras?.length &&
-        !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
-      )
-        return false;
+      // Each field only participates when its toggle in searchScope is on.
+      if (!isSemantic && !matchesSearch(i, q, searchScope)) return false;
 
       return true;
     });
 
-    // applyFilters covers colorLabel, dateRange, orientation, fileSize
-    items = applyFilters(items, filters);
+    // Remaining predicates (exactDay/tags/mediaType/extension/starred/hasGps/
+    // hasText/collection/cameras, plus applyFilters' colorLabel/dateRange/
+    // orientation/fileSize) — shared with the world map view's own filter bar.
+    items = applyAllFilters(items, filters);
 
     // Preserve similarity/vibe/semantic ranking; sorting would destroy the score order
     if (isSemantic || similarTo || moodFilter) return items;
@@ -1423,6 +1710,7 @@ export default function App() {
     activeCollection,
     activeTag,
     debouncedSearch,
+    searchScope,
     sortBy,
     filters,
     semanticMode,
@@ -1433,11 +1721,42 @@ export default function App() {
     folderScope,
   ]);
 
+  // World Map's own item pool: shares the top-bar FilterBar/`filters` state
+  // and the search box with the library view, but skips the rest of the
+  // library-only scoping (sidebar type/folder/collection/tag, AI ranking
+  // modes) — the map always shows every geotagged item that passes the
+  // filter bar and search box, regardless of which folder/collection the
+  // library happens to be on. Restricted to mapScopeItems instead of the
+  // whole library when set (e.g. "View on Map" from an album) — filters
+  // still apply on top of that scope. Search is skipped in semantic mode,
+  // same reasoning as `visible` above (the box holds an AI query then, not a
+  // literal substring).
+  const mapVisible = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const isSemantic = semanticMode && semanticResults !== null;
+    const pool = mapScopeItems ?? allItems;
+    const searched = isSemantic ? pool : pool.filter((i) => matchesSearch(i, q, searchScope));
+    return applyAllFilters(searched, filters);
+  }, [
+    mapScopeItems,
+    allItems,
+    filters,
+    debouncedSearch,
+    searchScope,
+    semanticMode,
+    semanticResults,
+  ]);
+
   // Opening an image from inside an album gets a filmstrip of the album's
   // other images (image-only, matching the album's own scope) instead of the
   // full mixed-media `visible` set FileViewer otherwise navigates through.
+  // Opening from the World Map gets the same filmstrip treatment, scoped to
+  // just the pin/cluster that was clicked (mapViewerItems).
   const isAlbumImageView = !!activeCollection && viewerItem?.media_type === 'image';
-  const viewerItems = isAlbumImageView ? visible.filter((i) => i.media_type === 'image') : visible;
+  const viewerItems = isAlbumImageView
+    ? visible.filter((i) => i.media_type === 'image')
+    : (mapViewerItems ?? visible);
+  const viewerFilmstrip = isAlbumImageView || !!mapViewerItems;
 
   // Freeze the current (filtered + sorted) order as the playlist's manual order:
   // persist each item's sort_order, then switch the sort to manual so it sticks.
@@ -1476,6 +1795,11 @@ export default function App() {
         setShowCmdPalette((v) => !v);
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        setCheckedIds(new Set(visible.map((i) => i.id)));
+        return;
+      }
       if (e.key === '?') {
         setShowHelp(true);
         return;
@@ -1494,7 +1818,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [viewerItem, playerItem, visible, selected, handleCardOpen]);
+  }, [viewerItem, playerItem, visible, selected, handleCardOpen, isSelecting, setCheckedIds]);
 
   // Queue for the bottom player: explicit (playlist) queue takes priority
   const playerQueue = useMemo(() => {
@@ -1568,7 +1892,13 @@ export default function App() {
             <input
               ref={searchInputRef}
               className={`search-input${semanticMode ? ' semantic-mode' : ''}${search ? ' has-text' : ''}`}
-              placeholder={semanticMode ? t('search.aiPlaceholder') : t('search.placeholder')}
+              placeholder={
+                isAlbumGroupView
+                  ? t('search.placeholderAlbums')
+                  : semanticMode
+                    ? t('search.aiPlaceholder')
+                    : t('search.placeholder')
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
@@ -1627,8 +1957,16 @@ export default function App() {
             )}
           </div>
 
+          {/* Search scope toggles — which fields keyword search checks.
+              Doesn't apply to semantic search (an AI query, not a per-field
+              match) or the album group page (a plain name filter over
+              albums, not a per-field media search), so it's hidden then. */}
+          {!semanticMode && !isAlbumGroupView && (
+            <SearchScopeMenu scope={searchScope} onChange={setSearchScope} />
+          )}
+
           {/* Semantic search toggle */}
-          {multilingualLoaded && (
+          {multilingualLoaded && !isAlbumGroupView && (
             <button
               className={`icon-btn toolbar-ai-btn ${semanticMode ? 'active' : ''}`}
               title={semanticMode ? t('toolbar.switchToKeyword') : t('toolbar.switchToAI')}
@@ -1642,15 +1980,30 @@ export default function App() {
             </button>
           )}
 
-          {/* Filter toggle — right of search bar, visually separated from view buttons */}
-          {view === 'library' && (
+          {/* Filter toggle — right of search bar, visually separated from view buttons.
+              Shared as-is by the World Map view: same button, same filters state. */}
+          {(view === 'library' || view === 'worldmap') && !isAlbumGroupView && (
             <button
-              className={`icon-btn toolbar-view-btn ${showFilterBar || filters.colorLabel?.length > 0 || filters.dateRange || filters.exactDay || filters.dateFrom || filters.dateTo || filters.tags?.length > 0 || filters.mediaType?.length > 0 || filters.extension?.length > 0 || filters.starred || filters.hasGps || filters.hasText || filters.orientation || filters.fileSize || filters.collection || filters.cameras?.length > 0 || moodFilter ? 'active' : ''}`}
+              className={`icon-btn toolbar-view-btn ${showFilterBar || hasActiveFilterFields(filters, moodFilter) ? 'active' : ''}`}
               onClick={() => setShowFilterBar((v) => !v)}
               title={t('toolbar.filters')}
             >
               <Filter size={15} />
             </button>
+          )}
+
+          {/* Saved searches — bookmark the current search text + scope +
+              filters, reachable wherever the Filter toggle is (search/filters
+              only drive the library and world-map item lists). */}
+          {(view === 'library' || view === 'worldmap') && !isAlbumGroupView && (
+            <SavedSearchesMenu
+              current={{ search, searchScope, filters }}
+              hasCurrent={!!search.trim() || hasActiveFilterFields(filters, null)}
+              saved={savedSearches}
+              onSave={handleSaveSearch}
+              onApply={handleApplySavedSearch}
+              onDelete={handleDeleteSavedSearch}
+            />
           )}
 
           {/* Separator between filter and view group */}
@@ -1671,17 +2024,23 @@ export default function App() {
             </button>
             {loading && !importProgress && <span className="loading-dot" />}
             <button
-              className={`icon-btn toolbar-bell-btn ${notifications.some((n) => !n.read) ? 'has-unread' : ''}`}
+              ref={bellBtnRef}
+              className={`icon-btn toolbar-bell-btn ${showNotifications ? 'active' : ''} ${notifications.some((n) => !n.read) ? 'has-unread' : ''}`}
               onClick={() => {
-                setShowNotifications(true);
-                markNotificationsRead();
+                setShowNotifications((v) => {
+                  const next = !v;
+                  if (next) markNotificationsRead();
+                  return next;
+                });
               }}
               title={t('toolbar.systemMessages')}
             >
-              <Bell size={15} />
-              {notifications.some((n) => !n.read) && (
-                <span className="bell-badge">{unreadCount}</span>
-              )}
+              <span className="bell-icon-wrap">
+                <Bell size={15} />
+                {notifications.some((n) => !n.read) && (
+                  <span className="bell-badge">{unreadCount}</span>
+                )}
+              </span>
             </button>
             <ImportMenu
               onImport={handleImport}
@@ -1704,7 +2063,6 @@ export default function App() {
               onCollectionClick={(id) => {
                 handleCollectionClick(id);
                 handleViewChange('library');
-                setSecondaryPanel(null);
               }}
               onTagClick={handleTagNavigate}
               activeCollectionId={activeCollection}
@@ -1722,12 +2080,12 @@ export default function App() {
               dragOverFolderId={collectionDrag?.overFolderId}
               onFolderClick={(id) => {
                 handleFolderClick(id);
-                setSecondaryPanel(null);
               }}
               onCreateFolder={handleCreateFolder}
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
               onMoveFolder={handleMoveFolder}
+              onSetCollectionParent={handleSetCollectionParent}
             />
           )}
 
@@ -1767,25 +2125,27 @@ export default function App() {
             )}
 
             {/* Filter bar */}
-            {view === 'library' && (showFilterBar || filters.exactDay || moodFilter) && (
-              <FilterBar
-                filters={filters}
-                onChange={setFilters}
-                allItems={allItems}
-                moods={multilingualLoaded && showMoodBar ? moods : []}
-                moodFilter={moodFilter?.mood ?? null}
-                onMoodFilter={(mood) => {
-                  if (!mood) {
-                    setMoodFilter(null);
-                    return;
-                  }
-                  handleMoodFilter(mood);
-                  setSimilarTo(null);
-                  setSemanticMode(false);
-                  setSemanticResults(null);
-                }}
-              />
-            )}
+            {(view === 'library' || view === 'worldmap') &&
+              !isAlbumGroupView &&
+              (showFilterBar || filters.exactDay || moodFilter) && (
+                <FilterBar
+                  filters={filters}
+                  onChange={setFilters}
+                  allItems={allItems}
+                  moods={multilingualLoaded && showMoodBar ? moods : []}
+                  moodFilter={moodFilter?.mood ?? null}
+                  onMoodFilter={(mood) => {
+                    if (!mood) {
+                      setMoodFilter(null);
+                      return;
+                    }
+                    handleMoodFilter(mood);
+                    setSimilarTo(null);
+                    setSemanticMode(false);
+                    setSemanticResults(null);
+                  }}
+                />
+              )}
 
             {/* Results bar — shown when search or filters narrow the visible set */}
             {view === 'library' &&
@@ -1793,31 +2153,15 @@ export default function App() {
               visible.length > 0 &&
               (() => {
                 const hasActiveSearch = search.trim().length > 0;
-                const hasActiveFilters = !!(
-                  filters.colorLabel?.length > 0 ||
-                  filters.dateRange ||
-                  filters.exactDay ||
-                  filters.dateFrom ||
-                  filters.dateTo ||
-                  filters.tags?.length > 0 ||
-                  filters.mediaType?.length > 0 ||
-                  filters.extension?.length > 0 ||
-                  filters.starred ||
-                  filters.hasGps ||
-                  filters.hasText ||
-                  filters.orientation ||
-                  filters.fileSize ||
-                  filters.collection ||
-                  filters.cameras?.length > 0 ||
-                  moodFilter
-                );
+                const hasActiveFilters = hasActiveFilterFields(filters, moodFilter);
                 if (!hasActiveSearch && !hasActiveFilters) return null;
                 const hasAudio = visible.some((i) => i.media_type === 'audio');
                 const hasNonAudio = visible.some((i) => i.media_type !== 'audio');
                 const compatibleCollections = collections.filter((g) => {
                   if (g.kind === 'album') return !hasAudio;
                   if (g.kind === 'playlist') return !hasNonAudio;
-                  return true; // folders accept anything
+                  if (g.kind === 'album_group') return false; // holds albums, not files
+                  return true;
                 });
                 return (
                   <ResultsBar
@@ -1895,11 +2239,25 @@ export default function App() {
                       setPlayerLoop((l) => (l === 'none' ? 'all' : l === 'all' ? 'one' : 'none'))
                     }
                     onSlideshow={setScreensaverItems}
+                    onViewAlbumOnMap={handleViewAlbumOnMap}
                     onSidebarPin={handleSidebarPin}
                     onRename={handleRenameCollection}
                     onSetCover={(group) => setCollectionCoverTarget(group)}
                     onDelete={handleDeleteCollection}
                     onSetDescription={handleSetCollectionDescription}
+                    onCreateChildAlbum={
+                      grp.kind === 'album_group'
+                        ? async (name) => {
+                            const album = await handleCreateCollection(name, '', null, 'album');
+                            if (album) await handleSetCollectionParent(album.id, grp.id);
+                          }
+                        : null
+                    }
+                    childAlbumCount={
+                      grp.kind === 'album_group'
+                        ? collections.filter((g) => g.parent_id === grp.id).length
+                        : 0
+                    }
                   />
                 );
               })()}
@@ -1918,10 +2276,11 @@ export default function App() {
                   <FileViewer
                     item={viewerItem}
                     items={viewerItems}
-                    filmstrip={isAlbumImageView}
+                    filmstrip={viewerFilmstrip}
                     onClose={() => {
                       setViewerItem(null);
                       setViewerDetails(false);
+                      setMapViewerItems(null);
                     }}
                     onNavigate={setViewerItem}
                     onToggleDetails={() => setViewerDetails((v) => !v)}
@@ -1948,12 +2307,18 @@ export default function App() {
                       onSave={handleSave}
                       onStarToggle={handleStarToggle}
                       onSetCollection={handleSetCollection}
+                      onColorLabel={handleColorLabel}
                       onRemoveAutoTag={handleRemoveAutoTag}
                       onRetagImage={handleRetagImage}
                       onNavigateToFolder={(id) => {
                         setViewerItem(null);
                         setViewerDetails(false);
                         handleFolderClick(id);
+                      }}
+                      onOpenCollection={(id) => {
+                        setViewerItem(null);
+                        setViewerDetails(false);
+                        handleCollectionClick(id);
                       }}
                       onViewOnMap={handleViewOnMap}
                       onSetLocation={handleSetLocation}
@@ -1963,6 +2328,7 @@ export default function App() {
                 </div>
               ) : view === 'settings' ? (
                 <SettingsPage
+                  initialTab={settingsInitialTab}
                   theme={theme}
                   onThemeChange={setTheme}
                   colorTheme={colorTheme}
@@ -2018,12 +2384,15 @@ export default function App() {
                 />
               ) : view === 'worldmap' ? (
                 <WorldMapView
-                  items={allItems}
-                  onOpen={handleCardOpen}
-                  onOpenCluster={(clItems) => {
-                    setViewerItem(clItems[0]);
-                  }}
+                  items={mapVisible}
+                  onOpen={(item) => handleCardOpen(item, [item])}
+                  onOpenCluster={(clItems) => handleCardOpen(clItems[0], clItems)}
+                  onViewDetails={handleCardDetails}
                   focusItemId={mapFocusId}
+                  persistedViewState={mapViewState}
+                  onViewStateChange={setMapViewState}
+                  persistedSelectedId={mapSelectedId}
+                  onSelectedChange={setMapSelectedId}
                 />
               ) : view === 'trash' ? (
                 <TrashView
@@ -2037,8 +2406,6 @@ export default function App() {
                 />
               ) : view === 'tags' ? (
                 <TagsView allItems={allItems} onTagClick={handleTagNavigate} />
-              ) : view === 'stats' ? (
-                <StatsPage items={allItems} collections={collections} folders={folders} />
               ) : view === 'system-messages' ? (
                 <SystemMessagesPage
                   notifications={notifications}
@@ -2059,6 +2426,19 @@ export default function App() {
                   onNewItem={handleNewItem}
                   onItemUpdated={handleItemUpdated}
                   initialSrc={freshUrls[editorItem.id] || null}
+                />
+              ) : view === 'library' && isAlbumGroupView ? (
+                <AlbumGroupView
+                  group={activeCollectionObj}
+                  collections={collections}
+                  allItems={allItems}
+                  search={search}
+                  onOpenCollection={handleCollectionClick}
+                  onRenameCollection={handleRenameCollection}
+                  onSetCollectionCover={(group) => setCollectionCoverTarget(group)}
+                  onSidebarPin={handleSidebarPin}
+                  onSetCollectionParent={handleSetCollectionParent}
+                  onDeleteCollection={handleDeleteCollection}
                 />
               ) : (
                 <>
@@ -2204,16 +2584,14 @@ export default function App() {
                         <LayoutGrid size={13} />
                         <span>{t('viewMode.cards')}</span>
                       </button>
-                      {supportsList && (
-                        <button
-                          className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
-                          onClick={() => setViewMode('list')}
-                          title={t('viewMode.listTitle')}
-                        >
-                          <List size={13} />
-                          <span>{t('viewMode.list')}</span>
-                        </button>
-                      )}
+                      <button
+                        className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
+                        onClick={() => setViewMode('list')}
+                        title={t('viewMode.listTitle')}
+                      >
+                        <List size={13} />
+                        <span>{t('viewMode.list')}</span>
+                      </button>
                     </div>
                     {filter !== 'audio' && viewMode !== 'list' && (
                       <button
@@ -2239,26 +2617,7 @@ export default function App() {
                   <MediaGrid
                     items={visible}
                     isFiltered={
-                      !!(
-                        search.trim() ||
-                        filters.colorLabel?.length > 0 ||
-                        filters.dateRange ||
-                        filters.exactDay ||
-                        filters.dateFrom ||
-                        filters.dateTo ||
-                        filters.tags?.length > 0 ||
-                        filters.mediaType?.length > 0 ||
-                        filters.extension?.length > 0 ||
-                        filters.starred ||
-                        filters.hasGps ||
-                        filters.hasText ||
-                        filters.orientation ||
-                        filters.fileSize ||
-                        filters.collection ||
-                        filters.cameras?.length > 0 ||
-                        moodFilter ||
-                        activeTag
-                      )
+                      !!(search.trim() || activeTag) || hasActiveFilterFields(filters, moodFilter)
                     }
                     checkedIds={checkedIds}
                     highlightedId={selected?.id}
@@ -2306,9 +2665,14 @@ export default function App() {
                   onSave={handleSave}
                   onStarToggle={handleStarToggle}
                   onSetCollection={handleSetCollection}
+                  onColorLabel={handleColorLabel}
                   onRemoveAutoTag={handleRemoveAutoTag}
                   onRetagImage={handleRetagImage}
                   onNavigateToFolder={handleFolderClick}
+                  onOpenCollection={(id) => {
+                    setSelected(null);
+                    handleCollectionClick(id);
+                  }}
                   onViewOnMap={handleViewOnMap}
                   onSetLocation={handleSetLocation}
                   freshSrc={selected ? freshUrls[selected.id] || null : null}
@@ -2320,6 +2684,7 @@ export default function App() {
             {playerItem && (
               <AudioPlayer
                 item={playerItem}
+                playToken={playToken}
                 queue={playerQueue}
                 playlistMode={playerPlaylist}
                 playlistName={playerPlaylistName}
@@ -2348,10 +2713,14 @@ export default function App() {
                 onMassCollection={handleMassCollection}
                 onMassMoveFolder={handleMassMoveFolder}
                 onBatchRename={() => setShowBatchRename(true)}
+                onRenameFiles={() =>
+                  setRenameFileTargets(allItems.filter((i) => checkedIds.has(i.id)))
+                }
                 onExport={() => setShowExport(true)}
                 collections={collections}
                 folders={folders}
                 allItems={allItems}
+                selectedItems={allItems.filter((i) => checkedIds.has(i.id))}
                 hasPlayer={!!playerItem}
               />
             )}
@@ -2366,7 +2735,12 @@ export default function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          item={contextMenu.item}
+          // Look up the live item rather than rendering the snapshot taken
+          // when the menu opened — otherwise toggling collection membership
+          // (or starring, etc.) from the menu itself doesn't visibly update
+          // until it's closed and reopened, since `allItems` changes but
+          // this stored reference doesn't.
+          item={allItems.find((i) => i.id === contextMenu.item.id) ?? contextMenu.item}
           onClose={() => setContextMenu(null)}
           onOpen={handleCardOpen}
           onViewDetails={setSelected}
@@ -2377,6 +2751,7 @@ export default function App() {
           onRemoveAudioCover={handleRemoveAudioCover}
           onColorLabel={handleColorLabel}
           onEdit={handleEditImage}
+          onRenameFile={(item) => setRenameFileTargets([item])}
           onShare={handleShare}
           onFindSimilar={multilingualLoaded ? handleFindSimilar : null}
           onCompare={handleCompare}
@@ -2468,6 +2843,15 @@ export default function App() {
         />
       )}
 
+      {renameFileTargets && (
+        <RenameFileModal
+          items={renameFileTargets}
+          allItems={allItems}
+          onRename={handleRenameFiles}
+          onClose={() => setRenameFileTargets(null)}
+        />
+      )}
+
       {showHelp && <KeyboardHelpModal onClose={() => setShowHelp(false)} />}
 
       {showExport && (
@@ -2540,6 +2924,7 @@ export default function App() {
           onClose={() => setShowNotifications(false)}
           onClear={clearNotifications}
           onViewAll={() => handleViewChange('system-messages')}
+          triggerRef={bellBtnRef}
         />
       )}
 

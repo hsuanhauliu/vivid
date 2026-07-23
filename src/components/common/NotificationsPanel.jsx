@@ -1,5 +1,5 @@
-import { X, CheckCircle, AlertCircle, Info, ExternalLink } from 'lucide-react';
-import { useRef } from 'react';
+import { CheckCircle, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import useDismiss from '../../hooks/useDismiss';
 import './NotificationsPanel.css';
@@ -25,28 +25,29 @@ export default function NotificationsPanel({
   onClose,
   onClear,
   onViewAll,
+  triggerRef,
 }) {
   const { t } = useTranslation();
   const ref = useRef(null);
   // Warnings/errors only — drop routine success confirmations.
   const notifications = allNotifications.filter((n) => n.type !== 'success');
 
-  useDismiss(ref, onClose);
+  // Also treat the toggle button (the bell) as "inside" — otherwise its own
+  // mousedown fires as an outside click, closing the panel a beat before its
+  // onClick re-opens it, which looks like clicking the bell while the panel
+  // is open does nothing.
+  const dismissRefs = useMemo(() => [ref, triggerRef], [triggerRef]);
+  useDismiss(dismissRefs, onClose);
 
   return (
     <div className="notif-panel" ref={ref}>
       <div className="notif-header">
         <span className="notif-title">{t('notif.title')}</span>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {notifications.length > 0 && (
-            <button className="notif-clear-btn" onClick={onClear}>
-              {t('notif.clearAll')}
-            </button>
-          )}
-          <button className="notif-close-btn" onClick={onClose}>
-            <X size={13} />
+        {notifications.length > 0 && (
+          <button className="notif-clear-btn" onClick={onClear}>
+            {t('notif.clearAll')}
           </button>
-        </div>
+        )}
       </div>
       <div className="notif-list">
         {notifications.length === 0 ? (

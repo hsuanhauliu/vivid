@@ -4,12 +4,21 @@ import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Trash2, CheckCircle, Image, Video, Music, HardDrive, Loader } from 'lucide-react';
 import Modal from '../common/Modal';
+import ScrollArea from '../common/ScrollArea';
 import { formatBytes } from '../../utils/format';
+import { thumbSrcOf } from '../../utils/path';
 import './DuplicatesModal.css';
 
 function ItemCard({ item, isKept, onToggleKeep }) {
   const { t } = useTranslation();
-  const src = item.media_type === 'image' ? convertFileSrc(item.file_path) : null;
+  // Prefer the cached thumbnail (covers video poster frames too, not just
+  // images) — only images without one yet fall back to the raw file; audio
+  // and thumbnail-less video get the placeholder icon below.
+  const src = item.thumb_path
+    ? thumbSrcOf(item.thumb_path)
+    : item.media_type === 'image'
+      ? convertFileSrc(item.file_path)
+      : null;
   const TypeIcon =
     item.media_type === 'video' ? Video : item.media_type === 'audio' ? Music : Image;
 
@@ -131,7 +140,11 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
   return (
     <Modal className="dup-modal" onClose={onClose} title={t('duplicates.title')}>
       {/* Group tabs */}
-      <div className="dup-group-tabs">
+      <ScrollArea
+        className="dup-group-tabs"
+        innerClassName="dup-group-tabs-inner"
+        orientation="horizontal"
+      >
         {collections.map((g, i) => (
           <button
             key={i}
@@ -146,10 +159,10 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
           {t('duplicates.groupsCount', { count: collections.length })} ·{' '}
           {t('duplicates.toDeleteCount', { count: toDelete.length })}
         </span>
-      </div>
+      </ScrollArea>
 
       {/* Cards for current group */}
-      <div className="dup-cards">
+      <ScrollArea className="dup-cards" innerClassName="dup-cards-inner" orientation="horizontal">
         {group.map((item) => (
           <ItemCard
             key={item.id}
@@ -158,7 +171,7 @@ export default function DuplicatesModal({ collections, onClose, onItemsRemoved }
             onToggleKeep={() => toggleKeep(groupIdx, item.id)}
           />
         ))}
-      </div>
+      </ScrollArea>
 
       <div className="modal-footer">
         <p className="dup-hint">{t('duplicates.hint')}</p>

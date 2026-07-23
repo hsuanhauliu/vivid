@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import Modal from '../common/Modal';
+import ScrollArea from '../common/ScrollArea';
 import './KeyboardHelpModal.css';
 
 export default function KeyboardHelpModal({ onClose }) {
@@ -75,7 +76,7 @@ export default function KeyboardHelpModal({ onClose }) {
           {t('keyboard.title')}
         </h2>
       </div>
-      <div className="kbd-help-body">
+      <ScrollArea className="kbd-help-body" innerClassName="kbd-help-body-inner">
         {SECTIONS.map((sec) => (
           <div key={sec.title} className="kbd-section">
             <p className="kbd-section-title">{sec.title}</p>
@@ -87,7 +88,7 @@ export default function KeyboardHelpModal({ onClose }) {
             ))}
           </div>
         ))}
-      </div>
+      </ScrollArea>
     </Modal>
   );
 }

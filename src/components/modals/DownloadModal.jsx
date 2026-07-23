@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import Modal from '../common/Modal';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 
 const KIND_ICONS = { playlist: ListMusic, album: Image };
 
@@ -219,8 +220,8 @@ function FolderPicker({ folders: initialFolders, value, onChange }) {
   const ordered = useMemo(
     () =>
       [...folders].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],
@@ -520,7 +521,8 @@ export default function DownloadModal({ onClose, collections = [], folders = [] 
         {tab === 'direct' && (
           <div className="field">
             <label>
-              {t('download.saveAs')} <span className="field-hint">({t('download.optional')})</span>
+              {t('download.saveAs')}{' '}
+              <span className="field-hint">({t('download.optionalNoExt')})</span>
             </label>
             <input
               className="input"

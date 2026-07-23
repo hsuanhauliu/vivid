@@ -24,7 +24,21 @@
     "toolsTitle": "मीडिया टूल्स (वैकल्पिक)",
     "toolsDesc": "लिंक से डाउनलोड करने के लिए ज़रूरी। अगर यह पहले से इंस्टॉल है, तो Vivid उसी का उपयोग करेगा — वरना आप इसे यहाँ से ले सकते हैं।",
     "toolsNote": "वैकल्पिक — अभी छोड़ दें और ज़रूरत पड़ने पर सेटिंग्स से डाउनलोड कर लें।",
-    "done": "सब कुछ तैयार है"
+    "done": "सब कुछ तैयार है",
+    "workspace": {
+      "title": "आपकी लाइब्रेरी कहाँ रहनी चाहिए?",
+      "desc": "आप इसे बाद में सेटिंग्स में बदल सकते हैं।",
+      "defaultTitle": "नई शुरुआत करें",
+      "defaultDesc": "Vivid आपकी लाइब्रेरी का प्रबंधन करता है।",
+      "externalTitle": "मौजूदा फ़ोल्डर का उपयोग करें",
+      "externalDesc": "Vivid को अपने किसी मौजूदा फ़ोल्डर पर इंगित करें — कुछ भी कॉपी नहीं होता, और वह फ़ोल्डर किसी अन्य डिवाइस पर पोर्टेबल हो जाता है।",
+      "chooseTitle": "अपनी लाइब्रेरी के रूप में उपयोग करने के लिए एक फ़ोल्डर चुनें",
+      "changeFolder": "एक अलग फ़ोल्डर चुनें",
+      "pickFolderFirst": "पहले एक फ़ोल्डर चुनें।",
+      "adding": "जोड़ा जा रहा है…",
+      "restarting": "पुनः आरंभ हो रहा है…",
+      "nameLabel": "नाम"
+    }
   },
   "tools": {
     "ytdlpDesc": "लिंक से वीडियो और ऑडियो डाउनलोड करें",
@@ -43,6 +57,7 @@
     "browse": "इसके बजाय फ़ाइल चुनें…"
   },
   "sidebar": {
+    "resizePinned": "आकार बदलने के लिए खींचें",
     "allMedia": "सभी मीडिया",
     "starred": "स्टार किया गया",
     "favorites": "पसंदीदा",
@@ -96,7 +111,18 @@
   "collection": {
     "addDescription": "विवरण जोड़ें",
     "editDescription": "विवरण बदलें",
-    "descriptionPlaceholder": "विवरण जोड़ें… (⌘↵ सहेजने के लिए, Esc रद्द करने के लिए)"
+    "descriptionPlaceholder": "विवरण जोड़ें… (⌘↵ सहेजने के लिए, Esc रद्द करने के लिए)",
+    "albumGroup": "एल्बम समूह",
+    "albumCount_one": "{{count}} एल्बम",
+    "albumCount_other": "{{count}} एल्बम",
+    "newAlbum": "नया एल्बम",
+    "newAlbumPlaceholder": "एल्बम का नाम…",
+    "newGroupPlaceholder": "समूह का नाम…",
+    "emptyGroup": "इस समूह में अभी तक कोई एल्बम नहीं है।",
+    "moveToGroup": "समूह में ले जाएं…",
+    "removeFromGroup": "समूह से हटाएं",
+    "newAlbumInside": "अंदर नया एल्बम…",
+    "noOtherGroups": "कोई अन्य समूह नहीं"
   },
   "contextMenu": {
     "viewDetails": "विवरण देखें",
@@ -111,12 +137,13 @@
     "open": "खोलें",
     "sideBySide": "साथ-साथ तुलना करें",
     "showInFinder": "Finder में दिखाएं",
+    "setAsWallpaper": "डेस्कटॉप बैकग्राउंड के रूप में सेट करें",
     "copyFile": "फ़ाइल कॉपी करें",
     "saveTo": "इसमें सहेजें…",
     "exportAs": "इस रूप में एक्सपोर्ट करें…",
     "cleanCopy": "बिना मेटाडेटा वाली कॉपी सहेजें",
     "setThumbnail": "संग्रह थंबनेल के रूप में सेट करें",
-    "moveToCollection": "संग्रह में ले जाएं…",
+    "moveToCollection": "संग्रह में जोड़ें…",
     "moveToFolder": "फ़ोल्डर में ले जाएं…",
     "moveToFolderTitle": "फ़ोल्डर में ले जाएं",
     "playAsAudio": "ऑडियो के रूप में चलाएं",
@@ -126,14 +153,15 @@
     "removeFromCollection": "संग्रह से हटाएं",
     "colorLabelTitle": "रंग लेबल",
     "exportAsTitle": "इस रूप में एक्सपोर्ट करें…",
-    "moveToCollTitle": "संग्रह में ले जाएं",
+    "moveToCollTitle": "संग्रह में जोड़ें",
     "format": "फ़ॉर्मैट",
     "chooseDestination": "जगह चुनें…",
     "deleteCollectionTitle": "संग्रह हटाएं",
     "deleteCollectionMsg": "“{{name}}” हटाएं? इस संग्रह का मीडिया अलग हो जाएगा, लेकिन हटेगा नहीं।",
     "deleteCollectionConfirm": "हटाएं",
     "deleteFolderTitle": "फ़ोल्डर हटाएं",
-    "deleteFolderMsg": "“{{name}}” हटाएं? इसकी फ़ाइलें “अवर्गीकृत” में ले जाई जाएंगी, हटेंगी नहीं।"
+    "deleteFolderMsg": "“{{name}}” हटाएं? इसकी फ़ाइलें “अवर्गीकृत” में ले जाई जाएंगी, हटेंगी नहीं।",
+    "renameFile": "फ़ाइल का नाम बदलें"
   },
   "settings": {
     "title": "सेटिंग्स",
@@ -159,7 +187,8 @@
       "semanticSearch": "सिमेंटिक सर्च",
       "aiNaming": "AI नामकरण और विवरण",
       "about": "Vivid",
-      "pinnedCollections": "पिन किए गए संग्रह"
+      "pinnedCollections": "पिन किए गए संग्रह",
+      "workspace": "वर्कस्पेस"
     },
     "general": {
       "homePage": "होम पेज",
@@ -300,12 +329,10 @@
     },
     "homePageOptions": {
       "all": "सभी मीडिया",
+      "starred": "स्टार किया गया",
       "image": "फ़ोटो",
       "video": "वीडियो",
-      "audio": "ऑडियो",
-      "folders": "फ़ोल्डर",
-      "albums": "फ़ोटो एल्बम",
-      "music": "म्यूज़िक प्लेलिस्ट"
+      "audio": "ऑडियो"
     },
     "syncIntervals": {
       "launch": "हर बार खोलने पर",
@@ -336,6 +363,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu। सर्वाधिकार सुरक्षित।",
       "viewSource": "GitHub पर देखें",
       "website": "वेबसाइट"
+    },
+    "workspace": {
+      "desc": "Vivid डिफ़ॉल्ट रूप से आपकी लाइब्रेरी को अपने ऐप डेटा फ़ोल्डर में संग्रहीत करता है। इसके बजाय आप इसे किसी मौजूदा फ़ोल्डर पर इंगित कर सकते हैं — उसका अपना डेटाबेस और थंबनेल उसी फ़ोल्डर के अंदर रहेंगे, जिससे पूरी चीज़ किसी अन्य डिवाइस पर पोर्टेबल हो जाती है।",
+      "defaultPath": "Vivid की डिफ़ॉल्ट लाइब्रेरी",
+      "active": "सक्रिय",
+      "pendingRestart": "लागू करने के लिए पुनः आरंभ करें",
+      "switch": "बदलें",
+      "remove": "हटाएं",
+      "add": "वर्कस्पेस जोड़ें",
+      "chooseTitle": "वर्कस्पेस के रूप में उपयोग करने के लिए एक फ़ोल्डर चुनें",
+      "switchTitle": "वर्कस्पेस बदलें?",
+      "switchConfirm": "\"{{name}}\" पर स्विच करने के लिए Vivid को पुनः आरंभ करना होगा। अन्य दृश्यों में सहेजे न गए परिवर्तन खो जाएंगे।",
+      "switchAndRestart": "बदलें और पुनः आरंभ करें",
+      "removeTitle": "वर्कस्पेस हटाएं?",
+      "removeConfirm": "यह केवल Vivid में \"{{name}}\" को भुला देता है — इसका फ़ोल्डर और उसके अंदर की हर चीज़ (डेटाबेस सहित) डिस्क पर अपरिवर्तित रहती है।",
+      "rename": "नाम बदलें",
+      "saveName": "नाम सहेजें",
+      "devRestartNeeded": "वर्कस्पेस बदल दिया गया है। इसे लागू करने के लिए डेव सर्वर को पुनः आरंभ करें (सिर्फ़ इस विंडो को नहीं) — `tauri dev` में स्वतः पुनः आरंभ काम नहीं करता।"
     }
   },
   "trash": {
@@ -422,7 +467,10 @@
     "noFilesDesc": "शुरू करने के लिए फ़ोटो, वीडियो या ऑडियो इम्पोर्ट करें",
     "noResults": "कोई परिणाम नहीं",
     "noResultsDesc": "आपकी मौजूदा सर्च या फ़िल्टर से कोई फ़ाइल मेल नहीं खाती",
-    "clearFilters": "सर्च और फ़िल्टर साफ़ करें"
+    "clearFilters": "सर्च और फ़िल्टर साफ़ करें",
+    "selectGroup": "इस समूह में सभी चुनें",
+    "deselectGroup": "इस समूह से चयन हटाएं",
+    "noCaptureDate": "कोई कैप्चर तारीख़ नहीं — जोड़े जाने की तारीख़ दिखाई जा रही है"
   },
   "filterBar": {
     "filters": "फ़िल्टर",
@@ -454,6 +502,8 @@
     "camera": "कैमरा",
     "camerasCount_one": "{{count}} कैमरा",
     "camerasCount_other": "{{count}} कैमरे",
+    "resolutionsCount_one": "{{count}} रिज़ॉल्यूशन",
+    "resolutionsCount_other": "{{count}} रिज़ॉल्यूशन",
     "colorsCount_one": "{{count}} लेबल",
     "colorsCount_other": "{{count}} लेबल",
     "color": {
@@ -485,10 +535,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "रिज़ॉल्यूशन",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "फुल HD (1080p)",
+      "uhd": "4K और उससे ऊपर"
+    },
     "inCollection": "किसी संग्रह में मौजूद"
   },
   "panel": {
     "collapsePanel": "पैनल छोटा करें",
+    "expandGroup": "समूह बड़ा करें",
+    "collapseGroup": "समूह छोटा करें",
     "sortAZ": "A → Z (Z → A के लिए क्लिक करें)",
     "sortZA": "Z → A (कस्टम क्रम के लिए क्लिक करें)",
     "sortCustom": "कस्टम क्रम (A → Z के लिए क्लिक करें)",
@@ -512,6 +571,7 @@
     "setCover": "कवर सेट करें…",
     "unpin": "अनपिन करें",
     "pin": "पिन करें",
+    "pinned": "पिन किए गए",
     "maxPinned": "(अधिकतम 5)",
     "delete": "हटाएं",
     "noFolders": "अभी तक कोई फ़ोल्डर नहीं",
@@ -552,7 +612,20 @@
     "empty": "लोकेशन वाली कोई फ़ोटो या वीडियो नहीं मिली।",
     "emptyHint": "GPS EXIF डेटा वाली इमेज इम्पोर्ट करें ताकि वे मैप पर दिखें।",
     "clickToOpen": "खोलने के लिए क्लिक करें",
-    "clusterHint": "यहाँ {{count}} में से 1 आइटम · खोलने के लिए क्लिक करें"
+    "googleMaps": "Google Maps",
+    "clusterCount": "यहाँ {{count}} आइटम",
+    "resetView": "दृश्य रीसेट करें",
+    "worldView": "विश्व दृश्य पर ज़ूम आउट करें",
+    "travelPath": "यात्रा पथ दिखाएं",
+    "stepFirst": "पहला पड़ाव",
+    "stepBack": "पिछला पड़ाव",
+    "stepForward": "अगला पड़ाव",
+    "stepLast": "आखिरी पड़ाव",
+    "selectMode": "पिन चुनें (बॉक्स-चयन के लिए खींचें, टॉगल के लिए ctrl+क्लिक करें)",
+    "isolateSelected": "{{count}} को अलग करें (बाकी छिपाएं)",
+    "hideSelected": "{{count}} छिपाएं",
+    "hiddenCount": "{{count}} छिपे हुए",
+    "showAll": "सभी दिखाएं"
   },
   "stats": {
     "empty": "लाइब्रेरी के आँकड़े देखने के लिए कुछ फ़ाइलें इम्पोर्ट करें।",
@@ -640,8 +713,6 @@
   "sort": {
     "dateNewest": "खींचने की तारीख़ (सबसे नई पहले)",
     "dateOldest": "खींचने की तारीख़ (सबसे पुरानी पहले)",
-    "addedNewest": "Vivid में जोड़े जाने की तारीख़ (सबसे नई पहले)",
-    "addedOldest": "Vivid में जोड़े जाने की तारीख़ (सबसे पुरानी पहले)",
     "nameAz": "नाम A→Z",
     "nameZa": "नाम Z→A",
     "sizeDesc": "सबसे बड़ी पहले",
@@ -754,9 +825,21 @@
     "importFailed_one": "{{count}} फ़ाइल में गड़बड़ी हुई",
     "importFailed_other": "{{count}} फ़ाइलों में गड़बड़ी हुई",
     "duplicateCollection": "“{{name}}” नाम का संग्रह पहले से मौजूद है",
+    "duplicateSavedSearch": "“{{name}}” नाम की सहेजी गई खोज पहले से मौजूद है",
     "duplicateFolder": "यहाँ “{{name}}” नाम का फ़ोल्डर पहले से मौजूद है",
     "addedToCollection_one": "{{name}} में {{count}} आइटम जोड़ा गया",
-    "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए"
+    "addedToCollection_other": "{{name}} में {{count}} आइटम जोड़े गए",
+    "movedToFolder_one": "{{name}} में {{count}} आइटम ले जाया गया",
+    "movedToFolder_other": "{{name}} में {{count}} आइटम ले जाए गए",
+    "alreadyInFolder_one": "{{count}} आइटम पहले से {{name}} में है",
+    "alreadyInFolder_other": "{{count}} आइटम पहले से {{name}} में हैं",
+    "alreadyInCollection_one": "{{count}} आइटम पहले से {{name}} में है",
+    "alreadyInCollection_other": "{{count}} आइटम पहले से {{name}} में हैं",
+    "moveToCollectionFailed_one": "{{count}} फ़ाइल नहीं ले जाई जा सकी (संग्रह के साथ असंगत)",
+    "moveToCollectionFailed_other": "{{count}} फ़ाइलें नहीं ले जाई जा सकीं (संग्रह के साथ असंगत)",
+    "noGeotaggedInAlbum": "इस एल्बम में मैप पर दिखाने के लिए कोई लोकेशन वाली इमेज नहीं है।",
+    "renameFilesFailed_one": "{{count}} फ़ाइल का नाम नहीं बदला जा सका",
+    "renameFilesFailed_other": "{{count}} फ़ाइलों का नाम नहीं बदला जा सका"
   },
   "results": {
     "count_one": "{{count}} परिणाम",
@@ -774,7 +857,27 @@
   },
   "search": {
     "aiPlaceholder": "आप जो ढूंढ रहे हैं उसका वर्णन करें…",
-    "placeholder": "नाम, टैग या विवरण से खोजें…"
+    "placeholder": "नाम, टैग या विवरण से खोजें…",
+    "placeholderAlbums": "एल्बम खोजें…",
+    "scope": {
+      "title": "यहां खोजें",
+      "name": "फ़ाइल नाम",
+      "tags": "टैग",
+      "description": "विवरण",
+      "ocr": "छवि में टेक्स्ट (OCR)"
+    },
+    "saved": {
+      "title": "सहेजी गई खोजें",
+      "namePlaceholder": "इस खोज को नाम दें…",
+      "save": "सहेजें",
+      "delete": "हटाएं",
+      "empty": "अभी तक कोई सहेजी गई खोज नहीं है।",
+      "filterPlaceholder": "बुकमार्क खोजें…",
+      "noMatches": "कोई मेल नहीं मिला।",
+      "deleteTitle": "सहेजी गई खोज हटाएं",
+      "deleteMsg": "सहेजी गई खोज \"{{name}}\" हटाएं? इसे वापस नहीं लाया जा सकता।",
+      "deleteConfirm": "हटाएं"
+    }
   },
   "detail": {
     "title": "विवरण",
@@ -803,6 +906,8 @@
     "track": "ट्रैक #",
     "file": "फ़ाइल",
     "format": "फ़ॉर्मैट",
+    "colorLabel": "लेबल",
+    "noColorLabel": "कोई लेबल नहीं",
     "size": "साइज़",
     "added": "Vivid में जोड़ी गई",
     "path": "पाथ",
@@ -815,6 +920,7 @@
     "removeFromLibrary": "लाइब्रेरी से हटाएं",
     "albumLabel": "एल्बम",
     "playlistLabel": "प्लेलिस्ट",
+    "collectionsLabel": "संग्रह",
     "folderLabel": "फ़ोल्डर",
     "collectionLabel": "संग्रह",
     "folder": "फ़ोल्डर",
@@ -858,7 +964,7 @@
     "saveAs": "इस नाम से सहेजें",
     "optional": "वैकल्पिक",
     "optionalNoExt": "वैकल्पिक, बिना एक्सटेंशन के",
-    "photoPlaceholder": "my-photo.jpg",
+    "photoPlaceholder": "my-photo",
     "videoPlaceholder": "my-video",
     "songPlaceholder": "my-song",
     "addToCollection": "प्लेलिस्ट में जोड़ें",
@@ -990,6 +1096,7 @@
     "copyFrame": "फ़्रेम को क्लिपबोर्ड में कॉपी करें",
     "frameCopied": "फ़्रेम क्लिपबोर्ड में कॉपी हो गया",
     "trimVideo": "वीडियो ट्रिम करें",
+    "fitToScreen": "स्क्रीन पर फ़िट करें",
     "trimDragHint": "ट्रिम करने के लिए हैंडल खींचें, प्रीव्यू के लिए चलाएं",
     "trimSaveNew": "नए रूप में सहेजें",
     "trimReplace": "बदलें",
@@ -1150,7 +1257,7 @@
     "export": "एक्सपोर्ट करें",
     "rename": "नाम बदलें",
     "addTags": "टैग जोड़ें",
-    "moveToCollection": "संग्रह में ले जाएं…",
+    "moveToCollection": "संग्रह में जोड़ें…",
     "moveToFolder": "फ़ोल्डर में ले जाएं…",
     "noCollection": "कोई संग्रह नहीं",
     "searchCollections": "संग्रह खोजें…",
@@ -1162,7 +1269,9 @@
     "albums": "एल्बम",
     "playlists": "प्लेलिस्ट",
     "deleteCount_one": "{{count}} हटाएं",
-    "deleteCount_other": "{{count}} हटाएं"
+    "deleteCount_other": "{{count}} हटाएं",
+    "noCompatibleCollections": "इस चुनाव के लिए कोई संगत संग्रह नहीं है",
+    "renameFiles": "डिस्क पर फ़ाइलों का नाम बदलें"
   },
   "massTag": {
     "title_one": "{{count}} फ़ाइल में टैग जोड़ें",
@@ -1206,5 +1315,23 @@
     "exportAsZipDesc": "सभी फ़ाइलों को एक ZIP आर्काइव में बंडल करें",
     "close": "बंद करें",
     "errorPrefix": "त्रुटि:"
+  },
+  "renameFile": {
+    "title_one": "{{count}} फ़ाइल का नाम बदलें",
+    "title_other": "{{count}} फ़ाइलों का नाम बदलें",
+    "conflictHint_one": "{{count}} फ़ाइल नाम टकराएगा — नाम बदलने से पहले इसे ठीक करें।",
+    "conflictHint_other": "{{count}} फ़ाइल नाम टकराएंगे — नाम बदलने से पहले इन्हें ठीक करें।",
+    "newName": "नया नाम",
+    "titleSingle": "डिस्क पर फ़ाइल का नाम बदलें",
+    "rename": "नाम बदलें"
+  },
+  "workspacePicker": {
+    "title": "कौन सा वर्कस्पेस?",
+    "desc": "आपके पास एक से अधिक वर्कस्पेस सेट हैं। जारी रखने के लिए एक चुनें।",
+    "continue": "जारी रखें",
+    "restarting": "पुनः आरंभ हो रहा है…",
+    "opening": "खोला जा रहा है…",
+    "cancel": "रद्द करें",
+    "current": "वर्तमान"
   }
 }

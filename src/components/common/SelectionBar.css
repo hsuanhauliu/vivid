@@ -140,7 +140,8 @@
 
 .sel-collection-list {
   max-height: 240px;
-  overflow-y: auto;
+}
+.sel-collection-list-inner {
   display: flex;
   flex-direction: column;
   gap: 1px;

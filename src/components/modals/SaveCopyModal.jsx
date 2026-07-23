@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, FolderOpen, BookImage, Disc, Library, Search, Check, Plus, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import CollectionAvatar from '../common/CollectionAvatar';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 
 const KIND_ICON = { album: BookImage, playlist: Disc };
 
@@ -22,7 +23,7 @@ function CollectionRowAvatar({ group, allItems }) {
 export default function SaveCopyModal({ collections, folders, allItems, onConfirm, onClose }) {
   const { t } = useTranslation();
 
-  const uncategorized = folders?.find((f) => f.rel_path === 'Uncategorized');
+  const uncategorized = folders?.find((f) => f.id === UNCATEGORIZED_ID);
   const [folderId, setFolderId] = useState(uncategorized?.id ?? null);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderMode, setNewFolderMode] = useState(false);
@@ -70,8 +71,8 @@ export default function SaveCopyModal({ collections, folders, allItems, onConfir
   const folderList = useMemo(
     () =>
       [...(folders ?? [])].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],

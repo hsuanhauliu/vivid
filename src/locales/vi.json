@@ -24,7 +24,21 @@
     "toolsTitle": "Công cụ media (tùy chọn)",
     "toolsDesc": "Dùng để tải xuống từ đường liên kết. Nếu máy bạn đã cài sẵn, Vivid sẽ dùng bản đó — nếu chưa, bạn có thể tải ở đây.",
     "toolsNote": "Tùy chọn — có thể bỏ qua và tải sau trong Cài đặt khi cần.",
-    "done": "Đã sẵn sàng"
+    "done": "Đã sẵn sàng",
+    "workspace": {
+      "title": "Thư viện của bạn nên đặt ở đâu?",
+      "desc": "Bạn có thể thay đổi điều này sau trong Cài đặt.",
+      "defaultTitle": "Bắt đầu mới",
+      "defaultDesc": "Vivid quản lý thư viện của bạn.",
+      "externalTitle": "Dùng một thư mục có sẵn",
+      "externalDesc": "Trỏ Vivid đến một thư mục bạn đã có — không có gì bị sao chép, và thư mục đó có thể mang sang thiết bị khác.",
+      "chooseTitle": "Chọn một thư mục để dùng làm thư viện",
+      "changeFolder": "Chọn thư mục khác",
+      "pickFolderFirst": "Hãy chọn một thư mục trước.",
+      "adding": "Đang thêm…",
+      "restarting": "Đang khởi động lại…",
+      "nameLabel": "Tên"
+    }
   },
   "tools": {
     "ytdlpDesc": "Tải video và âm thanh từ đường liên kết",
@@ -43,6 +57,7 @@
     "browse": "Chọn tệp khác…"
   },
   "sidebar": {
+    "resizePinned": "Kéo để thay đổi kích thước",
     "allMedia": "Tất cả",
     "starred": "Đã đánh dấu sao",
     "favorites": "Yêu thích",
@@ -95,7 +110,17 @@
   "collection": {
     "addDescription": "Thêm mô tả",
     "editDescription": "Sửa mô tả",
-    "descriptionPlaceholder": "Thêm mô tả… (⌘↵ để lưu, Esc để hủy)"
+    "descriptionPlaceholder": "Thêm mô tả… (⌘↵ để lưu, Esc để hủy)",
+    "albumGroup": "Nhóm album",
+    "albumCount": "{{count}} album",
+    "newAlbum": "Album mới",
+    "newAlbumPlaceholder": "Tên album…",
+    "newGroupPlaceholder": "Tên nhóm…",
+    "emptyGroup": "Chưa có album nào trong nhóm này.",
+    "moveToGroup": "Chuyển vào nhóm…",
+    "removeFromGroup": "Xóa khỏi nhóm",
+    "newAlbumInside": "Album mới bên trong…",
+    "noOtherGroups": "Không có nhóm nào khác"
   },
   "contextMenu": {
     "viewDetails": "Xem chi tiết",
@@ -110,12 +135,13 @@
     "open": "Mở",
     "sideBySide": "Xem song song",
     "showInFinder": "Hiện trong Finder",
+    "setAsWallpaper": "Đặt làm hình nền màn hình",
     "copyFile": "Sao chép tệp",
     "saveTo": "Lưu vào…",
     "exportAs": "Xuất dưới dạng…",
     "cleanCopy": "Lưu bản sao không kèm metadata",
     "setThumbnail": "Đặt làm ảnh đại diện bộ sưu tập",
-    "moveToCollection": "Chuyển vào bộ sưu tập…",
+    "moveToCollection": "Thêm vào bộ sưu tập…",
     "moveToFolder": "Chuyển vào thư mục…",
     "moveToFolderTitle": "Chuyển vào thư mục",
     "playAsAudio": "Phát dưới dạng âm thanh",
@@ -125,14 +151,15 @@
     "removeFromCollection": "Gỡ khỏi bộ sưu tập",
     "colorLabelTitle": "Nhãn màu",
     "exportAsTitle": "Xuất dưới dạng…",
-    "moveToCollTitle": "Chuyển vào bộ sưu tập",
+    "moveToCollTitle": "Thêm vào bộ sưu tập",
     "format": "Định dạng",
     "chooseDestination": "Chọn nơi lưu…",
     "deleteCollectionTitle": "Xóa bộ sưu tập",
     "deleteCollectionMsg": "Xóa “{{name}}”? Các mục media trong bộ sưu tập này sẽ không còn thuộc bộ sưu tập nào, nhưng không bị xóa.",
     "deleteCollectionConfirm": "Xóa",
     "deleteFolderTitle": "Xóa thư mục",
-    "deleteFolderMsg": "Xóa “{{name}}”? Các tệp trong đó sẽ được chuyển vào mục Chưa phân loại, không bị xóa."
+    "deleteFolderMsg": "Xóa “{{name}}”? Các tệp trong đó sẽ được chuyển vào mục Chưa phân loại, không bị xóa.",
+    "renameFile": "Đổi tên tệp"
   },
   "settings": {
     "title": "Cài đặt",
@@ -158,7 +185,8 @@
       "semanticSearch": "Tìm kiếm ngữ nghĩa",
       "aiNaming": "Đặt tên & mô tả bằng AI",
       "about": "Vivid",
-      "pinnedCollections": "Bộ sưu tập đã ghim"
+      "pinnedCollections": "Bộ sưu tập đã ghim",
+      "workspace": "Không gian làm việc"
     },
     "general": {
       "homePage": "Trang chủ",
@@ -299,12 +327,10 @@
     },
     "homePageOptions": {
       "all": "Tất cả",
+      "starred": "Đã đánh dấu sao",
       "image": "Ảnh",
       "video": "Video",
-      "audio": "Âm thanh",
-      "folders": "Thư mục",
-      "albums": "Album ảnh",
-      "music": "Danh sách phát nhạc"
+      "audio": "Âm thanh"
     },
     "syncIntervals": {
       "launch": "Mỗi lần khởi động",
@@ -335,6 +361,24 @@
       "copyright": "© 2026 Hsuan-Hau Liu. Bảo lưu mọi quyền.",
       "viewSource": "Xem trên GitHub",
       "website": "Trang web"
+    },
+    "workspace": {
+      "desc": "Theo mặc định, Vivid lưu trữ thư viện của bạn trong thư mục dữ liệu ứng dụng riêng. Bạn có thể trỏ đến một thư mục có sẵn — cơ sở dữ liệu và ảnh thu nhỏ riêng sẽ nằm trong thư mục đó, giúp toàn bộ có thể mang sang thiết bị khác.",
+      "defaultPath": "Thư viện mặc định của Vivid",
+      "active": "Đang hoạt động",
+      "pendingRestart": "Khởi động lại để áp dụng",
+      "switch": "Chuyển",
+      "remove": "Xóa",
+      "add": "Thêm không gian làm việc",
+      "chooseTitle": "Chọn một thư mục để dùng làm không gian làm việc",
+      "switchTitle": "Chuyển không gian làm việc?",
+      "switchConfirm": "Vivid cần khởi động lại để chuyển sang \"{{name}}\". Mọi thay đổi chưa lưu ở các màn hình khác sẽ bị mất.",
+      "switchAndRestart": "Chuyển & khởi động lại",
+      "removeTitle": "Xóa không gian làm việc?",
+      "removeConfirm": "Thao tác này chỉ khiến Vivid quên \"{{name}}\" — thư mục của nó và mọi thứ bên trong (kể cả cơ sở dữ liệu) vẫn được giữ nguyên trên ổ đĩa.",
+      "rename": "Đổi tên",
+      "saveName": "Lưu tên",
+      "devRestartNeeded": "Đã chuyển không gian làm việc. Khởi động lại máy chủ phát triển (không chỉ cửa sổ này) để áp dụng — khởi động lại tự động không hoạt động trong `tauri dev`."
     }
   },
   "trash": {
@@ -412,7 +456,10 @@
     "noFilesDesc": "Nhập ảnh, video hoặc âm thanh để bắt đầu",
     "noResults": "Không có kết quả",
     "noResultsDesc": "Không có tệp nào khớp với tìm kiếm hoặc bộ lọc hiện tại",
-    "clearFilters": "Xóa tìm kiếm & bộ lọc"
+    "clearFilters": "Xóa tìm kiếm & bộ lọc",
+    "selectGroup": "Chọn tất cả trong nhóm này",
+    "deselectGroup": "Bỏ chọn tất cả trong nhóm này",
+    "noCaptureDate": "Không có ngày chụp — hiển thị ngày thêm vào"
   },
   "filterBar": {
     "filters": "Bộ lọc",
@@ -440,6 +487,7 @@
     "formatsCount": "{{count}} định dạng",
     "camera": "Máy ảnh",
     "camerasCount": "{{count}} máy ảnh",
+    "resolutionsCount": "{{count}} độ phân giải",
     "colorsCount": "{{count}} nhãn",
     "color": {
       "red": "Đỏ",
@@ -470,10 +518,19 @@
       "medium": "1 – 10 MB",
       "large": "> 10 MB"
     },
+    "resolution": {
+      "label": "Độ phân giải",
+      "sd": "SD (< 720p)",
+      "hd": "HD (720p)",
+      "fhd": "Full HD (1080p)",
+      "uhd": "4K trở lên"
+    },
     "inCollection": "Trong một bộ sưu tập"
   },
   "panel": {
     "collapsePanel": "Thu gọn bảng",
+    "expandGroup": "Mở rộng nhóm",
+    "collapseGroup": "Thu gọn nhóm",
     "sortAZ": "A → Z (nhấp để chuyển Z → A)",
     "sortZA": "Z → A (nhấp để chuyển Tùy chỉnh)",
     "sortCustom": "Thứ tự tùy chỉnh (nhấp để chuyển A → Z)",
@@ -497,6 +554,7 @@
     "setCover": "Đặt ảnh bìa…",
     "unpin": "Bỏ ghim",
     "pin": "Ghim",
+    "pinned": "Đã ghim",
     "maxPinned": "(tối đa 5)",
     "delete": "Xóa",
     "noFolders": "Chưa có thư mục nào",
@@ -536,7 +594,20 @@
     "empty": "Không tìm thấy ảnh hoặc video có gắn vị trí.",
     "emptyHint": "Nhập ảnh có dữ liệu GPS EXIF để hiển thị trên bản đồ.",
     "clickToOpen": "Nhấp để mở",
-    "clusterHint": "1 trong {{count}} mục ở đây · Nhấp để mở"
+    "googleMaps": "Google Maps",
+    "clusterCount": "{{count}} mục ở đây",
+    "resetView": "Đặt lại chế độ xem",
+    "worldView": "Thu phóng ra toàn thế giới",
+    "travelPath": "Hiển thị hành trình di chuyển",
+    "stepFirst": "Điểm dừng đầu tiên",
+    "stepBack": "Điểm dừng trước",
+    "stepForward": "Điểm dừng tiếp theo",
+    "stepLast": "Điểm dừng cuối cùng",
+    "selectMode": "Chọn ghim (kéo để chọn theo vùng, ctrl+nhấp để bật/tắt)",
+    "isolateSelected": "Chỉ hiện {{count}} (ẩn phần còn lại)",
+    "hideSelected": "Ẩn {{count}}",
+    "hiddenCount": "Đã ẩn {{count}}",
+    "showAll": "Hiện tất cả"
   },
   "stats": {
     "empty": "Nhập một số tệp để xem thống kê thư viện.",
@@ -624,8 +695,6 @@
   "sort": {
     "dateNewest": "Ngày chụp (mới nhất)",
     "dateOldest": "Ngày chụp (cũ nhất)",
-    "addedNewest": "Ngày thêm vào Vivid (mới nhất)",
-    "addedOldest": "Ngày thêm vào Vivid (cũ nhất)",
     "nameAz": "Tên A→Z",
     "nameZa": "Tên Z→A",
     "sizeDesc": "Lớn nhất trước",
@@ -733,8 +802,15 @@
     "skippedDupe": "{{count}} đã có trong thư viện",
     "importFailed": "{{count}} tệp thất bại",
     "duplicateCollection": "Đã tồn tại bộ sưu tập tên “{{name}}”",
+    "duplicateSavedSearch": "Đã tồn tại tìm kiếm đã lưu tên “{{name}}”",
     "duplicateFolder": "Đã tồn tại thư mục tên “{{name}}” ở đây",
-    "addedToCollection": "Đã thêm {{count}} mục vào {{name}}"
+    "addedToCollection": "Đã thêm {{count}} mục vào {{name}}",
+    "movedToFolder": "Đã chuyển {{count}} mục vào {{name}}",
+    "alreadyInFolder": "{{count}} mục đã có trong {{name}}",
+    "alreadyInCollection": "{{count}} mục đã có trong {{name}}",
+    "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)",
+    "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ.",
+    "renameFilesFailed": "Không thể đổi tên {{count}} tệp"
   },
   "results": {
     "count": "{{count}} kết quả",
@@ -751,7 +827,27 @@
   },
   "search": {
     "aiPlaceholder": "Mô tả điều bạn đang tìm…",
-    "placeholder": "Tìm theo tên, thẻ hoặc mô tả…"
+    "placeholder": "Tìm theo tên, thẻ hoặc mô tả…",
+    "placeholderAlbums": "Tìm album…",
+    "scope": {
+      "title": "Tìm trong",
+      "name": "Tên tệp",
+      "tags": "Thẻ",
+      "description": "Mô tả",
+      "ocr": "Văn bản trong ảnh (OCR)"
+    },
+    "saved": {
+      "title": "Tìm kiếm đã lưu",
+      "namePlaceholder": "Đặt tên cho tìm kiếm này…",
+      "save": "Lưu",
+      "delete": "Xóa",
+      "empty": "Chưa có tìm kiếm nào được lưu.",
+      "filterPlaceholder": "Tìm kiếm dấu trang…",
+      "noMatches": "Không có kết quả phù hợp.",
+      "deleteTitle": "Xóa tìm kiếm đã lưu",
+      "deleteMsg": "Xóa tìm kiếm đã lưu \"{{name}}\"? Không thể hoàn tác.",
+      "deleteConfirm": "Xóa"
+    }
   },
   "detail": {
     "title": "Chi tiết",
@@ -780,6 +876,8 @@
     "track": "Bài số",
     "file": "Tệp",
     "format": "Định dạng",
+    "colorLabel": "Nhãn",
+    "noColorLabel": "Không có nhãn",
     "size": "Dung lượng",
     "added": "Đã thêm vào Vivid",
     "path": "Đường dẫn",
@@ -792,6 +890,7 @@
     "removeFromLibrary": "Xóa khỏi thư viện",
     "albumLabel": "Album",
     "playlistLabel": "Danh sách phát",
+    "collectionsLabel": "Bộ sưu tập",
     "folderLabel": "Thư mục",
     "collectionLabel": "Bộ sưu tập",
     "folder": "Thư mục",
@@ -835,7 +934,7 @@
     "saveAs": "Lưu với tên",
     "optional": "tùy chọn",
     "optionalNoExt": "tùy chọn, không kèm đuôi tệp",
-    "photoPlaceholder": "anh-cua-toi.jpg",
+    "photoPlaceholder": "anh-cua-toi",
     "videoPlaceholder": "video-cua-toi",
     "songPlaceholder": "bai-hat-cua-toi",
     "addToCollection": "Thêm vào danh sách phát",
@@ -967,6 +1066,7 @@
     "copyFrame": "Sao chép khung hình vào clipboard",
     "frameCopied": "Đã sao chép khung hình vào clipboard",
     "trimVideo": "Cắt video",
+    "fitToScreen": "Vừa với màn hình",
     "trimDragHint": "Kéo các tay cầm để cắt, nhấn phát để xem trước",
     "trimSaveNew": "Lưu bản mới",
     "trimReplace": "Thay thế",
@@ -1125,7 +1225,7 @@
     "export": "Xuất",
     "rename": "Đổi tên",
     "addTags": "Thêm thẻ",
-    "moveToCollection": "Chuyển vào bộ sưu tập…",
+    "moveToCollection": "Thêm vào bộ sưu tập…",
     "moveToFolder": "Chuyển vào thư mục…",
     "noCollection": "Không có bộ sưu tập",
     "searchCollections": "Tìm bộ sưu tập…",
@@ -1136,7 +1236,9 @@
     "findMore": "Tìm thêm… ({{count}})",
     "albums": "Album",
     "playlists": "Danh sách phát",
-    "deleteCount": "Xóa {{count}}"
+    "deleteCount": "Xóa {{count}}",
+    "noCompatibleCollections": "Không có bộ sưu tập nào tương thích với lựa chọn này",
+    "renameFiles": "Đổi tên tệp trên đĩa"
   },
   "massTag": {
     "title": "Thêm thẻ cho {{count}} tệp",
@@ -1173,5 +1275,21 @@
     "exportAsZipDesc": "Gộp tất cả tệp vào một tệp ZIP duy nhất",
     "close": "Đóng",
     "errorPrefix": "Lỗi:"
+  },
+  "renameFile": {
+    "title": "Đổi tên {{count}} tệp",
+    "conflictHint": "{{count}} tên tệp sẽ xung đột — hãy sửa trước khi đổi tên.",
+    "newName": "Tên mới",
+    "titleSingle": "Đổi tên tệp trên đĩa",
+    "rename": "Đổi tên"
+  },
+  "workspacePicker": {
+    "title": "Dùng không gian làm việc nào?",
+    "desc": "Bạn đã thiết lập nhiều không gian làm việc. Chọn một để tiếp tục.",
+    "continue": "Tiếp tục",
+    "restarting": "Đang khởi động lại…",
+    "opening": "Đang mở…",
+    "cancel": "Hủy",
+    "current": "Hiện tại"
   }
 }

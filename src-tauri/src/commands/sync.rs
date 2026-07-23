@@ -36,7 +36,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use notify_debouncer_full::notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
 
-use crate::commands::media_dir;
+use crate::commands::{media_dir, normalize_abs};
 use crate::db;
 use crate::DbState;
 
@@ -175,27 +175,6 @@ pub fn get_sync_config(state: State<'_, SyncState>) -> SyncConfig {
 #[tauri::command]
 pub fn get_sync_status(state: State<'_, SyncState>) -> SyncStatus {
     state.status.lock().unwrap().clone()
-}
-
-/// Resolve a path to an absolute, lexically-normalized form (resolves `.`/`..`
-/// without requiring the path to exist, so a not-yet-created destination can
-/// still be checked). Symlinks aren't followed — good enough for the overlap
-/// checks below, which guard against obvious mistakes, not adversarial evasion.
-fn normalize_abs(p: &Path) -> PathBuf {
-    let abs = if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_default().join(p)
-    };
-    let mut out = PathBuf::new();
-    for comp in abs.components() {
-        match comp {
-            std::path::Component::ParentDir => { out.pop(); }
-            std::path::Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
 }
 
 /// Reject destinations that would be unsafe to mirror into: ones overlapping the
@@ -509,7 +488,7 @@ impl TargetState {
             if force || is_stale(src, &dst) {
                 let existed = dst.exists();
                 if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
-                if fs::copy(src, &dst).is_ok() {
+                if super::copy_file_durably(src, &dst).is_ok() {
                     if existed { updated += 1; } else { copied += 1; }
                 }
             }
@@ -563,7 +542,7 @@ impl TargetState {
                 if is_stale(&p, &dst) {
                     let existed = dst.exists();
                     if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
-                    if fs::copy(&p, &dst).is_ok() {
+                    if super::copy_file_durably(&p, &dst).is_ok() {
                         if existed { updated += 1; } else { copied += 1; }
                     }
                 }
@@ -605,13 +584,13 @@ impl TargetState {
                     if !p.exists() {
                         // Deleted in the destination → restore (library wins).
                         if let Some(parent) = p.parent() { let _ = fs::create_dir_all(parent); }
-                        if fs::copy(&src, &p).is_ok() {
+                        if super::copy_file_durably(&src, &p).is_ok() {
                             self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "restored", &file_label(&rel));
                         }
                     } else if meta_of(&p).as_ref() != Some(&expected) {
                         // Differs from what we wrote → external edit → overwrite.
-                        if fs::copy(&src, &p).is_ok() {
+                        if super::copy_file_durably(&src, &p).is_ok() {
                             self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "reverted", &file_label(&rel));
                         }
@@ -634,7 +613,7 @@ impl TargetState {
 
     /// Import a file that appeared in the destination into the library folder
     /// matching its destination rel_path (parent dir → folder by rel_path, else
-    /// Uncategorized). On success the original destination file is removed: the
+    /// Other). On success the original destination file is removed: the
     /// library→dest mirror re-creates the canonical copy at the library's
     /// rel_path, so the file is adopted rather than duplicated.
     fn import_dropin(&mut self, app: &AppHandle, _mdir: &Path, skips: &mut HashSet<PathBuf>, path: &Path, rel: &str) -> bool {
@@ -765,27 +744,34 @@ fn prune_empty_dirs(root: &Path) {
     rec(root, true);
 }
 
-/// Find a library folder id whose rel_path matches `rel`, else Uncategorized.
+/// Find a library folder id whose rel_path matches `rel`, else the virtual
+/// Other bucket (which `run_import`/`insert_imported` already treat
+/// exactly like `None` — the library root).
 fn folder_id_for_rel(conn: &rusqlite::Connection, rel: &str) -> Option<String> {
     if rel.is_empty() {
-        return db::ensure_uncategorized(conn).ok();
+        return Some(db::UNCATEGORIZED_ID.to_string());
     }
     if let Ok(folders) = db::list_folders(conn) {
         if let Some(f) = folders.into_iter().find(|f| f.rel_path == rel) {
             return Some(f.id);
         }
     }
-    db::ensure_uncategorized(conn).ok()
+    Some(db::UNCATEGORIZED_ID.to_string())
 }
 
 // ── Config + manifest persistence ────────────────────────────────────────────
 
+// Sync targets and their manifests are scoped to the active workspace (which
+// folders to mirror, and what's already been mirrored, both only make sense
+// relative to *that* workspace's library) — read from `WorkspaceState.paths`
+// rather than the raw app-data dir so switching workspaces doesn't share or
+// clobber stale mirror state between them.
 fn config_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_data_dir().ok().map(|d| d.join("sync_config.json"))
+    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_config.json"))
 }
 
 fn manifest_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path().app_data_dir().ok().map(|d| d.join("sync_manifest.json"))
+    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_manifest.json"))
 }
 
 fn load_config(app: &AppHandle) -> SyncConfig {
@@ -798,7 +784,7 @@ fn load_config(app: &AppHandle) -> SyncConfig {
 fn save_config(app: &AppHandle, cfg: &SyncConfig) -> Result<(), String> {
     let p = config_path(app).ok_or("no app data dir")?;
     let s = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    fs::write(p, s).map_err(|e| e.to_string())
+    super::write_bytes_durably(&p, s.as_bytes()).map_err(|e| e.to_string())
 }
 
 fn load_manifests(app: &AppHandle) -> ManifestMap {
@@ -811,7 +797,7 @@ fn load_manifests(app: &AppHandle) -> ManifestMap {
 fn save_manifests(app: &AppHandle, m: &ManifestMap) {
     if let Some(p) = manifest_path(app) {
         if let Ok(s) = serde_json::to_string(m) {
-            let _ = fs::write(p, s);
+            let _ = super::write_bytes_durably(&p, s.as_bytes());
         }
     }
 }
@@ -831,12 +817,8 @@ mod tests {
         p
     }
 
-    // ── normalize_abs / validate_dest: destination safety ──────────────────────
-
-    #[test]
-    fn normalize_resolves_dot_and_parent() {
-        assert_eq!(normalize_abs(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
-    }
+    // ── validate_dest: destination safety ───────────────────────────────────
+    // (normalize_abs itself is tested where it's defined, commands/mod.rs)
 
     #[test]
     fn reject_dest_equal_to_library() {

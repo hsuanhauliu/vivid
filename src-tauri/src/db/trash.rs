@@ -1,6 +1,6 @@
 //! Soft-delete (trash) lifecycle: trash, restore, list, purge, hard-delete.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
 use rusqlite::{params, Connection, Result};
 
@@ -27,10 +27,11 @@ pub fn restore_item(conn: &Connection, id: &str) -> Result<()> {
 pub fn get_trash(conn: &Connection) -> Result<Vec<MediaItem>> {
     let sql = format!("{SELECT_MEDIA} WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map([], row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 

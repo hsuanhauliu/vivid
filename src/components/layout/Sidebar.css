@@ -155,14 +155,75 @@
   padding-bottom: 14px;
 }
 
-.sidebar-pinned-nav.sidebar-pinned-scrollable {
-  max-height: calc(5 * 31px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
+.sidebar-pinned-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0 12px 0 0;
+  color: inherit;
 }
-.sidebar-pinned-nav.sidebar-pinned-scrollable::-webkit-scrollbar {
-  display: none;
+.sidebar-pinned-header-label {
+  padding: 10px 0 3px 12px;
+}
+.sidebar-pinned-chevron {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.sidebar-pinned-chevron.open {
+  transform: rotate(180deg);
+}
+.sidebar-pinned-header:hover .sidebar-pinned-header-label,
+.sidebar-pinned-header:hover .sidebar-pinned-chevron {
+  color: var(--text-muted);
+}
+
+/* The wrapper carries the section's (user-resizable, via the drag handle
+   below) `max-height` cap — deliberately a max, not a forced height, so a
+   pinned list shorter than the cap shrink-wraps with no gap before the
+   divider instead of leaving dead space. ScrollArea just needs to fill it
+   and let its own inner content handle the scrolling/overflow once the
+   list *is* taller than the cap. */
+.sidebar-pinned-resizable {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sidebar-pinned-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Drag handle doubling as the divider below the pinned section — grabbing
+   anywhere in its (generous, easy-to-hit) height and dragging vertically
+   resizes the section above it. Negative margin keeps its footprint in the
+   layout flow identical to a plain 1px `.sidebar-divider` (9px tall minus
+   4px pulled in on each side = 1px net); the line itself matches
+   `.sidebar-divider` exactly — full width, same color — so only the cursor
+   on hover gives away that it's interactive. */
+.sidebar-pinned-resize-handle {
+  position: relative;
+  height: 9px;
+  margin: -4px 0;
+  cursor: ns-resize;
+  z-index: 1;
+}
+.sidebar-pinned-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 1px;
+  background: var(--border-subtle);
+  transition: background 0.12s;
+}
+.sidebar-pinned-resize-handle:hover::after {
+  background: var(--accent);
 }
 
 /* Pinned playlist: cover art reveals a play button on hover. */
