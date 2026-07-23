@@ -208,7 +208,7 @@ The model runs **fully on-device** — nothing is ever uploaded.
 - **No mobile app and no built-in sync.** It's a single-machine desktop app. Pair it with your own backup/cloud-drive if you need off-device copies.
 - **AI models are a large one-time download** (~1.4 GB for visual search), and indexing a big library takes CPU time the first time.
 - **Building requires Xcode Command Line Tools** for the Swift helper.
-- **Early days.** Vivid is at `v0.1` — expect rough edges, and please file issues.
+- **Early days.** Vivid is at `v0` — expect rough edges, and please file issues.
 
 ---
 
