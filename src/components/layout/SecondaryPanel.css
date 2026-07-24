@@ -295,48 +295,69 @@
 }
 
 /* Tree connector lines for nested folders — same idea as the album group's
-   nesting indicator (SecondaryPanel's .sp-group-children/-row-child): one
-   continuous vertical guide per nesting level plus a short stub branching
-   off to each child row, instead of empty indent space. */
+   nesting indicator (SecondaryPanel's .sp-group-children/-row-child), but
+   owned per-node rather than per-wrapper: each node draws its own stub plus
+   a vertical segment sized to ITS OWN rendered height (including its own
+   expanded subtree), so the line only ever runs as far as there's an actual
+   next sibling to reach — never trailing on past the last child into empty
+   space that doesn't connect to anything. */
 .ft-node {
   position: relative;
 }
-.ft-children {
-  position: relative;
-}
-.ft-children::before {
-  content: '';
+.ft-vline {
   position: absolute;
-  left: var(--ft-guide-x);
+  left: 0;
   top: 0;
-  bottom: 13px;
+  bottom: 0;
   width: 0;
   border-left: 1px solid var(--border);
   /* Above the row's own hover/active background — see the album group fix
      for why z-index:auto here gets painted over during hover. */
   z-index: 1;
 }
+.ft-vline-last {
+  bottom: auto;
+  height: 13px;
+}
 .ft-stub {
   position: absolute;
   top: 13px;
-  /* Parent icon-center to child icon-center is a full 14px depth step;
-     stop 7px short (half the 14px icon) so the line ends at the child
-     icon's left edge instead of running through/over the icon itself. */
-  width: 7px;
+  /* Ends right at this row's own indent edge — i.e. just before its
+     twisty — so it never runs across/behind the row's chevron or icon. */
+  width: 6px;
   height: 0;
   border-top: 1px solid var(--border);
   z-index: 1;
+}
+.ft-name-chain {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
 }
 .ft-name {
   font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ft-name:hover {
+  text-decoration: underline;
+}
+.ft-name-sep {
+  color: var(--text-dim);
+  margin: 0 3px;
+  flex-shrink: 0;
 }
 .ft-count {
   font-size: 10.5px;
   color: var(--text-dim);
   flex-shrink: 0;
+}
+.ft-name-active {
+  color: var(--accent);
+  font-weight: 600;
 }
 .ft-name-match {
   color: var(--accent);

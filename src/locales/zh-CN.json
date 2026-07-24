@@ -568,6 +568,7 @@
     "folderName": "文件夹名称…",
     "newFolder": "新建文件夹",
     "newSubfolder": "新建子文件夹",
+    "expandAll": "全部展开",
     "albumName": "相册名称…",
     "playlistName": "播放列表名称…",
     "item": "{{count}} 个项目",

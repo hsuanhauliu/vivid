@@ -585,6 +585,7 @@
     "folderName": "Nombre de la carpeta…",
     "newFolder": "Nueva carpeta",
     "newSubfolder": "Nueva subcarpeta",
+    "expandAll": "Expandir todo",
     "albumName": "Nombre del álbum…",
     "playlistName": "Nombre de la lista…",
     "item_one": "{{count}} elemento",

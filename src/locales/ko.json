@@ -568,6 +568,7 @@
     "folderName": "폴더 이름…",
     "newFolder": "새 폴더",
     "newSubfolder": "새 하위 폴더",
+    "expandAll": "모두 펼치기",
     "albumName": "앨범 이름…",
     "playlistName": "재생목록 이름…",
     "item": "항목 {{count}}개",

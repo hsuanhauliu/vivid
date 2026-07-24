@@ -585,6 +585,7 @@
     "folderName": "Nom du dossier…",
     "newFolder": "Nouveau dossier",
     "newSubfolder": "Nouveau sous-dossier",
+    "expandAll": "Tout développer",
     "albumName": "Nom de l'album…",
     "playlistName": "Nom de la liste de lecture…",
     "item_one": "{{count}} élément",
