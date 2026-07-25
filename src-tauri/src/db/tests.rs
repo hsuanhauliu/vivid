@@ -129,6 +129,101 @@ fn source_path_dedup() {
 }
 
 #[test]
+fn duplicate_source_path_is_allowed() {
+    // Re-importing the same source is a deliberate user action now — it
+    // should produce a second row, not get silently dropped by an
+    // INSERT OR IGNORE colliding with a UNIQUE constraint.
+    let conn = open();
+    let mut it2 = item("id-1", "/tmp/a.jpg");
+    it2.id = "id-1".to_string();
+    insert(&conn, &it2).unwrap();
+    let mut it2 = item("id-2", "/tmp/a (2).jpg");
+    it2.source_path = Some("orig:/tmp/a.jpg".to_string()); // same source, different file_path
+    insert(&conn, &it2).unwrap();
+
+    assert_eq!(get_all(&conn).unwrap().len(), 2);
+}
+
+// ── Migration: dropping the old UNIQUE constraint on source_path ─────────
+
+#[test]
+fn migrate_drop_source_path_unique_upgrades_old_db_in_place() {
+    let conn = Connection::open_in_memory().unwrap();
+    // Hand-build the pre-migration schema (source_path UNIQUE) directly,
+    // bypassing `init` so this test exercises the actual old shape rather
+    // than whatever `init` currently produces.
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON;
+         CREATE TABLE folders (id TEXT PRIMARY KEY, name TEXT, parent_id TEXT, rel_path TEXT UNIQUE, created_at TEXT);
+         CREATE TABLE media_items (
+             id TEXT PRIMARY KEY, file_path TEXT NOT NULL UNIQUE, source_path TEXT UNIQUE,
+             file_name TEXT NOT NULL, display_name TEXT NOT NULL, media_type TEXT NOT NULL,
+             file_size INTEGER NOT NULL DEFAULT 0, mtime INTEGER, folder_id TEXT,
+             description TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '[]',
+             auto_tags TEXT NOT NULL DEFAULT '[]', starred INTEGER NOT NULL DEFAULT 0,
+             favorited INTEGER NOT NULL DEFAULT 0, color_label TEXT, sort_order INTEGER NOT NULL DEFAULT 0,
+             gps_lat REAL, gps_lng REAL, date_taken TEXT, width INTEGER, height INTEGER,
+             embedding BLOB, ocr_text TEXT, ocr_scanned INTEGER NOT NULL DEFAULT 0, thumb_path TEXT,
+             camera_make TEXT, camera_model TEXT, audio_title TEXT, audio_artist TEXT, audio_album TEXT,
+             audio_track INTEGER, audio_duration_secs REAL, audio_year INTEGER, audio_cover TEXT,
+             deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+             -- A stale column no longer declared anywhere in `init` — this
+             -- project never ALTERs a column away once shipped, so a real
+             -- long-lived database can genuinely have more columns than the
+             -- current schema text. `SELECT *` broke on exactly this
+             -- (column-count mismatch against the new table); the migration
+             -- must name its columns explicitly instead so extras like this
+             -- one are just dropped, not fatal.
+             rating INTEGER
+         );
+         CREATE TABLE collection_items (
+             collection_id TEXT NOT NULL, item_id TEXT NOT NULL REFERENCES media_items(id) ON DELETE CASCADE,
+             added_at TEXT NOT NULL, PRIMARY KEY (collection_id, item_id)
+         );
+         INSERT INTO media_items (id, file_path, source_path, file_name, display_name, media_type, created_at, updated_at)
+             VALUES ('id-1', '/tmp/a.jpg', 'orig:/tmp/a.jpg', 'a.jpg', 'A', 'image', '2024-01-01', '2024-01-01');
+         INSERT INTO collection_items (collection_id, item_id, added_at) VALUES ('coll-1', 'id-1', '2024-01-01');",
+    )
+    .unwrap();
+
+    assert!(media_items_has_source_path_unique(&conn).unwrap());
+
+    // `init` runs the migration itself — mirrors what actually happens on
+    // an existing user database when Vivid starts up after this change.
+    init(&conn).unwrap();
+
+    assert!(!media_items_has_source_path_unique(&conn).unwrap());
+    // Pre-existing data and its foreign-key relationship both survived the rebuild.
+    let fetched = fetch_one(&conn, "id-1").unwrap();
+    assert_eq!(fetched.file_path, "/tmp/a.jpg");
+    assert_eq!(fetched.source_path.as_deref(), Some("orig:/tmp/a.jpg"));
+    let fk_ok: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM collection_items WHERE item_id='id-1'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(fk_ok, 1);
+
+    // And the constraint is actually gone: a second row with the same
+    // source_path now inserts cleanly instead of being ignored.
+    let mut it2 = item("id-2", "/tmp/a (2).jpg");
+    it2.source_path = Some("orig:/tmp/a.jpg".to_string());
+    insert(&conn, &it2).unwrap();
+    assert_eq!(get_all(&conn).unwrap().len(), 2);
+}
+
+#[test]
+fn migrate_drop_source_path_unique_is_noop_on_fresh_db() {
+    // No media_items table yet — nothing to detect or migrate.
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+    assert!(!media_items_has_source_path_unique(&conn).unwrap());
+    migrate_drop_source_path_unique(&conn).unwrap();
+}
+
+#[test]
 fn set_color_label_persists() {
     let conn = open();
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();

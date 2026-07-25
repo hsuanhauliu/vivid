@@ -443,6 +443,16 @@ select.input {
   margin-top: 6px;
 }
 
+/* Folder path can wrap to multiple lines; align the icon to the first line
+   (top) instead of the shared .collection-badge's default vertical-center,
+   which centers it against the whole wrapped block. */
+.collection-badge-folder {
+  align-items: flex-start;
+}
+.detail-folder-icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
 .detail-folder-path {
   font-size: 13px;
   color: var(--text);

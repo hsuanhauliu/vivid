@@ -141,6 +141,13 @@ pub struct ImportBatch {
 /// Dry-run summary of what an import would do, so the UI can confirm before any
 /// files are copied. `new_folders` lists the sub-folders (relative to the chosen
 /// destination) that would be created from imported directory structure.
+/// `skipped_dupe` only covers a source that's already inside the library's own
+/// media dir (re-importing a file that's already part of the library) —
+/// deliberate re-imports of an external duplicate source are no longer
+/// filtered; if the user imports the same file twice, they end up with two
+/// library entries and can deal with it after the fact rather than the
+/// import silently dropping files based on an exact-source-path match that
+/// doesn't actually mean "same content".
 #[derive(Clone, Serialize)]
 pub struct ImportPreview {
     pub to_import:    usize,
@@ -641,8 +648,9 @@ pub fn preview_import(
     for d in &discovered {
         let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
         if extension_to_media_type(ext).is_none() { skipped_type += 1; continue; }
+        // Already inside the library's own media dir — re-importing a file
+        // that's already part of the library, not a real import source.
         if d.src.starts_with(&mdir) { skipped_dupe += 1; continue; }
-        if db::source_path_exists(&conn, &d.src.to_string_lossy()).unwrap_or(true) { skipped_dupe += 1; continue; }
         to_import += 1;
 
         // Sub-folders that don't exist yet would be created for this kept file.
@@ -732,17 +740,17 @@ pub(crate) fn run_import(
         }
     }
 
-    // Filter: skip unsupported types, files already inside the library, and
-    // already-imported sources. One DB lock for the whole pass.
+    // Filter: skip unsupported types and files already inside the library
+    // (re-importing a file that's already part of the library). Deliberate
+    // re-imports of an external duplicate source are no longer filtered —
+    // see ImportPreview's doc comment for why.
     let (mut candidates, skipped_type, skipped_dupe): (Vec<Discovered>, usize, usize) = {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
         let mut st = 0usize;
         let mut sd = 0usize;
         let kept: Vec<Discovered> = discovered.into_iter().filter(|d| {
             let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
             if extension_to_media_type(ext).is_none() { st += 1; return false; }
             if d.src.starts_with(&mdir) { sd += 1; return false; }
-            if db::source_path_exists(&conn, &d.src.to_string_lossy()).unwrap_or(true) { sd += 1; return false; }
             true
         }).collect();
         (kept, st, sd)

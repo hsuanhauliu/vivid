@@ -494,7 +494,7 @@ export default function DetailPanel({
         {itemFolder && (
           <div className="field">
             <label>{t('detail.folder')}</label>
-            <div className="collection-badge">
+            <div className="collection-badge collection-badge-folder">
               <FolderInput size={12} className="detail-folder-icon" />
               <span className="detail-folder-path">
                 {itemFolder.rel_path.split('/').map((segment, idx, parts) => {

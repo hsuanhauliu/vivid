@@ -27,6 +27,10 @@ export function VideoThumb({
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [canExtract, setCanExtract] = useState(false);
+  // Explicit cover-fit size (px) for the hover-play <video>, computed once its
+  // real dimensions are known — see the sizing comment below for why this
+  // can't just be a CSS min-width/min-height trick.
+  const [videoSize, setVideoSize] = useState(null);
   const extractRef = useRef(null);
   const rootRef = useRef(null);
   const hoverTimer = useRef(null);
@@ -127,7 +131,6 @@ export function VideoThumb({
         releaseExtractSlot();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poster]);
 
   // Safety net: if extraction never fires (corrupt/unreadable file), release
@@ -153,6 +156,25 @@ export function VideoThumb({
     clearTimeout(hoverTimer.current);
     setIsPlaying(false);
     setVideoReady(false);
+    setVideoSize(null);
+  }
+
+  // Real "cover" scaling for the hover-play video: a video's native
+  // resolution (often 1920×1080+) is almost always far bigger than a grid
+  // thumbnail cell, so the old `min-width/min-height: 100%; width/height:
+  // auto` trick never actually applied — min-* is a floor, not a fit, and
+  // the intrinsic size already exceeded it, so the video rendered at full
+  // native pixel size inside a tiny cropped box (the "zoomed in" look).
+  // Compute the true cover scale from the wrap's real box once metadata is
+  // available and set explicit pixel dimensions instead.
+  function handlePlayLoadedMetadata(e) {
+    const v = e.target;
+    const wrap = v.parentElement;
+    if (!wrap || !v.videoWidth || !v.videoHeight) return;
+    const rect = wrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const scale = Math.max(rect.width / v.videoWidth, rect.height / v.videoHeight);
+    setVideoSize({ width: v.videoWidth * scale, height: v.videoHeight * scale });
   }
 
   return (
@@ -201,14 +223,12 @@ export function VideoThumb({
           image): WebKit has a known bug where a hardware-decoded <video>
           layer that needs real cropping via object-fit: cover renders
           upside-down for portrait-shot clips with a rotation matrix (common
-          for phone-recorded .mov files) — hits Cards view (a fixed square
-          box, so most non-square videos need substantial cropping) but not
-          Masonry (whose cell is sized to the video's own aspect ratio via
-          `onRatio`, so there's rarely real cropping to trigger it) or the
-          full video player (which never crops to a fixed box at all). The
-          manual centered-oversize technique below achieves the same visual
-          "fill and crop" result without ever invoking object-fit on the
-          video element, sidestepping the bug regardless of root cause. */}
+          for phone-recorded .mov files). Instead, `handlePlayLoadedMetadata`
+          computes the true cover scale from the video's real dimensions and
+          sets explicit pixel width/height — see its comment for why a plain
+          CSS min-width/min-height trick doesn't work here. Falls back to
+          that same CSS trick for the brief window before metadata loads
+          (invisible anyway, since opacity stays 0 until videoReady). */}
       {isPlaying && (
         <div
           className="card-video-cover-wrap"
@@ -222,10 +242,9 @@ export function VideoThumb({
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'auto',
-              height: 'auto',
-              minWidth: '100%',
-              minHeight: '100%',
+              ...(videoSize
+                ? { width: `${videoSize.width}px`, height: `${videoSize.height}px` }
+                : { width: 'auto', height: 'auto', minWidth: '100%', minHeight: '100%' }),
               opacity: videoReady ? 1 : 0,
               transition: 'opacity 0.25s ease',
             }}
@@ -233,6 +252,7 @@ export function VideoThumb({
             playsInline
             loop
             autoPlay
+            onLoadedMetadata={handlePlayLoadedMetadata}
             onCanPlay={() => setVideoReady(true)}
           />
         </div>
