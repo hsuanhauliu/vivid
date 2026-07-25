@@ -17,7 +17,11 @@ pub fn source_path_exists(conn: &Connection, source_path: &str) -> Result<bool> 
 /// A tracked item's current file path — for callers that only need the path,
 /// not a full row (e.g. resolving a file to run AI inference on by id).
 pub fn file_path(conn: &Connection, id: &str) -> Result<String> {
-    conn.query_row("SELECT file_path FROM media_items WHERE id=?1", params![id], |r| r.get(0))
+    conn.query_row(
+        "SELECT file_path FROM media_items WHERE id=?1",
+        params![id],
+        |r| r.get(0),
+    )
 }
 
 pub fn insert(conn: &Connection, item: &MediaItem) -> Result<()> {
@@ -159,11 +163,13 @@ pub fn get_items_without_thumb(conn: &Connection) -> Result<Vec<(String, String,
          ORDER BY file_size ASC",
     )?;
     let rows = stmt
-        .query_map([], |r| Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-        )))?
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?
         .filter_map(|r| r.ok())
         .collect();
     Ok(rows)
@@ -174,12 +180,14 @@ pub fn get_thumb_counts(conn: &Connection) -> Result<(i64, i64)> {
     let total: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items \
          WHERE deleted_at IS NULL AND media_type IN ('image', 'video')",
-        [], |r| r.get(0),
+        [],
+        |r| r.get(0),
     )?;
     let done: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items \
          WHERE deleted_at IS NULL AND media_type IN ('image', 'video') AND thumb_path IS NOT NULL",
-        [], |r| r.get(0),
+        [],
+        |r| r.get(0),
     )?;
     Ok((done, total))
 }
@@ -188,7 +196,8 @@ pub fn get_thumb_counts(conn: &Connection) -> Result<(i64, i64)> {
 pub fn get_ocr_counts(conn: &Connection) -> Result<(i64, i64)> {
     let total: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items WHERE deleted_at IS NULL AND media_type='image'",
-        [], |r| r.get(0),
+        [],
+        |r| r.get(0),
     )?;
     let scanned: i64 = conn.query_row(
         "SELECT COUNT(*) FROM media_items WHERE deleted_at IS NULL AND media_type='image' AND ocr_scanned=1",
@@ -214,8 +223,10 @@ pub fn get_audio_tracks(conn: &Connection) -> Result<Vec<MediaItem>> {
          ORDER BY audio_album ASC, audio_track ASC, display_name ASC"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let mut items: Vec<MediaItem> =
-        stmt.query_map([], row_to_item)?.filter_map(|r| r.ok()).collect();
+    let mut items: Vec<MediaItem> = stmt
+        .query_map([], row_to_item)?
+        .filter_map(|r| r.ok())
+        .collect();
     attach_collections(conn, &mut items)?;
     Ok(items)
 }
@@ -268,7 +279,12 @@ pub fn repoint_file(
 /// which updates `display_name` instead: that's for the file being silently
 /// re-encoded to a new location as a side effect of some other edit, not a
 /// deliberate rename of the visible filename.
-pub fn rename_file(conn: &Connection, id: &str, new_path: &str, new_name: &str) -> Result<MediaItem> {
+pub fn rename_file(
+    conn: &Connection,
+    id: &str,
+    new_path: &str,
+    new_name: &str,
+) -> Result<MediaItem> {
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
         "UPDATE media_items SET file_path=?1, file_name=?2, updated_at=?3 WHERE id=?4",
@@ -361,7 +377,10 @@ pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) ->
 /// pass that sees it records one here instead of treating "no baseline" as
 /// "modified".
 pub fn set_mtime(conn: &Connection, id: &str, mtime: i64) -> Result<()> {
-    conn.execute("UPDATE media_items SET mtime=?1 WHERE id=?2", params![mtime, id])?;
+    conn.execute(
+        "UPDATE media_items SET mtime=?1 WHERE id=?2",
+        params![mtime, id],
+    )?;
     Ok(())
 }
 
@@ -390,8 +409,10 @@ pub fn remove_missing(conn: &Connection, ids: &[String]) -> Result<()> {
     if ids.is_empty() {
         return Ok(());
     }
-    let sql = format!("DELETE FROM media_items WHERE id IN ({})", super::in_placeholders(ids.len()));
+    let sql = format!(
+        "DELETE FROM media_items WHERE id IN ({})",
+        super::in_placeholders(ids.len())
+    );
     conn.execute(&sql, rusqlite::params_from_iter(ids))?;
     Ok(())
 }
-

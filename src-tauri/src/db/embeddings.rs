@@ -6,15 +6,21 @@ use rusqlite::{params, Connection, Result};
 
 /// Return (id, file_path, media_type, file_size) for every image/video without an embedding,
 /// ordered by file_size ASC so small (fast) files are processed first.
-pub fn get_items_without_embeddings(conn: &Connection) -> Result<Vec<(String, String, String, i64)>> {
+pub fn get_items_without_embeddings(
+    conn: &Connection,
+) -> Result<Vec<(String, String, String, i64)>> {
     let mut stmt = conn.prepare(
         "SELECT id, file_path, media_type, file_size FROM media_items \
          WHERE media_type IN ('image','video') AND deleted_at IS NULL AND embedding IS NULL \
          ORDER BY file_size ASC",
     )?;
     let rows = stmt.query_map([], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?, r.get::<_, i64>(3)?))
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+        ))
     })?;
     rows.collect()
 }

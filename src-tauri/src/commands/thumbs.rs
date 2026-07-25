@@ -14,21 +14,21 @@ static THUMB_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
 #[derive(Clone, Serialize)]
 pub struct ThumbProgress {
     pub current: usize,
-    pub total:   usize,
-    pub done:    bool,
+    pub total: usize,
+    pub done: bool,
 }
 
 #[derive(Clone, Serialize)]
 pub struct ThumbItem {
-    pub id:         String,
+    pub id: String,
     pub thumb_path: String,
-    pub width:      u32,
-    pub height:     u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Clone, Serialize)]
 pub struct ThumbStatus {
-    pub done:  i64,
+    pub done: i64,
     pub total: i64,
 }
 
@@ -54,8 +54,14 @@ fn thumb_output_dir(app: &tauri::AppHandle) -> Result<Option<PathBuf>, String> {
 /// Returns the thumbnail location (a file path, or a `data:` URL when `dir`
 /// is `None`) along with the source image's (EXIF-corrected) pixel
 /// dimensions. HEIC/HEIF is converted to JPEG via sips first.
-fn generate_thumbnail(src: &Path, id: &str, dir: Option<&Path>) -> Result<(String, u32, u32), String> {
-    use crate::clip::{apply_exif_orientation, exif_orientation, heif_to_jpeg_if_needed, sips_to_jpeg};
+fn generate_thumbnail(
+    src: &Path,
+    id: &str,
+    dir: Option<&Path>,
+) -> Result<(String, u32, u32), String> {
+    use crate::clip::{
+        apply_exif_orientation, exif_orientation, heif_to_jpeg_if_needed, sips_to_jpeg,
+    };
 
     let converted = heif_to_jpeg_if_needed(src).map_err(|e| e.to_string())?;
     let decode_path: &Path = converted.as_deref().unwrap_or(src);
@@ -90,8 +96,12 @@ fn generate_thumbnail(src: &Path, id: &str, dir: Option<&Path>) -> Result<(Strin
     let result = write_thumb(&img, id, dir);
 
     // Clean up any temporary conversions (HEIC→JPEG and/or the sips fallback).
-    if let Some(tmp) = converted { let _ = std::fs::remove_file(tmp); }
-    if let Some(tmp) = sips_tmp  { let _ = std::fs::remove_file(tmp); }
+    if let Some(tmp) = converted {
+        let _ = std::fs::remove_file(tmp);
+    }
+    if let Some(tmp) = sips_tmp {
+        let _ = std::fs::remove_file(tmp);
+    }
     result
 }
 
@@ -100,7 +110,11 @@ fn generate_thumbnail(src: &Path, id: &str, dir: Option<&Path>) -> Result<(Strin
 /// the encoded bytes as a base64 `data:image/jpeg;base64,...` URL instead —
 /// nothing touches disk. Either way the source's pixel dimensions (captured
 /// before downscaling, so they stay display-accurate) come back alongside.
-fn write_thumb(img: &image::DynamicImage, id: &str, dir: Option<&Path>) -> Result<(String, u32, u32), String> {
+fn write_thumb(
+    img: &image::DynamicImage,
+    id: &str,
+    dir: Option<&Path>,
+) -> Result<(String, u32, u32), String> {
     let (orig_w, orig_h) = (img.width(), img.height());
 
     // `thumbnail` is a fast box filter — ideal for downscaling previews.
@@ -113,11 +127,15 @@ fn write_thumb(img: &image::DynamicImage, id: &str, dir: Option<&Path>) -> Resul
         let mut bg = image::RgbImage::new(rgba.width(), rgba.height());
         for (x, y, px) in rgba.enumerate_pixels() {
             let a = px[3] as f32 / 255.0;
-            bg.put_pixel(x, y, image::Rgb([
-                (px[0] as f32 * a + 255.0 * (1.0 - a)) as u8,
-                (px[1] as f32 * a + 255.0 * (1.0 - a)) as u8,
-                (px[2] as f32 * a + 255.0 * (1.0 - a)) as u8,
-            ]));
+            bg.put_pixel(
+                x,
+                y,
+                image::Rgb([
+                    (px[0] as f32 * a + 255.0 * (1.0 - a)) as u8,
+                    (px[1] as f32 * a + 255.0 * (1.0 - a)) as u8,
+                    (px[2] as f32 * a + 255.0 * (1.0 - a)) as u8,
+                ]),
+            );
         }
         bg
     } else {
@@ -126,8 +144,13 @@ fn write_thumb(img: &image::DynamicImage, id: &str, dir: Option<&Path>) -> Resul
 
     let mut bytes: Vec<u8> = Vec::new();
     let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, THUMB_QUALITY);
-    enc.encode(rgb.as_raw(), rgb.width(), rgb.height(), image::ExtendedColorType::Rgb8)
-        .map_err(|e| e.to_string())?;
+    enc.encode(
+        rgb.as_raw(),
+        rgb.width(),
+        rgb.height(),
+        image::ExtendedColorType::Rgb8,
+    )
+    .map_err(|e| e.to_string())?;
 
     match dir {
         Some(dir) => {
@@ -214,19 +237,33 @@ pub fn regenerate_single_thumbnail(id: String, file_path: String, app: tauri::Ap
     std::thread::spawn(move || {
         let dir = match thumb_output_dir(&app) {
             Ok(d) => d,
-            Err(e) => { tracing::error!(error = %e, "thumbs dir"); return; }
+            Err(e) => {
+                tracing::error!(error = %e, "thumbs dir");
+                return;
+            }
         };
         let (thumb_path, w, h) =
             match generate_thumbnail(Path::new(&file_path), &id, dir.as_deref()) {
                 Ok(v) => v,
-                Err(e) => { tracing::warn!(id, error = %e, "thumbnail regeneration failed"); return; }
+                Err(e) => {
+                    tracing::warn!(id, error = %e, "thumbnail regeneration failed");
+                    return;
+                }
             };
         {
             let db = app.state::<DbState>();
             let conn = db.0.lock().unwrap();
             let _ = db::set_thumb_dims(&conn, &id, &thumb_path, w, h);
         }
-        let _ = app.emit("thumb-item", ThumbItem { id, thumb_path, width: w, height: h });
+        let _ = app.emit(
+            "thumb-item",
+            ThumbItem {
+                id,
+                thumb_path,
+                width: w,
+                height: h,
+            },
+        );
     });
 }
 
@@ -243,7 +280,10 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
         let db = app.state::<DbState>();
         let dir = match thumb_output_dir(&app) {
             Ok(d) => d,
-            Err(e) => { tracing::error!(error = %e, "thumbs dir"); return; }
+            Err(e) => {
+                tracing::error!(error = %e, "thumbs dir");
+                return;
+            }
         };
 
         let items = {
@@ -252,7 +292,14 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
         };
         let total = items.len();
         if total == 0 {
-            let _ = app.emit("thumb-progress", ThumbProgress { current: 0, total: 0, done: true });
+            let _ = app.emit(
+                "thumb-progress",
+                ThumbProgress {
+                    current: 0,
+                    total: 0,
+                    done: true,
+                },
+            );
             return;
         }
 
@@ -267,9 +314,14 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
                     Err(e) => tracing::warn!(id, %path, error = %e, "thumbnail failed"),
                 }
             }
-            let _ = app.emit("thumb-progress", ThumbProgress {
-                current: i + 1, total, done: i + 1 == total,
-            });
+            let _ = app.emit(
+                "thumb-progress",
+                ThumbProgress {
+                    current: i + 1,
+                    total,
+                    done: i + 1 == total,
+                },
+            );
         }
     });
     Ok(())
@@ -289,8 +341,13 @@ pub fn get_thumb_status(state: State<DbState>) -> Result<ThumbStatus, String> {
 pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, media_type: String) {
     let app = app.clone();
     std::thread::spawn(move || {
-        let dir = match thumb_output_dir(&app) { Ok(d) => d, Err(_) => return };
-        if !Path::new(&path).exists() { return; }
+        let dir = match thumb_output_dir(&app) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        if !Path::new(&path).exists() {
+            return;
+        }
         match make_thumb(&app, Path::new(&path), &id, dir.as_deref(), &media_type) {
             Ok(Some((thumb_path, w, h))) => {
                 {
@@ -298,7 +355,15 @@ pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, me
                     let conn = db.0.lock().unwrap();
                     let _ = db::set_thumb_dims(&conn, &id, &thumb_path, w, h);
                 }
-                let _ = app.emit("thumb-item", ThumbItem { id, thumb_path, width: w, height: h });
+                let _ = app.emit(
+                    "thumb-item",
+                    ThumbItem {
+                        id,
+                        thumb_path,
+                        width: w,
+                        height: h,
+                    },
+                );
             }
             Ok(None) => {} // audio with no embedded artwork
             Err(e) => tracing::warn!(id, %path, error = %e, "thumbnail failed"),

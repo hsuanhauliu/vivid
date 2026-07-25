@@ -1,5 +1,9 @@
 use super::{media_dir, unique_path};
-use crate::{db, models::{Folder, MediaItem}, DbState};
+use crate::{
+    db,
+    models::{Folder, MediaItem},
+    DbState,
+};
 use std::fs;
 use std::path::Path;
 use tauri::State;
@@ -16,7 +20,6 @@ fn sanitize_name(name: &str) -> Result<String, String> {
         _ => Err("Invalid folder name".into()),
     }
 }
-
 
 #[tauri::command]
 pub fn list_folders(state: State<DbState>) -> Result<Vec<Folder>, String> {
@@ -39,13 +42,21 @@ pub fn create_folder(
     // treat it the same as no parent (top-level).
     let parent_id = parent_id.filter(|p| p != db::UNCATEGORIZED_ID);
     let parent_rel = match &parent_id {
-        Some(pid) => db::fetch_folder(&conn, pid).map_err(|e| e.to_string())?.rel_path,
+        Some(pid) => {
+            db::fetch_folder(&conn, pid)
+                .map_err(|e| e.to_string())?
+                .rel_path
+        }
         None => String::new(),
     };
     if db::folder_name_taken(&conn, parent_id.as_deref(), &name, None).map_err(|e| e.to_string())? {
         return Err("DUPLICATE_NAME".into());
     }
-    let rel_path = if parent_rel.is_empty() { name.clone() } else { format!("{parent_rel}/{name}") };
+    let rel_path = if parent_rel.is_empty() {
+        name.clone()
+    } else {
+        format!("{parent_rel}/{name}")
+    };
 
     fs::create_dir_all(root.join(&rel_path)).map_err(|e| e.to_string())?;
     db::create_folder(&conn, &name, parent_id.as_deref(), &rel_path).map_err(|e| e.to_string())
@@ -109,7 +120,8 @@ pub fn delete_folder(
     // folder_id, so a trashed item left out here would have its real file
     // swept away by the directory removal below with nothing to relocate
     // it first, and its folder_id would dangle once the folder row is gone.
-    let items = db::items_under_including_trashed(&conn, &folder.rel_path, &root_str).map_err(|e| e.to_string())?;
+    let items = db::items_under_including_trashed(&conn, &folder.rel_path, &root_str)
+        .map_err(|e| e.to_string())?;
     for item in &items {
         let src = Path::new(&item.file_path);
         let dest = unique_path(&root, &item.file_name);
@@ -243,7 +255,8 @@ pub fn move_to_folder(
         let src = Path::new(&item.file_path);
         // Already in the destination directory — nothing to move.
         if src.parent() == Some(dest_dir.as_path()) {
-            db::set_item_folder(&conn, id, dest_folder_id.as_deref(), &item.file_path).map_err(|e| e.to_string())?;
+            db::set_item_folder(&conn, id, dest_folder_id.as_deref(), &item.file_path)
+                .map_err(|e| e.to_string())?;
             moved.push(db::fetch_one(&conn, id).map_err(|e| e.to_string())?);
             continue;
         }
@@ -251,8 +264,13 @@ pub fn move_to_folder(
         if src.exists() {
             fs::rename(src, &dest).map_err(|e| e.to_string())?;
         }
-        db::set_item_folder(&conn, id, dest_folder_id.as_deref(), &dest.to_string_lossy())
-            .map_err(|e| e.to_string())?;
+        db::set_item_folder(
+            &conn,
+            id,
+            dest_folder_id.as_deref(),
+            &dest.to_string_lossy(),
+        )
+        .map_err(|e| e.to_string())?;
         moved.push(db::fetch_one(&conn, id).map_err(|e| e.to_string())?);
     }
     Ok(moved)

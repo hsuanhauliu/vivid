@@ -11,16 +11,16 @@
 use crate::models::MediaItem;
 use rusqlite::{Connection, Result};
 
-mod media;
-mod trash;
 mod collections;
-mod folders;
 mod embeddings;
+mod folders;
+mod media;
 mod stats;
+mod trash;
 
+pub use collections::*;
 pub use embeddings::*;
 pub use folders::*;
-pub use collections::*;
 pub use media::*;
 pub use stats::*;
 pub use trash::*;
@@ -213,21 +213,21 @@ pub(crate) fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<MediaItem> {
         sort_order: row.get(15).unwrap_or(0),
         deleted_at: row.get(16).ok(),
         auto_tags,
-        audio_title:    row.get(18).ok(),
-        audio_artist:   row.get(19).ok(),
-        audio_album:    row.get(20).ok(),
-        audio_track:    row.get(21).ok(),
+        audio_title: row.get(18).ok(),
+        audio_artist: row.get(19).ok(),
+        audio_album: row.get(20).ok(),
+        audio_track: row.get(21).ok(),
         audio_duration: row.get(22).ok(),
-        audio_year:     row.get(23).ok(),
-        date_taken:     row.get(24).ok(),
-        favorited:      favorited_int != 0,
-        audio_cover:    row.get(26).ok(),
-        width:          row.get(27).ok(),
-        height:         row.get(28).ok(),
-        ocr_text:       row.get(29).ok(),
-        thumb_path:     row.get(30).ok(),
-        camera_make:    row.get(32).ok(),
-        camera_model:   row.get(33).ok(),
+        audio_year: row.get(23).ok(),
+        date_taken: row.get(24).ok(),
+        favorited: favorited_int != 0,
+        audio_cover: row.get(26).ok(),
+        width: row.get(27).ok(),
+        height: row.get(28).ok(),
+        ocr_text: row.get(29).ok(),
+        thumb_path: row.get(30).ok(),
+        camera_make: row.get(32).ok(),
+        camera_model: row.get(33).ok(),
     })
 }
 

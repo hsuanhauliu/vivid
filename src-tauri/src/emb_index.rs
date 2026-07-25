@@ -93,8 +93,10 @@ mod tests {
     #[test]
     fn iter_matches_input_order_and_values() {
         let idx = EmbIndex::from_pairs(pairs());
-        let collected: Vec<(String, Vec<f32>)> =
-            idx.iter().map(|(id, e)| (id.to_string(), e.to_vec())).collect();
+        let collected: Vec<(String, Vec<f32>)> = idx
+            .iter()
+            .map(|(id, e)| (id.to_string(), e.to_vec()))
+            .collect();
         assert_eq!(collected, pairs());
         assert_eq!(idx.len(), 3);
     }

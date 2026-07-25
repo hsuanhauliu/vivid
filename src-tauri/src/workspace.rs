@@ -75,7 +75,10 @@ impl Default for WorkspaceRegistry {
     /// own folder" *before* either is ever initialized — see
     /// `commands::add_default_workspace` for the former.
     fn default() -> Self {
-        WorkspaceRegistry { workspaces: Vec::new(), active_id: String::new() }
+        WorkspaceRegistry {
+            workspaces: Vec::new(),
+            active_id: String::new(),
+        }
     }
 }
 
@@ -142,7 +145,11 @@ impl WorkspacePaths {
                 // `add_workspace` always sets `path` for an External workspace;
                 // falling back to the app-data dir here is an unreachable-in-
                 // practice safety net, not a real code path.
-                let root = workspace.path.as_ref().map(PathBuf::from).unwrap_or_else(|| app_data_dir.to_path_buf());
+                let root = workspace
+                    .path
+                    .as_ref()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| app_data_dir.to_path_buf());
                 let vivid_dir = root.join(VIVID_SUBDIR);
                 WorkspacePaths {
                     db_path: vivid_dir.join("vivid.db"),
@@ -277,7 +284,12 @@ mod tests {
     #[test]
     fn resolve_default_workspace_paths() {
         let app_data = PathBuf::from("/app/data");
-        let w = Workspace { id: DEFAULT_WORKSPACE_ID.into(), kind: WorkspaceKind::Default, path: None, name: "My Library".into() };
+        let w = Workspace {
+            id: DEFAULT_WORKSPACE_ID.into(),
+            kind: WorkspaceKind::Default,
+            path: None,
+            name: "My Library".into(),
+        };
         let paths = WorkspacePaths::resolve(&w, &app_data);
         assert_eq!(paths.db_path, PathBuf::from("/app/data/vivid.db"));
         assert_eq!(paths.media_dir, PathBuf::from("/app/data/media"));
@@ -295,11 +307,17 @@ mod tests {
             name: "Photos".into(),
         };
         let paths = WorkspacePaths::resolve(&w, &app_data);
-        assert_eq!(paths.db_path, PathBuf::from("/Volumes/Photos/.vivid/vivid.db"));
+        assert_eq!(
+            paths.db_path,
+            PathBuf::from("/Volumes/Photos/.vivid/vivid.db")
+        );
         // Media root is the folder itself — files are adopted in place, not
         // copied into a managed subdirectory.
         assert_eq!(paths.media_dir, PathBuf::from("/Volumes/Photos"));
-        assert_eq!(paths.thumbs_dir, PathBuf::from("/Volumes/Photos/.vivid/thumbs"));
+        assert_eq!(
+            paths.thumbs_dir,
+            PathBuf::from("/Volumes/Photos/.vivid/thumbs")
+        );
         assert_eq!(paths.data_dir, PathBuf::from("/Volumes/Photos/.vivid"));
     }
 
@@ -309,7 +327,12 @@ mod tests {
         // external workspace must live inside that workspace's own folder,
         // never back in the global app-data dir.
         let app_data = PathBuf::from("/app/data");
-        let w = Workspace { id: "ext1".into(), kind: WorkspaceKind::External, path: Some("/Volumes/Photos".into()), name: "Photos".into() };
+        let w = Workspace {
+            id: "ext1".into(),
+            kind: WorkspaceKind::External,
+            path: Some("/Volumes/Photos".into()),
+            name: "Photos".into(),
+        };
         let paths = WorkspacePaths::resolve(&w, &app_data);
         assert!(paths.db_path.starts_with(&paths.media_dir));
         assert!(paths.thumbs_dir.starts_with(&paths.media_dir));
@@ -324,7 +347,12 @@ mod tests {
     #[test]
     fn ensure_dirs_creates_media_and_thumbs_and_db_parent_for_default() {
         let dir = tempdir().unwrap();
-        let w = Workspace { id: DEFAULT_WORKSPACE_ID.into(), kind: WorkspaceKind::Default, path: None, name: "My Library".into() };
+        let w = Workspace {
+            id: DEFAULT_WORKSPACE_ID.into(),
+            kind: WorkspaceKind::Default,
+            path: None,
+            name: "My Library".into(),
+        };
         let paths = WorkspacePaths::resolve(&w, dir.path());
         paths.ensure_dirs(w.kind).unwrap();
         assert!(paths.media_dir.is_dir());

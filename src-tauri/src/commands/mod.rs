@@ -1,6 +1,6 @@
 use crate::{
     db,
-    models::{extension_to_media_type, ExifMetadata, Collection, LibraryStats, MediaItem},
+    models::{extension_to_media_type, Collection, ExifMetadata, LibraryStats, MediaItem},
     workspace, DbState,
 };
 use serde::Serialize;
@@ -38,7 +38,12 @@ pub(crate) fn insert_imported(
         ocr::trigger_ocr(app, item.id.clone(), item.file_path.clone());
     }
     if item.media_type == "image" || item.media_type == "video" {
-        thumbs::trigger_thumb(app, item.id.clone(), item.file_path.clone(), item.media_type.clone());
+        thumbs::trigger_thumb(
+            app,
+            item.id.clone(),
+            item.file_path.clone(),
+            item.media_type.clone(),
+        );
     }
     Ok(())
 }
@@ -113,22 +118,21 @@ pub use watch::*;
 mod text_completion;
 pub use text_completion::*;
 
-
 // ── Shared types ──────────────────────────────────────────────────────────────
 
 #[derive(Clone, Serialize)]
 pub struct ImportProgress {
-    pub current:   usize,
-    pub total:     usize,
+    pub current: usize,
+    pub total: usize,
     pub file_name: String,
 }
 
 #[derive(Clone, Serialize)]
 pub struct ImportDone {
-    pub imported:      usize,
-    pub skipped_type:  usize, // unsupported file extension
-    pub skipped_dupe:  usize, // already in library
-    pub failed:        usize, // copy or processing error
+    pub imported: usize,
+    pub skipped_type: usize, // unsupported file extension
+    pub skipped_dupe: usize, // already in library
+    pub failed: usize,       // copy or processing error
 }
 
 /// A chunk of freshly-imported items, streamed to the frontend during a large
@@ -150,19 +154,19 @@ pub struct ImportBatch {
 /// doesn't actually mean "same content".
 #[derive(Clone, Serialize)]
 pub struct ImportPreview {
-    pub to_import:    usize,
+    pub to_import: usize,
     pub skipped_type: usize,
     pub skipped_dupe: usize,
-    pub new_folders:  Vec<String>,
+    pub new_folders: Vec<String>,
 }
 
 pub struct AudioMeta {
-    pub title:         Option<String>,
-    pub artist:        Option<String>,
-    pub album:         Option<String>,
-    pub track:         Option<i64>,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub track: Option<i64>,
     pub duration_secs: Option<f64>,
-    pub year:          Option<i64>,
+    pub year: Option<i64>,
 }
 
 // ── Shared helpers (used by submodules via super::) ───────────────────────────
@@ -171,7 +175,11 @@ pub struct AudioMeta {
 /// directory, or an external workspace's chosen folder (files there are
 /// adopted in place, not copied into a subdirectory of it).
 pub(crate) fn media_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app.state::<workspace::WorkspaceState>().paths.media_dir.clone();
+    let dir = app
+        .state::<workspace::WorkspaceState>()
+        .paths
+        .media_dir
+        .clone();
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }
@@ -220,9 +228,17 @@ pub(crate) fn unique_path(dir: &Path, fname: &str) -> PathBuf {
         _ => "file",
     };
     let path = dir.join(fname);
-    if !path.exists() { return path; }
-    let stem = Path::new(fname).file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-    let ext  = Path::new(fname).extension().and_then(|e| e.to_str()).unwrap_or("");
+    if !path.exists() {
+        return path;
+    }
+    let stem = Path::new(fname)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("file");
+    let ext = Path::new(fname)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
     // A name clash never blocks an import: append a counter suffix (`_2`, `_3`, …)
     // until we find a free name, mirroring Finder-style de-duplication.
     for i in 2u32.. {
@@ -231,7 +247,9 @@ pub(crate) fn unique_path(dir: &Path, fname: &str) -> PathBuf {
         } else {
             format!("{stem}_{i}.{ext}")
         });
-        if !candidate.exists() { return candidate; }
+        if !candidate.exists() {
+            return candidate;
+        }
     }
     path
 }
@@ -250,7 +268,9 @@ pub(crate) fn normalize_abs(p: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for comp in abs.components() {
         match comp {
-            std::path::Component::ParentDir => { out.pop(); }
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
             std::path::Component::CurDir => {}
             other => out.push(other.as_os_str()),
         }
@@ -272,11 +292,19 @@ pub(crate) fn decode_data_url(data_url: &str) -> Result<Vec<u8>, String> {
 }
 
 pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<MediaItem, String> {
-    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-    let display_name = path.file_stem().and_then(|n| n.to_str()).unwrap_or(&file_name).to_string();
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
+    let display_name = path
+        .file_stem()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&file_name)
+        .to_string();
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let media_type = extension_to_media_type(ext)
-        .ok_or_else(|| format!("Unsupported extension: {ext}"))?;
+    let media_type =
+        extension_to_media_type(ext).ok_or_else(|| format!("Unsupported extension: {ext}"))?;
     let file_size = fs::metadata(path).map(|m| m.len() as i64).unwrap_or(0);
     let file_path = path.to_string_lossy().to_string();
     let now = chrono::Local::now().to_rfc3339();
@@ -310,8 +338,13 @@ pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<Med
         sort_order: 0,
         deleted_at: None,
         auto_tags: Vec::new(),
-        audio_title: None, audio_artist: None, audio_album: None,
-        audio_track: None, audio_duration: None, audio_year: None, audio_cover: None,
+        audio_title: None,
+        audio_artist: None,
+        audio_album: None,
+        audio_track: None,
+        audio_duration: None,
+        audio_year: None,
+        audio_cover: None,
         date_taken: None,
         favorited: false,
         width,
@@ -363,22 +396,30 @@ pub(crate) fn extract_audio_meta(path: &Path) -> Result<AudioMeta, anyhow::Error
 
     let tagged = Probe::open(path)?.read()?;
     let duration_secs = tagged.properties().duration().as_secs_f64();
-    let duration_secs = if duration_secs > 0.0 { Some(duration_secs) } else { None };
+    let duration_secs = if duration_secs > 0.0 {
+        Some(duration_secs)
+    } else {
+        None
+    };
 
     let tag = tagged.primary_tag().or_else(|| tagged.first_tag());
     let Some(tag) = tag else {
         return Ok(AudioMeta {
-            title: None, artist: None, album: None,
-            track: None, duration_secs, year: None,
+            title: None,
+            artist: None,
+            album: None,
+            track: None,
+            duration_secs,
+            year: None,
         });
     };
 
     Ok(AudioMeta {
-        title:         tag.title().map(|s| s.to_string()),
-        artist:        tag.artist().map(|s| s.to_string()),
-        album:         tag.album().map(|s| s.to_string()),
-        track:         tag.track().map(|t| t as i64),
-        year:          tag.year().map(|y| y as i64),
+        title: tag.title().map(|s| s.to_string()),
+        artist: tag.artist().map(|s| s.to_string()),
+        album: tag.album().map(|s| s.to_string()),
+        track: tag.track().map(|t| t as i64),
+        year: tag.year().map(|y| y as i64),
         duration_secs,
     })
 }
@@ -421,14 +462,21 @@ fn is_bundle(path: &Path) -> bool {
 fn is_file_package(path: &Path) -> bool {
     use objc2::msg_send;
     use objc2::runtime::AnyObject;
-    let Some(p) = path.to_str() else { return false; };
+    let Some(p) = path.to_str() else {
+        return false;
+    };
     unsafe {
-        let Some(ws_cls) = objc2::runtime::AnyClass::get("NSWorkspace") else { return false; };
-        let Some(str_cls) = objc2::runtime::AnyClass::get("NSString") else { return false; };
+        let Some(ws_cls) = objc2::runtime::AnyClass::get("NSWorkspace") else {
+            return false;
+        };
+        let Some(str_cls) = objc2::runtime::AnyClass::get("NSString") else {
+            return false;
+        };
         let ws: *mut AnyObject = msg_send![ws_cls, sharedWorkspace];
         let nsstr: *mut AnyObject = msg_send![str_cls, alloc];
         let bytes = p.as_ptr() as *const std::ffi::c_void;
-        let nsstr: *mut AnyObject = msg_send![nsstr, initWithBytes: bytes length: p.len() encoding: 4u64 /* UTF-8 */];
+        let nsstr: *mut AnyObject =
+            msg_send![nsstr, initWithBytes: bytes length: p.len() encoding: 4u64 /* UTF-8 */];
         let is_pkg: bool = msg_send![ws, isFilePackageAtPath: nsstr];
         let _: () = msg_send![nsstr, release];
         is_pkg
@@ -462,9 +510,12 @@ fn collect_dir_preserving(dir: &Path, out: &mut Vec<Discovered>) {
                         .strip_prefix(base)
                         .ok()
                         .and_then(|rel| rel.parent().map(|p| p.to_path_buf()))
-                        .map(|parent| parent.components()
-                            .filter_map(|c| safe_component(c.as_os_str()))
-                            .collect::<Vec<_>>())
+                        .map(|parent| {
+                            parent
+                                .components()
+                                .filter_map(|c| safe_component(c.as_os_str()))
+                                .collect::<Vec<_>>()
+                        })
                         .unwrap_or_default();
                     out.push(Discovered { src: path, sub });
                 }
@@ -493,7 +544,11 @@ fn ensure_subfolder(
     let mut parent_id: Option<String> = base_id.map(|s| s.to_string());
     let mut rel = base_rel.to_string();
     for comp in sub {
-        rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
+        rel = if rel.is_empty() {
+            comp.clone()
+        } else {
+            format!("{rel}/{comp}")
+        };
         let id = match db::folder_id_by_rel_path(conn, &rel).map_err(|e| e.to_string())? {
             Some(id) => id,
             None => {
@@ -518,7 +573,9 @@ fn file_sha256(path: &Path) -> Option<String> {
     let mut buf = [0u8; 65536]; // 64 KB chunks — never loads the whole file
     loop {
         let n = file.read(&mut buf).ok()?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         hasher.update(&buf[..n]);
     }
     Some(hex::encode(hasher.finalize()))
@@ -571,12 +628,12 @@ pub fn get_all_media(state: State<DbState>) -> Result<Vec<MediaItem>, String> {
 
 #[derive(Clone, Serialize)]
 pub struct MusicAlbum {
-    pub album:       String,
-    pub artist:      Option<String>,
-    pub year:        Option<i64>,
+    pub album: String,
+    pub artist: Option<String>,
+    pub year: Option<i64>,
     pub track_count: usize,
-    pub total_secs:  f64,
-    pub tracks:      Vec<MediaItem>,
+    pub total_secs: f64,
+    pub tracks: Vec<MediaItem>,
 }
 
 #[tauri::command]
@@ -584,20 +641,34 @@ pub fn get_music_albums(state: State<DbState>) -> Result<Vec<MusicAlbum>, String
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let tracks = db::get_audio_tracks(&conn).map_err(|e| e.to_string())?;
 
-    let mut map: std::collections::BTreeMap<String, Vec<MediaItem>> = std::collections::BTreeMap::new();
+    let mut map: std::collections::BTreeMap<String, Vec<MediaItem>> =
+        std::collections::BTreeMap::new();
     for t in tracks {
-        let key = t.audio_album.clone().unwrap_or_else(|| "Unknown Album".into());
+        let key = t
+            .audio_album
+            .clone()
+            .unwrap_or_else(|| "Unknown Album".into());
         map.entry(key).or_default().push(t);
     }
 
-    let mut albums: Vec<MusicAlbum> = map.into_iter().map(|(album, mut tracks)| {
-        tracks.sort_by_key(|t| t.audio_track.unwrap_or(999));
-        let artist      = tracks.iter().find_map(|t| t.audio_artist.clone());
-        let year        = tracks.iter().find_map(|t| t.audio_year);
-        let total_secs  = tracks.iter().filter_map(|t| t.audio_duration).sum();
-        let track_count = tracks.len();
-        MusicAlbum { album, artist, year, track_count, total_secs, tracks }
-    }).collect();
+    let mut albums: Vec<MusicAlbum> = map
+        .into_iter()
+        .map(|(album, mut tracks)| {
+            tracks.sort_by_key(|t| t.audio_track.unwrap_or(999));
+            let artist = tracks.iter().find_map(|t| t.audio_artist.clone());
+            let year = tracks.iter().find_map(|t| t.audio_year);
+            let total_secs = tracks.iter().filter_map(|t| t.audio_duration).sum();
+            let track_count = tracks.len();
+            MusicAlbum {
+                album,
+                artist,
+                year,
+                track_count,
+                total_secs,
+                tracks,
+            }
+        })
+        .collect();
     albums.sort_by(|a, b| a.album.cmp(&b.album));
     Ok(albums)
 }
@@ -621,8 +692,11 @@ pub fn preview_import(
     let dest_rel = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         match &folder_id {
-            Some(fid) if fid != db::UNCATEGORIZED_ID =>
-                db::fetch_folder(&conn, fid).map_err(|e| e.to_string())?.rel_path,
+            Some(fid) if fid != db::UNCATEGORIZED_ID => {
+                db::fetch_folder(&conn, fid)
+                    .map_err(|e| e.to_string())?
+                    .rel_path
+            }
             _ => String::new(),
         }
     };
@@ -634,7 +708,10 @@ pub fn preview_import(
         if path.is_dir() && !is_bundle(&path) {
             collect_dir_preserving(&path, &mut discovered);
         } else {
-            discovered.push(Discovered { src: path, sub: vec![] });
+            discovered.push(Discovered {
+                src: path,
+                sub: vec![],
+            });
         }
     }
 
@@ -647,26 +724,47 @@ pub fn preview_import(
 
     for d in &discovered {
         let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if extension_to_media_type(ext).is_none() { skipped_type += 1; continue; }
+        if extension_to_media_type(ext).is_none() {
+            skipped_type += 1;
+            continue;
+        }
         // Already inside the library's own media dir — re-importing a file
         // that's already part of the library, not a real import source.
-        if d.src.starts_with(&mdir) { skipped_dupe += 1; continue; }
+        if d.src.starts_with(&mdir) {
+            skipped_dupe += 1;
+            continue;
+        }
         to_import += 1;
 
         // Sub-folders that don't exist yet would be created for this kept file.
         let mut rel = dest_rel.clone();
         for comp in &d.sub {
-            rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
+            rel = if rel.is_empty() {
+                comp.clone()
+            } else {
+                format!("{rel}/{comp}")
+            };
             if seen_rel.insert(rel.clone())
-                && db::folder_id_by_rel_path(&conn, &rel).map_err(|e| e.to_string())?.is_none()
+                && db::folder_id_by_rel_path(&conn, &rel)
+                    .map_err(|e| e.to_string())?
+                    .is_none()
             {
-                let display = rel.strip_prefix(&dest_rel).unwrap_or(&rel).trim_start_matches('/').to_string();
+                let display = rel
+                    .strip_prefix(&dest_rel)
+                    .unwrap_or(&rel)
+                    .trim_start_matches('/')
+                    .to_string();
                 new_folders.push(display);
             }
         }
     }
 
-    Ok(ImportPreview { to_import, skipped_type, skipped_dupe, new_folders })
+    Ok(ImportPreview {
+        to_import,
+        skipped_type,
+        skipped_dupe,
+        new_folders,
+    })
 }
 
 #[tauri::command]
@@ -687,9 +785,15 @@ pub fn import_paths(
         if let Err(e) = run_import(&app, paths, collection_id, folder_id, filename, silent) {
             tracing::error!(error = %e, "import failed");
             if !silent {
-                let _ = app.emit("import-done", ImportDone {
-                    imported: 0, skipped_type: 0, skipped_dupe: 0, failed: 0,
-                });
+                let _ = app.emit(
+                    "import-done",
+                    ImportDone {
+                        imported: 0,
+                        skipped_type: 0,
+                        skipped_dupe: 0,
+                        failed: 0,
+                    },
+                );
             }
         }
     });
@@ -736,7 +840,10 @@ pub(crate) fn run_import(
         if path.is_dir() && !is_bundle(&path) {
             collect_dir_preserving(&path, &mut discovered);
         } else {
-            discovered.push(Discovered { src: path, sub: vec![] });
+            discovered.push(Discovered {
+                src: path,
+                sub: vec![],
+            });
         }
     }
 
@@ -747,18 +854,37 @@ pub(crate) fn run_import(
     let (mut candidates, skipped_type, skipped_dupe): (Vec<Discovered>, usize, usize) = {
         let mut st = 0usize;
         let mut sd = 0usize;
-        let kept: Vec<Discovered> = discovered.into_iter().filter(|d| {
-            let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if extension_to_media_type(ext).is_none() { st += 1; return false; }
-            if d.src.starts_with(&mdir) { sd += 1; return false; }
-            true
-        }).collect();
+        let kept: Vec<Discovered> = discovered
+            .into_iter()
+            .filter(|d| {
+                let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
+                if extension_to_media_type(ext).is_none() {
+                    st += 1;
+                    return false;
+                }
+                if d.src.starts_with(&mdir) {
+                    sd += 1;
+                    return false;
+                }
+                true
+            })
+            .collect();
         (kept, st, sd)
     };
 
     let total = candidates.len();
     if total == 0 {
-        if !silent { let _ = app.emit("import-done", ImportDone { imported: 0, skipped_type, skipped_dupe, failed: 0 }); }
+        if !silent {
+            let _ = app.emit(
+                "import-done",
+                ImportDone {
+                    imported: 0,
+                    skipped_type,
+                    skipped_dupe,
+                    failed: 0,
+                },
+            );
+        }
         return Ok(());
     }
 
@@ -771,8 +897,17 @@ pub(crate) fn run_import(
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         for d in &candidates {
-            if folder_cache.contains_key(&d.sub) { continue; }
-            let resolved = ensure_subfolder(&conn, &mdir, dest_id.as_deref(), &dest_rel, &d.sub, &mut folders_created)?;
+            if folder_cache.contains_key(&d.sub) {
+                continue;
+            }
+            let resolved = ensure_subfolder(
+                &conn,
+                &mdir,
+                dest_id.as_deref(),
+                &dest_rel,
+                &d.sub,
+                &mut folders_created,
+            )?;
             folder_cache.insert(d.sub.clone(), resolved);
         }
     }
@@ -787,24 +922,42 @@ pub(crate) fn run_import(
     let mut last_progress = Instant::now();
 
     for (i, d) in candidates.drain(..).enumerate() {
-        let orig_name = d.src.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        let orig_name = d
+            .src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
         // A custom filename only applies to a single loose-file import.
         let file_name = if total == 1 && d.sub.is_empty() {
             if let Some(ref custom) = filename {
                 let ext = d.src.extension().and_then(|e| e.to_str()).unwrap_or("");
                 let stem = custom.trim().trim_end_matches('.');
-                if stem.is_empty() { orig_name.clone() }
-                else if ext.is_empty() { stem.to_string() }
-                else { format!("{stem}.{ext}") }
-            } else { orig_name.clone() }
-        } else { orig_name.clone() };
+                if stem.is_empty() {
+                    orig_name.clone()
+                } else if ext.is_empty() {
+                    stem.to_string()
+                } else {
+                    format!("{stem}.{ext}")
+                }
+            } else {
+                orig_name.clone()
+            }
+        } else {
+            orig_name.clone()
+        };
 
         // Throttle progress to ~12/sec (plus a guaranteed final tick) so the UI
         // isn't flooded with re-renders on a huge import.
         if last_progress.elapsed().as_millis() >= 80 || i + 1 == total {
-            let _ = app.emit("import-progress", ImportProgress {
-                current: i + 1, total, file_name: file_name.clone(),
-            });
+            let _ = app.emit(
+                "import-progress",
+                ImportProgress {
+                    current: i + 1,
+                    total,
+                    file_name: file_name.clone(),
+                },
+            );
             last_progress = Instant::now();
         }
 
@@ -833,12 +986,14 @@ pub(crate) fn run_import(
             let conn = state.0.lock().map_err(|e| e.to_string())?;
             let kind = db::collection_kind(&conn, gid).unwrap_or_default();
             let compatible = match kind.as_str() {
-                "album"    => item.media_type == "image" || item.media_type == "video",
+                "album" => item.media_type == "image" || item.media_type == "video",
                 "playlist" => item.media_type == "audio" || item.media_type == "video",
-                _          => true,
+                _ => true,
             };
             drop(conn);
-            if compatible { item.collection_ids.push(gid.clone()); }
+            if compatible {
+                item.collection_ids.push(gid.clone());
+            }
         }
         item.folder_id = leaf_id.clone();
         chunk.push(item);
@@ -849,7 +1004,13 @@ pub(crate) fn run_import(
     }
     imported += flush_chunk(&state, app, &mut chunk)?; // flush remainder
 
-    tracing::info!(imported, skipped_type, skipped_dupe, failed, "Import complete");
+    tracing::info!(
+        imported,
+        skipped_type,
+        skipped_dupe,
+        failed,
+        "Import complete"
+    );
     if imported > 0 {
         trigger_embed_if_ready(app);
         // Backfill thumbnails for the new items; streams thumb-item events so
@@ -861,7 +1022,17 @@ pub(crate) fn run_import(
         // editor "Save Copy", GIF export, etc.) get automatically.
         let _ = ocr::run_ocr_all(app.clone());
     }
-    if !silent { let _ = app.emit("import-done", ImportDone { imported, skipped_type, skipped_dupe, failed }); }
+    if !silent {
+        let _ = app.emit(
+            "import-done",
+            ImportDone {
+                imported,
+                skipped_type,
+                skipped_dupe,
+                failed,
+            },
+        );
+    }
     Ok(())
 }
 
@@ -873,7 +1044,9 @@ fn flush_chunk(
     app: &tauri::AppHandle,
     chunk: &mut Vec<MediaItem>,
 ) -> Result<usize, String> {
-    if chunk.is_empty() { return Ok(0); }
+    if chunk.is_empty() {
+        return Ok(0);
+    }
     let batch = std::mem::take(chunk);
     let mut inserted: Vec<MediaItem> = Vec::with_capacity(batch.len());
     {
@@ -913,10 +1086,14 @@ fn collect_workspace_root(root: &Path, out: &mut Vec<Discovered>) {
     let mut queue = std::collections::VecDeque::new();
     queue.push_back(root.to_path_buf());
     while let Some(current) = queue.pop_front() {
-        let Ok(entries) = fs::read_dir(&current) else { continue };
+        let Ok(entries) = fs::read_dir(&current) else {
+            continue;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
-            if current == root && path.file_name().and_then(|n| n.to_str()) == Some(workspace::VIVID_SUBDIR) {
+            if current == root
+                && path.file_name().and_then(|n| n.to_str()) == Some(workspace::VIVID_SUBDIR)
+            {
                 continue;
             }
             if path.is_dir() && !is_bundle(&path) {
@@ -926,9 +1103,12 @@ fn collect_workspace_root(root: &Path, out: &mut Vec<Discovered>) {
                     .strip_prefix(root)
                     .ok()
                     .and_then(|rel| rel.parent().map(|p| p.to_path_buf()))
-                    .map(|parent| parent.components()
-                        .filter_map(|c| safe_component(c.as_os_str()))
-                        .collect::<Vec<_>>())
+                    .map(|parent| {
+                        parent
+                            .components()
+                            .filter_map(|c| safe_component(c.as_os_str()))
+                            .collect::<Vec<_>>()
+                    })
                     .unwrap_or_default();
                 out.push(Discovered { src: path, sub });
             }
@@ -956,11 +1136,16 @@ fn ensure_subfolder_from_root(
     let mut parent_id: Option<String> = None;
     let mut rel = String::new();
     for comp in sub {
-        rel = if rel.is_empty() { comp.clone() } else { format!("{rel}/{comp}") };
+        rel = if rel.is_empty() {
+            comp.clone()
+        } else {
+            format!("{rel}/{comp}")
+        };
         let id = match db::folder_id_by_rel_path(conn, &rel).map_err(|e| e.to_string())? {
             Some(id) => id,
             None => {
-                let f = db::create_folder(conn, comp, parent_id.as_deref(), &rel).map_err(|e| e.to_string())?;
+                let f = db::create_folder(conn, comp, parent_id.as_deref(), &rel)
+                    .map_err(|e| e.to_string())?;
                 *any_created = true;
                 f.id
             }
@@ -992,8 +1177,14 @@ fn collect_workspace_root_with_meta(root: &Path, out: &mut Vec<DiscoveredMeta>) 
     let mut plain: Vec<Discovered> = Vec::new();
     collect_workspace_root(root, &mut plain);
     for d in plain {
-        let Ok(meta) = fs::metadata(&d.src) else { continue };
-        out.push(DiscoveredMeta { size: meta.len(), mtime: unix_mtime(&meta), d });
+        let Ok(meta) = fs::metadata(&d.src) else {
+            continue;
+        };
+        out.push(DiscoveredMeta {
+            size: meta.len(),
+            mtime: unix_mtime(&meta),
+            d,
+        });
     }
 }
 
@@ -1020,8 +1211,14 @@ pub struct ReconcileResult {
 /// until it resolves, deliberately not navigating into the library on a
 /// folder that might already be stale.
 pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileResult, String> {
-    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External {
-        return Ok(ReconcileResult { added: 0, removed: 0, modified: 0, skipped_type: 0 });
+    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External
+    {
+        return Ok(ReconcileResult {
+            added: 0,
+            removed: 0,
+            modified: 0,
+            skipped_type: 0,
+        });
     }
 
     let mdir = media_dir(app)?;
@@ -1060,13 +1257,20 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
                         // disagrees — that's a real change.
                         None => {
                             if known.file_size != dm.size as i64 {
-                                if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                                if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime)
+                                    .is_ok()
+                                {
+                                    modified += 1;
+                                }
                             } else {
                                 let _ = db::set_mtime(&conn, &known.id, dm.mtime);
                             }
                         }
                         Some(m) if m != dm.mtime || known.file_size != dm.size as i64 => {
-                            if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime).is_ok() { modified += 1; }
+                            if db::mark_modified(&conn, &known.id, dm.size as i64, dm.mtime).is_ok()
+                            {
+                                modified += 1;
+                            }
                         }
                         Some(_) => {}
                     }
@@ -1107,7 +1311,14 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
         prune_missing_folders(&conn, &mdir).map_err(|e| e.to_string())?
     };
 
-    tracing::info!(added, removed, modified, skipped_type, pruned_folders, "Workspace reconciliation complete");
+    tracing::info!(
+        added,
+        removed,
+        modified,
+        skipped_type,
+        pruned_folders,
+        "Workspace reconciliation complete"
+    );
     if added > 0 || modified > 0 {
         trigger_embed_if_ready(app);
         let _ = generate_thumbnails_all(app.clone());
@@ -1116,7 +1327,12 @@ pub(crate) fn reconcile_workspace(app: &tauri::AppHandle) -> Result<ReconcileRes
     if pruned_folders > 0 {
         let _ = app.emit("folders-changed", ());
     }
-    Ok(ReconcileResult { added, removed, modified, skipped_type })
+    Ok(ReconcileResult {
+        added,
+        removed,
+        modified,
+        skipped_type,
+    })
 }
 
 /// Additive-only self-heal, run for every workspace kind at startup: adopt
@@ -1172,7 +1388,10 @@ pub(crate) fn adopt_orphaned_files(app: &tauri::AppHandle) -> Result<usize, Stri
         return Ok(0);
     }
     let n = candidates.len();
-    tracing::info!(count = n, "Adopting orphaned files with no matching library row");
+    tracing::info!(
+        count = n,
+        "Adopting orphaned files with no matching library row"
+    );
     adopt_files(app, &state, &mdir, candidates)?;
     Ok(n)
 }
@@ -1183,7 +1402,9 @@ pub(crate) fn adopt_orphaned_files(app: &tauri::AppHandle) -> Result<usize, Stri
 /// delete: a `.vividtmp` file is never the real, complete file at its final
 /// path (that's the whole point of the temp-then-rename pattern).
 fn remove_stale_tmp_files(dir: &Path) {
-    let Ok(entries) = fs::read_dir(dir) else { return };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -1202,7 +1423,10 @@ fn remove_stale_tmp_files(dir: &Path) {
 /// while the app wasn't running has no other way to leave the `folders`
 /// table. Returns how many rows were removed. The virtual "Other" bucket
 /// (`db::UNCATEGORIZED_ID`) is never a real row and is skipped.
-fn prune_missing_folders(conn: &rusqlite::Connection, mdir: &Path) -> Result<usize, rusqlite::Error> {
+fn prune_missing_folders(
+    conn: &rusqlite::Connection,
+    mdir: &Path,
+) -> Result<usize, rusqlite::Error> {
     let mut real: Vec<_> = db::list_folders(conn)?
         .into_iter()
         .filter(|f| f.id != db::UNCATEGORIZED_ID)
@@ -1214,7 +1438,10 @@ fn prune_missing_folders(conn: &rusqlite::Connection, mdir: &Path) -> Result<usi
     let mut gone: Vec<String> = Vec::new();
     let mut pruned = 0usize;
     for f in &real {
-        if gone.iter().any(|g| f.rel_path == *g || f.rel_path.starts_with(&format!("{g}/"))) {
+        if gone
+            .iter()
+            .any(|g| f.rel_path == *g || f.rel_path.starts_with(&format!("{g}/")))
+        {
             continue;
         }
         if !mdir.join(&f.rel_path).is_dir() {
@@ -1248,7 +1475,9 @@ fn adopt_files(
     {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         for d in &candidates {
-            if folder_cache.contains_key(&d.sub) { continue; }
+            if folder_cache.contains_key(&d.sub) {
+                continue;
+            }
             let resolved = ensure_subfolder_from_root(&conn, mdir, &d.sub, &mut folders_created)?;
             folder_cache.insert(d.sub.clone(), resolved);
         }
@@ -1266,10 +1495,22 @@ fn adopt_files(
     let mut last_progress = Instant::now();
 
     for (i, d) in candidates.drain(..).enumerate() {
-        let file_name = d.src.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        let file_name = d
+            .src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
 
         if last_progress.elapsed().as_millis() >= 80 || i + 1 == total {
-            let _ = app.emit("import-progress", ImportProgress { current: i + 1, total, file_name: file_name.clone() });
+            let _ = app.emit(
+                "import-progress",
+                ImportProgress {
+                    current: i + 1,
+                    total,
+                    file_name: file_name.clone(),
+                },
+            );
             last_progress = Instant::now();
         }
 
@@ -1292,7 +1533,15 @@ fn adopt_files(
         }
     }
     imported += flush_adopted_chunk(state, app, &mut chunk)?;
-    let _ = app.emit("import-done", ImportDone { imported, skipped_type: 0, skipped_dupe: 0, failed: 0 });
+    let _ = app.emit(
+        "import-done",
+        ImportDone {
+            imported,
+            skipped_type: 0,
+            skipped_dupe: 0,
+            failed: 0,
+        },
+    );
     Ok(imported)
 }
 
@@ -1305,7 +1554,9 @@ fn flush_adopted_chunk(
     app: &tauri::AppHandle,
     chunk: &mut Vec<(MediaItem, i64)>,
 ) -> Result<usize, String> {
-    if chunk.is_empty() { return Ok(0); }
+    if chunk.is_empty() {
+        return Ok(0);
+    }
     let batch = std::mem::take(chunk);
     let mut inserted: Vec<MediaItem> = Vec::with_capacity(batch.len());
     {
@@ -1332,7 +1583,8 @@ fn flush_adopted_chunk(
 /// `reconcile_workspace`, run automatically on open.
 #[tauri::command]
 pub fn scan_workspace(app: tauri::AppHandle) -> Result<(), String> {
-    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External {
+    if app.state::<workspace::WorkspaceState>().workspace.kind != workspace::WorkspaceKind::External
+    {
         return Ok(());
     }
     std::thread::spawn(move || {
@@ -1387,7 +1639,11 @@ mod workspace_scan_tests {
     fn vivid_subdir_at_root_is_skipped() {
         let dir = tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join(workspace::VIVID_SUBDIR)).unwrap();
-        std::fs::write(dir.path().join(workspace::VIVID_SUBDIR).join("vivid.db"), b"").unwrap();
+        std::fs::write(
+            dir.path().join(workspace::VIVID_SUBDIR).join("vivid.db"),
+            b"",
+        )
+        .unwrap();
         std::fs::write(dir.path().join("a.jpg"), b"").unwrap();
 
         let mut out = Vec::new();
@@ -1428,7 +1684,8 @@ mod workspace_scan_tests {
     fn empty_sub_resolves_to_no_folder() {
         let conn = open_db();
         let mut created = false;
-        let (folder_id, dir) = ensure_subfolder_from_root(&conn, Path::new("/root"), &[], &mut created).unwrap();
+        let (folder_id, dir) =
+            ensure_subfolder_from_root(&conn, Path::new("/root"), &[], &mut created).unwrap();
         assert!(folder_id.is_none());
         assert_eq!(dir, PathBuf::from("/root"));
         assert!(!created);
@@ -1439,7 +1696,8 @@ mod workspace_scan_tests {
         let conn = open_db();
         let mut created = false;
         let sub = vec!["Trip".to_string(), "Beach".to_string()];
-        let (folder_id, dir) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
+        let (folder_id, dir) =
+            ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
 
         assert!(created);
         let folder_id = folder_id.unwrap();
@@ -1456,13 +1714,19 @@ mod workspace_scan_tests {
         let conn = open_db();
         let mut created = false;
         let sub = vec!["Trip".to_string()];
-        let (first_id, _) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
+        let (first_id, _) =
+            ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created).unwrap();
 
         let mut created_again = false;
-        let (second_id, _) = ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created_again).unwrap();
+        let (second_id, _) =
+            ensure_subfolder_from_root(&conn, Path::new("/root"), &sub, &mut created_again)
+                .unwrap();
 
         assert_eq!(first_id, second_id);
-        assert!(!created_again, "second call should reuse the existing folder row");
+        assert!(
+            !created_again,
+            "second call should reuse the existing folder row"
+        );
     }
 
     // ── prune_missing_folders ────────────────────────────────────────────
@@ -1476,7 +1740,10 @@ mod workspace_scan_tests {
         // outside Vivid while the app wasn't running.
         let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
         assert_eq!(pruned, 1);
-        assert!(db::list_folders(&conn).unwrap().iter().all(|f| f.rel_path != "Trip"));
+        assert!(db::list_folders(&conn)
+            .unwrap()
+            .iter()
+            .all(|f| f.rel_path != "Trip"));
     }
 
     #[test]
@@ -1488,7 +1755,10 @@ mod workspace_scan_tests {
 
         let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
         assert_eq!(pruned, 0);
-        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.rel_path == "Trip"));
+        assert!(db::list_folders(&conn)
+            .unwrap()
+            .iter()
+            .any(|f| f.rel_path == "Trip"));
     }
 
     #[test]
@@ -1502,8 +1772,14 @@ mod workspace_scan_tests {
         db::create_folder(&conn, "Beach", Some(&trip.id), "Trip/Beach").unwrap();
 
         let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
-        assert_eq!(pruned, 1, "parent's subtree delete covers the child in one pass");
-        assert!(db::list_folders(&conn).unwrap().iter().all(|f| !f.rel_path.starts_with("Trip")));
+        assert_eq!(
+            pruned, 1,
+            "parent's subtree delete covers the child in one pass"
+        );
+        assert!(db::list_folders(&conn)
+            .unwrap()
+            .iter()
+            .all(|f| !f.rel_path.starts_with("Trip")));
     }
 
     #[test]
@@ -1512,7 +1788,10 @@ mod workspace_scan_tests {
         let dir = tempdir().unwrap();
         let pruned = prune_missing_folders(&conn, dir.path()).unwrap();
         assert_eq!(pruned, 0);
-        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.id == db::UNCATEGORIZED_ID));
+        assert!(db::list_folders(&conn)
+            .unwrap()
+            .iter()
+            .any(|f| f.id == db::UNCATEGORIZED_ID));
     }
 
     #[test]
@@ -1530,8 +1809,14 @@ mod workspace_scan_tests {
 
         // `dir` never had "Trip" created in it, so the folder looks missing.
         let result = prune_missing_folders(&conn, dir.path());
-        assert!(result.is_err(), "delete should be rejected while an item still references the folder");
-        assert!(db::list_folders(&conn).unwrap().iter().any(|f| f.rel_path == "Trip"));
+        assert!(
+            result.is_err(),
+            "delete should be rejected while an item still references the folder"
+        );
+        assert!(db::list_folders(&conn)
+            .unwrap()
+            .iter()
+            .any(|f| f.rel_path == "Trip"));
     }
 
     fn item_in(id: &str, file_path: &str, folder_id: Option<&str>) -> MediaItem {
@@ -1577,15 +1862,20 @@ pub fn add_to_collection(
     let item = db::fetch_one(&conn, &id).map_err(|e| e.to_string())?;
     let kind = db::collection_kind(&conn, &collection_id).map_err(|e| e.to_string())?;
     if kind == "album_group" {
-        return Err("INCOMPATIBLE_COLLECTION: album groups can only contain other albums, not files".into());
+        return Err(
+            "INCOMPATIBLE_COLLECTION: album groups can only contain other albums, not files".into(),
+        );
     }
     let compatible = match kind.as_str() {
-        "album"    => item.media_type == "image" || item.media_type == "video",
+        "album" => item.media_type == "image" || item.media_type == "video",
         "playlist" => item.media_type == "audio" || item.media_type == "video",
-        _          => true,
+        _ => true,
     };
     if !compatible {
-        return Err(format!("INCOMPATIBLE_COLLECTION: {} cannot be added to a {} collection", item.media_type, kind));
+        return Err(format!(
+            "INCOMPATIBLE_COLLECTION: {} cannot be added to a {} collection",
+            item.media_type, kind
+        ));
     }
     db::add_to_collection(&conn, &id, &collection_id).map_err(|e| e.to_string())?;
     db::fetch_one(&conn, &id).map_err(|e| e.to_string())
@@ -1646,19 +1936,27 @@ pub fn empty_trash(app: tauri::AppHandle, state: State<DbState>) -> Result<(), S
     let paths = db::empty_trash(&conn).map_err(|e| e.to_string())?;
     for p in paths {
         let path = PathBuf::from(&p);
-        if path.starts_with(&mdir) { let _ = fs::remove_file(&path); }
+        if path.starts_with(&mdir) {
+            let _ = fs::remove_file(&path);
+        }
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn purge_old_trash(days: i64, app: tauri::AppHandle, state: State<DbState>) -> Result<(), String> {
+pub fn purge_old_trash(
+    days: i64,
+    app: tauri::AppHandle,
+    state: State<DbState>,
+) -> Result<(), String> {
     let mdir = media_dir(&app)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let paths = db::purge_old_trash(&conn, days).map_err(|e| e.to_string())?;
     for p in paths {
         let path = PathBuf::from(&p);
-        if path.starts_with(&mdir) { let _ = fs::remove_file(&path); }
+        if path.starts_with(&mdir) {
+            let _ = fs::remove_file(&path);
+        }
     }
     Ok(())
 }
@@ -1718,7 +2016,11 @@ pub fn set_collection_parent(
 }
 
 #[tauri::command]
-pub fn rename_collection(id: String, name: String, state: State<DbState>) -> Result<Collection, String> {
+pub fn rename_collection(
+    id: String,
+    name: String,
+    state: State<DbState>,
+) -> Result<Collection, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let kind = db::collection_kind(&conn, &id).map_err(|e| e.to_string())?;
     if db::collection_name_taken(&conn, &name, &kind, Some(&id)).map_err(|e| e.to_string())? {
@@ -1728,7 +2030,11 @@ pub fn rename_collection(id: String, name: String, state: State<DbState>) -> Res
 }
 
 #[tauri::command]
-pub fn pin_collection(id: String, pinned: bool, state: State<DbState>) -> Result<Collection, String> {
+pub fn pin_collection(
+    id: String,
+    pinned: bool,
+    state: State<DbState>,
+) -> Result<Collection, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::pin_collection(&conn, &id, pinned).map_err(|e| e.to_string())
 }
@@ -1741,12 +2047,19 @@ pub fn set_collection_description(
 ) -> Result<Collection, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     // Treat blank input as "no description" so the column stays NULL rather than "".
-    let desc = description.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let desc = description
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     db::set_collection_description(&conn, &id, desc).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn set_sidebar_pin(id: String, pinned: bool, state: State<'_, DbState>) -> Result<Collection, String> {
+pub fn set_sidebar_pin(
+    id: String,
+    pinned: bool,
+    state: State<'_, DbState>,
+) -> Result<Collection, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::set_sidebar_pin(&conn, &id, pinned).map_err(|e| e.to_string())
 }
@@ -1758,7 +2071,8 @@ pub fn set_collection_cover(
     state: State<DbState>,
 ) -> Result<Collection, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    db::set_collection_cover(&conn, &collection_id, cover_item_id.as_deref()).map_err(|e| e.to_string())
+    db::set_collection_cover(&conn, &collection_id, cover_item_id.as_deref())
+        .map_err(|e| e.to_string())
 }
 
 // ── System integration ────────────────────────────────────────────────────────
@@ -1812,7 +2126,8 @@ pub fn capture_screenshot(
     let mdir = media_dir(&app)?;
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs()).unwrap_or(0);
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let tmp = format!("/tmp/vivid_screenshot_{ts}.png");
 
     let output = std::process::Command::new("screencapture")
@@ -1892,7 +2207,7 @@ pub fn get_media_metadata(file_path: String) -> Result<ExifMetadata, String> {
     let effective_path: &Path = effective_path_buf.as_deref().unwrap_or(path);
 
     if let Ok((w, h)) = image::image_dimensions(effective_path) {
-        meta.width  = Some(w);
+        meta.width = Some(w);
         meta.height = Some(h);
     }
 
@@ -1908,20 +2223,19 @@ pub fn get_media_metadata(file_path: String) -> Result<ExifMetadata, String> {
             .map(|f| f.display_value().to_string().trim_matches('"').to_string())
     };
 
-    meta.camera_make  = str_field(exif::Tag::Make);
+    meta.camera_make = str_field(exif::Tag::Make);
     meta.camera_model = str_field(exif::Tag::Model);
-    meta.lens_model   = str_field(exif::Tag::LensModel)
-        .or_else(|| str_field(exif::Tag::LensMake));
-    meta.software     = str_field(exif::Tag::Software);
-    meta.color_space  = str_field(exif::Tag::ColorSpace);
-    meta.flash        = str_field(exif::Tag::Flash);
+    meta.lens_model = str_field(exif::Tag::LensModel).or_else(|| str_field(exif::Tag::LensMake));
+    meta.software = str_field(exif::Tag::Software);
+    meta.color_space = str_field(exif::Tag::ColorSpace);
+    meta.flash = str_field(exif::Tag::Flash);
 
     if let Some(f) = exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY) {
         meta.orientation = Some(f.display_value().to_string());
     }
 
-    meta.date_taken = str_field(exif::Tag::DateTimeOriginal)
-        .or_else(|| str_field(exif::Tag::DateTime));
+    meta.date_taken =
+        str_field(exif::Tag::DateTimeOriginal).or_else(|| str_field(exif::Tag::DateTime));
 
     if let Some(f) = exif.get_field(exif::Tag::FocalLength, exif::In::PRIMARY) {
         if let exif::Value::Rational(ref v) = f.value {
@@ -1961,7 +2275,7 @@ pub fn get_media_metadata(file_path: String) -> Result<ExifMetadata, String> {
         }
     }
 
-    meta.gps_latitude  = parse_gps(&exif, exif::Tag::GPSLatitude,  exif::Tag::GPSLatitudeRef);
+    meta.gps_latitude = parse_gps(&exif, exif::Tag::GPSLatitude, exif::Tag::GPSLatitudeRef);
     meta.gps_longitude = parse_gps(&exif, exif::Tag::GPSLongitude, exif::Tag::GPSLongitudeRef);
 
     Ok(meta)
@@ -1969,10 +2283,12 @@ pub fn get_media_metadata(file_path: String) -> Result<ExifMetadata, String> {
 
 fn parse_gps(exif: &exif::Exif, coord_tag: exif::Tag, ref_tag: exif::Tag) -> Option<f64> {
     let coord_field = exif.get_field(coord_tag, exif::In::PRIMARY)?;
-    let ref_field   = exif.get_field(ref_tag,   exif::In::PRIMARY)?;
+    let ref_field = exif.get_field(ref_tag, exif::In::PRIMARY)?;
 
     let decimal = if let exif::Value::Rational(ref v) = coord_field.value {
-        if v.len() < 3 { return None; }
+        if v.len() < 3 {
+            return None;
+        }
         let deg = v[0].num as f64 / v[0].denom.max(1) as f64;
         let min = v[1].num as f64 / v[1].denom.max(1) as f64;
         let sec = v[2].num as f64 / v[2].denom.max(1) as f64;
@@ -1982,19 +2298,26 @@ fn parse_gps(exif: &exif::Exif, coord_tag: exif::Tag, ref_tag: exif::Tag) -> Opt
     };
 
     let ref_char = match &ref_field.value {
-        exif::Value::Ascii(vec) => {
-            vec.first()
-                .and_then(|bytes| bytes.iter().find(|&&b| b != 0))
-                .copied()
-                .map(|b| b as char)
-        }
+        exif::Value::Ascii(vec) => vec
+            .first()
+            .and_then(|bytes| bytes.iter().find(|&&b| b != 0))
+            .copied()
+            .map(|b| b as char),
         _ => {
             let s = ref_field.display_value().to_string();
-            if s.contains('S') || s.contains('W') { Some('S') } else { Some('N') }
+            if s.contains('S') || s.contains('W') {
+                Some('S')
+            } else {
+                Some('N')
+            }
         }
     }?;
 
-    Some(if ref_char == 'S' || ref_char == 'W' { -decimal } else { decimal })
+    Some(if ref_char == 'S' || ref_char == 'W' {
+        -decimal
+    } else {
+        decimal
+    })
 }
 
 fn extract_gps_coords(path: &Path) -> Result<(Option<f64>, Option<f64>), String> {
@@ -2004,7 +2327,7 @@ fn extract_gps_coords(path: &Path) -> Result<(Option<f64>, Option<f64>), String>
         Ok(e) => e,
         Err(_) => return Ok((None, None)),
     };
-    let lat = parse_gps(&exif, exif::Tag::GPSLatitude,  exif::Tag::GPSLatitudeRef);
+    let lat = parse_gps(&exif, exif::Tag::GPSLatitude, exif::Tag::GPSLatitudeRef);
     let lng = parse_gps(&exif, exif::Tag::GPSLongitude, exif::Tag::GPSLongitudeRef);
     Ok((lat, lng))
 }
@@ -2030,7 +2353,11 @@ pub fn set_color_label(
 /// pre-validate the whole batch doesn't collide with itself first — this
 /// only catches collisions against what's already on disk when it runs.
 #[tauri::command]
-pub fn rename_file(id: String, new_stem: String, state: State<DbState>) -> Result<MediaItem, String> {
+pub fn rename_file(
+    id: String,
+    new_stem: String,
+    state: State<DbState>,
+) -> Result<MediaItem, String> {
     let stem = new_stem.trim();
     if stem.is_empty() {
         return Err("File name can't be empty".into());
@@ -2091,17 +2418,24 @@ pub fn update_audio_meta(
 ) -> Result<MediaItem, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     db::update_audio_meta(
-        &conn, &id,
-        artist.as_deref(), album.as_deref(), title.as_deref(),
-        year, track,
-    ).map_err(|e| e.to_string())
+        &conn,
+        &id,
+        artist.as_deref(),
+        album.as_deref(),
+        title.as_deref(),
+        year,
+        track,
+    )
+    .map_err(|e| e.to_string())
 }
 
 // ── Duplicate detection ───────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
-    use super::{copy_file_durably, normalize_abs, remove_stale_tmp_files, unique_path, write_bytes_durably};
+    use super::{
+        copy_file_durably, normalize_abs, remove_stale_tmp_files, unique_path, write_bytes_durably,
+    };
     use std::path::{Path, PathBuf};
     use tempfile::tempdir;
 
@@ -2180,7 +2514,10 @@ mod tests {
 
     #[test]
     fn normalize_resolves_dot_and_parent() {
-        assert_eq!(normalize_abs(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
+        assert_eq!(
+            normalize_abs(Path::new("/a/b/../c/./d")),
+            PathBuf::from("/a/c/d")
+        );
     }
 
     #[test]
@@ -2202,7 +2539,7 @@ mod tests {
     #[test]
     fn unique_path_multiple_conflicts() {
         let dir = tempdir().unwrap();
-        std::fs::write(dir.path().join("photo.jpg"),   b"").unwrap();
+        std::fs::write(dir.path().join("photo.jpg"), b"").unwrap();
         std::fs::write(dir.path().join("photo_2.jpg"), b"").unwrap();
         std::fs::write(dir.path().join("photo_3.jpg"), b"").unwrap();
 
@@ -2263,10 +2600,8 @@ pub fn find_duplicates(state: State<DbState>) -> Result<Vec<Vec<MediaItem>>, Str
         }
     }
 
-    let mut collections: Vec<Vec<MediaItem>> = by_hash
-        .into_values()
-        .filter(|g| g.len() > 1)
-        .collect();
+    let mut collections: Vec<Vec<MediaItem>> =
+        by_hash.into_values().filter(|g| g.len() > 1).collect();
     collections.sort_by_key(|b| std::cmp::Reverse(b.len()));
     Ok(collections)
 }
@@ -2274,7 +2609,10 @@ pub fn find_duplicates(state: State<DbState>) -> Result<Vec<Vec<MediaItem>>, Str
 #[tauri::command]
 pub fn get_log_content() -> Result<String, String> {
     let home = std::env::var("HOME").map_err(|e| e.to_string())?;
-    let log_dir = PathBuf::from(home).join("Library").join("Logs").join("Vivid");
+    let log_dir = PathBuf::from(home)
+        .join("Library")
+        .join("Logs")
+        .join("Vivid");
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let log_path = log_dir.join(format!("vivid.log.{}", today));
     fs::read_to_string(&log_path).map_err(|e| format!("{}: {}", log_path.display(), e))

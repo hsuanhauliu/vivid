@@ -111,7 +111,10 @@ impl SiglipClip {
 
     /// Encode text → L2-normalised embedding.
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>> {
-        let enc = self.tokenizer.encode(text, true).map_err(|e| anyhow!("{e}"))?;
+        let enc = self
+            .tokenizer
+            .encode(text, true)
+            .map_err(|e| anyhow!("{e}"))?;
         let mut ids: Vec<u32> = enc.get_ids().to_vec();
         ids.truncate(MAX_TOKENS);
         ids.resize(MAX_TOKENS, PAD_TOKEN_ID);
@@ -129,7 +132,8 @@ impl SiglipClip {
             Ok(img) => img,
             Err(_) if heic_path.is_none() => {
                 let tmp = sips_to_jpeg(path)?;
-                let loaded = image::open(&tmp).map_err(|e| anyhow!("Cannot open {:?}: {}", path, e));
+                let loaded =
+                    image::open(&tmp).map_err(|e| anyhow!("Cannot open {:?}: {}", path, e));
                 let _ = std::fs::remove_file(&tmp);
                 loaded?
             }
@@ -139,8 +143,12 @@ impl SiglipClip {
             let _ = std::fs::remove_file(tmp);
         }
         self.embed_rgb8(
-            &img.resize_exact(IMAGE_SIZE as u32, IMAGE_SIZE as u32, image::imageops::FilterType::CatmullRom)
-                .to_rgb8(),
+            &img.resize_exact(
+                IMAGE_SIZE as u32,
+                IMAGE_SIZE as u32,
+                image::imageops::FilterType::CatmullRom,
+            )
+            .to_rgb8(),
         )
     }
 
@@ -210,9 +218,15 @@ impl SiglipClip {
     }
 
     fn compute_tag_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        TAG_VOCAB.iter().map(|tag| self.embed_text(&format!("a photo of {tag}"))).collect()
+        TAG_VOCAB
+            .iter()
+            .map(|tag| self.embed_text(&format!("a photo of {tag}")))
+            .collect()
     }
     fn compute_mood_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        MOOD_VOCAB.iter().map(|(_, prompt)| self.embed_text(prompt)).collect()
+        MOOD_VOCAB
+            .iter()
+            .map(|(_, prompt)| self.embed_text(prompt))
+            .collect()
     }
 }

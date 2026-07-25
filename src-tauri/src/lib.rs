@@ -39,7 +39,9 @@ fn initialize_workspace(
     use tauri::Manager;
 
     let paths = workspace::WorkspacePaths::resolve(&workspace, data_dir);
-    paths.ensure_dirs(workspace.kind).map_err(|e| e.to_string())?;
+    paths
+        .ensure_dirs(workspace.kind)
+        .map_err(|e| e.to_string())?;
     tracing::info!(
         workspace = %workspace.name,
         kind = ?workspace.kind,
@@ -55,7 +57,10 @@ fn initialize_workspace(
     // `convertFileSrc`. `.vivid/` derived data living inside it is covered
     // too since this grant is recursive.
     if workspace.kind == workspace::WorkspaceKind::External {
-        if let Err(e) = app.asset_protocol_scope().allow_directory(&paths.media_dir, true) {
+        if let Err(e) = app
+            .asset_protocol_scope()
+            .allow_directory(&paths.media_dir, true)
+        {
             tracing::warn!(error = %e, "grant asset-protocol scope for workspace root");
         }
     }
@@ -72,7 +77,8 @@ fn initialize_workspace(
 
     app.manage(ClipState(Arc::new(Mutex::new(ClipInner {
         emb_index: Arc::new(std::sync::RwLock::new(crate::emb_index::EmbIndex::default())),
-        multilingual: None, multilingual_loading: false,
+        multilingual: None,
+        multilingual_loading: false,
     }))));
 
     // An external workspace's folder can have changed while Vivid wasn't
@@ -124,13 +130,17 @@ pub(crate) fn rebuild_workspace_menu(app: &tauri::AppHandle) {
     use tauri::menu::{Menu, SubmenuBuilder};
     use tauri::Manager;
 
-    let Ok(data_dir) = app.path().app_data_dir() else { return };
+    let Ok(data_dir) = app.path().app_data_dir() else {
+        return;
+    };
     let registry = workspace::load(&data_dir);
     // The registry's `active_id` may point at a pending, not-yet-applied
     // switch (see `list_workspaces`) — what's actually running right now is
     // `WorkspaceState`, which may not even be managed yet during the
     // deferred-loading window before the startup picker resolves.
-    let running_id = app.try_state::<workspace::WorkspaceState>().map(|s| s.workspace.id.clone());
+    let running_id = app
+        .try_state::<workspace::WorkspaceState>()
+        .map(|s| s.workspace.id.clone());
 
     let Ok(menu) = Menu::default(app) else { return };
 
@@ -143,14 +153,18 @@ pub(crate) fn rebuild_workspace_menu(app: &tauri::AppHandle) {
         };
         switch_builder = switch_builder.text(format!("switch-workspace:{}", w.id), label);
     }
-    let Ok(switch_submenu) = switch_builder.build() else { return };
+    let Ok(switch_submenu) = switch_builder.build() else {
+        return;
+    };
 
     let Ok(workspace_menu) = SubmenuBuilder::new(app, "Workspace")
         .item(&switch_submenu)
         .separator()
         .text("add-workspace", "New Workspace…")
         .build()
-    else { return };
+    else {
+        return;
+    };
 
     // Position 1: right after the app-name menu, before File.
     if menu.insert(&workspace_menu, 1).is_ok() {

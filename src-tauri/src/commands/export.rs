@@ -83,7 +83,8 @@ pub fn set_desktop_wallpaper(file_path: String) -> Result<(), String> {
 pub fn export_as(src_path: String, dest_path: String, is_image: bool) -> Result<(), String> {
     if is_image {
         let img = image::open(&src_path).map_err(|e| format!("Cannot open image: {e}"))?;
-        img.save(&dest_path).map_err(|e| format!("Cannot save image: {e}"))?;
+        img.save(&dest_path)
+            .map_err(|e| format!("Cannot save image: {e}"))?;
     } else {
         fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
     }
@@ -95,12 +96,15 @@ pub fn export_as(src_path: String, dest_path: String, is_image: bool) -> Result<
 pub fn export_stripped(src_path: String, dest_path: String) -> Result<(), String> {
     use crate::clip::heif_to_jpeg_if_needed;
     let src = std::path::PathBuf::from(&src_path);
-    let effective = heif_to_jpeg_if_needed(&src).ok().flatten().unwrap_or_else(|| src.clone());
+    let effective = heif_to_jpeg_if_needed(&src)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| src.clone());
     let img = image::open(&effective).map_err(|e| format!("Cannot open image: {e}"))?;
-    img.save(&dest_path).map_err(|e| format!("Cannot save stripped image: {e}"))?;
+    img.save(&dest_path)
+        .map_err(|e| format!("Cannot save stripped image: {e}"))?;
     Ok(())
 }
-
 
 /// Copy a file to the macOS clipboard.
 /// For images: writes actual image data (TIFF/JPEG/PNG) via NSPasteboard so
@@ -156,19 +160,32 @@ pub fn transform_image(
     use crate::clip::{apply_exif_orientation, exif_orientation, heif_to_jpeg_if_needed};
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("jpg").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jpg")
+        .to_lowercase();
     if orig_ext == "gif" {
-        return Err("GIFs can't be edited — this would flatten the animation to a single frame".into());
+        return Err(
+            "GIFs can't be edited — this would flatten the animation to a single frame".into(),
+        );
     }
     let is_heic = orig_ext == "heic" || orig_ext == "heif";
 
     // The image crate has no HEIC decoder — convert to a temp JPEG first.
     let heic_tmp = heif_to_jpeg_if_needed(src_path).map_err(|e| e.to_string())?;
-    let cleanup = |t: &Option<std::path::PathBuf>| { if let Some(p) = t { let _ = fs::remove_file(p); } };
+    let cleanup = |t: &Option<std::path::PathBuf>| {
+        if let Some(p) = t {
+            let _ = fs::remove_file(p);
+        }
+    };
     let decode_path: &Path = heic_tmp.as_deref().unwrap_or(src_path);
     let img = match image::open(decode_path).map_err(|e| format!("Cannot open image: {e}")) {
         Ok(i) => i,
-        Err(e) => { cleanup(&heic_tmp); return Err(e); }
+        Err(e) => {
+            cleanup(&heic_tmp);
+            return Err(e);
+        }
     };
     // The `image` crate ignores EXIF orientation, but browsers/OS viewers (and
     // this app's own editor preview) auto-rotate per that same tag — without
@@ -182,14 +199,20 @@ pub fn transform_image(
     let img = apply_exif_orientation(img, exif_orientation(decode_path));
 
     let result: image::DynamicImage = if let Some(args) = operation.strip_prefix("resize:") {
-        let parts: Vec<u32> = args.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        let parts: Vec<u32> = args
+            .split(',')
+            .filter_map(|s| s.trim().parse().ok())
+            .collect();
         if parts.len() != 2 {
             cleanup(&heic_tmp);
             return Err("resize requires w,h".into());
         }
         img.resize_exact(parts[0], parts[1], image::imageops::FilterType::Lanczos3)
     } else if let Some(args) = operation.strip_prefix("crop:") {
-        let parts: Vec<u32> = args.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        let parts: Vec<u32> = args
+            .split(',')
+            .filter_map(|s| s.trim().parse().ok())
+            .collect();
         if parts.len() != 4 {
             cleanup(&heic_tmp);
             return Err("crop requires x,y,w,h".into());
@@ -202,11 +225,11 @@ pub fn transform_image(
         img.crop_imm(x, y, w, h)
     } else {
         match operation.as_str() {
-            "rotate90"  => img.rotate90(),
+            "rotate90" => img.rotate90(),
             "rotate180" => img.rotate180(),
             "rotate270" => img.rotate270(),
-            "flip_h"    => img.fliph(),
-            "flip_v"    => img.flipv(),
+            "flip_h" => img.fliph(),
+            "flip_v" => img.flipv(),
             other => {
                 cleanup(&heic_tmp);
                 return Err(format!("Unknown operation: {other}"));
@@ -218,9 +241,14 @@ pub fn transform_image(
     let out_ext = if is_heic { "jpg" } else { orig_ext.as_str() };
 
     if save_mode == "copy" {
-        let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let stem = src_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image");
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_edited.{out_ext}"));
-        let saved = result.save(&dest).map_err(|e| format!("Cannot save copy: {e}"));
+        let saved = result
+            .save(&dest)
+            .map_err(|e| format!("Cannot save copy: {e}"));
         cleanup(&heic_tmp);
         saved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
@@ -230,20 +258,31 @@ pub fn transform_image(
     } else if is_heic {
         // Overwrite: re-encode to a sibling JPEG, repoint the row, drop the .heic.
         let parent = src_path.parent().unwrap_or_else(|| Path::new("."));
-        let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let stem = src_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image");
         let dest = unique_path(parent, &format!("{stem}.jpg"));
-        let saved = result.save(&dest).map_err(|e| format!("Cannot save image: {e}"));
+        let saved = result
+            .save(&dest)
+            .map_err(|e| format!("Cannot save image: {e}"));
         cleanup(&heic_tmp);
         saved?;
         let _ = fs::remove_file(&file_path);
-        let new_name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("image.jpg").to_string();
+        let new_name = dest
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("image.jpg")
+            .to_string();
         let new_size = fs::metadata(&dest).map(|m| m.len() as i64).unwrap_or(0);
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let updated = db::repoint_file(&conn, &id, &dest.to_string_lossy(), &new_name, new_size)
             .map_err(|e| e.to_string())?;
         Ok(Some(updated))
     } else {
-        let saved = result.save(&file_path).map_err(|e| format!("Cannot save image: {e}"));
+        let saved = result
+            .save(&file_path)
+            .map_err(|e| format!("Cannot save image: {e}"));
         cleanup(&heic_tmp);
         saved?;
         // Multi-op edits chain several `transform_image` calls onto the same
@@ -261,15 +300,15 @@ pub fn transform_image(
 
 /// Copy a list of files to a destination folder.
 #[tauri::command]
-pub fn export_files_to_folder(
-    file_paths: Vec<String>,
-    dest_folder: String,
-) -> Result<(), String> {
+pub fn export_files_to_folder(file_paths: Vec<String>, dest_folder: String) -> Result<(), String> {
     let dest = Path::new(&dest_folder);
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let fname = src.file_name().and_then(|n| n.to_str()).ok_or("Invalid file path")?;
+        let fname = src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or("Invalid file path")?;
         let dest_path = unique_path(dest, fname);
         fs::copy(src, &dest_path).map_err(|e| format!("Copy failed for {src_str}: {e}"))?;
     }
@@ -281,16 +320,14 @@ pub fn export_files_to_folder(
 /// deflate them wastes CPU and often makes the archive *larger*. Files are streamed
 /// in 64 KB chunks so large videos never load into memory all at once.
 #[tauri::command]
-pub fn export_files_as_zip(
-    file_paths: Vec<String>,
-    dest_path: String,
-) -> Result<(), String> {
+pub fn export_files_as_zip(file_paths: Vec<String>, dest_path: String) -> Result<(), String> {
     fn compression_for(ext: &str) -> zip::CompressionMethod {
         match ext.to_lowercase().as_str() {
             // Already-compressed formats — store as-is
-            "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif"
-            | "mp4" | "mov" | "avi" | "mkv" | "webm" | "m4v"
-            | "mp3" | "m4a" | "aac" | "flac" | "ogg" | "opus" => zip::CompressionMethod::Stored,
+            "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif" | "mp4" | "mov"
+            | "avi" | "mkv" | "webm" | "m4v" | "mp3" | "m4a" | "aac" | "flac" | "ogg" | "opus" => {
+                zip::CompressionMethod::Stored
+            }
             // Everything else (text files, raw, etc.) can benefit from deflate
             _ => zip::CompressionMethod::Deflated,
         }
@@ -302,8 +339,11 @@ pub fn export_files_as_zip(
 
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let base_name = src.file_name()
-            .and_then(|n| n.to_str()).unwrap_or("file").to_string();
+        let base_name = src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
 
         let archive_name = {
             let count = used_names.entry(base_name.clone()).or_insert(0);
@@ -311,8 +351,14 @@ pub fn export_files_as_zip(
                 *count += 1;
                 base_name.clone()
             } else {
-                let stem = Path::new(&base_name).file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-                let ext  = Path::new(&base_name).extension().and_then(|e| e.to_str()).unwrap_or("");
+                let stem = Path::new(&base_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("file");
+                let ext = Path::new(&base_name)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
                 let name = if ext.is_empty() {
                     format!("{stem}_{count}")
                 } else {
@@ -324,14 +370,15 @@ pub fn export_files_as_zip(
         };
 
         let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-        let options: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default()
-            .compression_method(compression_for(ext));
+        let options: zip::write::FileOptions<'_, ()> =
+            zip::write::FileOptions::default().compression_method(compression_for(ext));
 
-        zip.start_file(&archive_name, options).map_err(|e| e.to_string())?;
+        zip.start_file(&archive_name, options)
+            .map_err(|e| e.to_string())?;
 
         // Stream the file in 64 KB chunks — never loads a whole video into RAM.
-        let mut src_file = fs::File::open(src)
-            .map_err(|e| format!("Open failed for {src_str}: {e}"))?;
+        let mut src_file =
+            fs::File::open(src).map_err(|e| format!("Open failed for {src_str}: {e}"))?;
         io::copy(&mut src_file, &mut zip)
             .map_err(|e| format!("Write failed for {src_str}: {e}"))?;
     }
@@ -354,7 +401,11 @@ pub fn export_files_as_zip(
 #[tauri::command]
 pub fn get_displayable_path(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
     if ext != "heic" && ext != "heif" {
         return Ok(file_path);
@@ -388,7 +439,11 @@ const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 #[tauri::command]
 pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
     if !UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str()) {
         return Ok(file_path);
@@ -422,12 +477,14 @@ pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
 /// Runs on the main thread inside the app process so no ghost window appears.
 #[tauri::command]
 pub fn share_files(app: tauri::AppHandle, file_paths: Vec<String>) -> Result<(), String> {
-    if file_paths.is_empty() { return Ok(()); }
+    if file_paths.is_empty() {
+        return Ok(());
+    }
 
     #[cfg(target_os = "macos")]
     {
-        use objc2::runtime::AnyObject;
         use objc2::msg_send;
+        use objc2::runtime::AnyObject;
 
         // Thin Send wrapper around a raw ObjC pointer so we can ship it to the main thread.
         struct RawPtr(*mut AnyObject);
@@ -520,7 +577,10 @@ set pb to current application's NSPasteboard's generalPasteboard()
 pb's clearContents()
 pb's writeObjects_({{theImage}})"#
     );
-    let out = std::process::Command::new("osascript").arg("-e").arg(&script).output();
+    let out = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output();
     let _ = fs::remove_file(&tmp);
     let out = out.map_err(|e| e.to_string())?;
     if !out.status.success() {
@@ -568,11 +628,19 @@ pub async fn trim_video(
     }
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
+    let stem = src_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("video")
+        .to_string();
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -602,7 +670,11 @@ pub async fn trim_video(
     if save_mode == "copy" {
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_trimmed.mp4"));
         let moved = fs::rename(&tmp_out, &dest)
-            .or_else(|_| fs::copy(&tmp_out, &dest).map(|_| ()).and_then(|_| fs::remove_file(&tmp_out)))
+            .or_else(|_| {
+                fs::copy(&tmp_out, &dest)
+                    .map(|_| ())
+                    .and_then(|_| fs::remove_file(&tmp_out))
+            })
             .map_err(|e| e.to_string());
         moved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
@@ -613,11 +685,19 @@ pub async fn trim_video(
         let parent = src_path.parent().unwrap_or_else(|| Path::new("."));
         let dest = unique_path(parent, &format!("{stem}_trimmed.mp4"));
         let moved = fs::rename(&tmp_out, &dest)
-            .or_else(|_| fs::copy(&tmp_out, &dest).map(|_| ()).and_then(|_| fs::remove_file(&tmp_out)))
+            .or_else(|_| {
+                fs::copy(&tmp_out, &dest)
+                    .map(|_| ())
+                    .and_then(|_| fs::remove_file(&tmp_out))
+            })
             .map_err(|e| e.to_string());
         moved?;
         let _ = fs::remove_file(&file_path);
-        let new_name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("video.mp4").to_string();
+        let new_name = dest
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("video.mp4")
+            .to_string();
         let new_size = fs::metadata(&dest).map(|m| m.len() as i64).unwrap_or(0);
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let updated = db::repoint_file(&conn, &id, &dest.to_string_lossy(), &new_name, new_size)
@@ -650,11 +730,19 @@ pub async fn export_video_gif(
     }
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video").to_string();
+    let stem = src_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("video")
+        .to_string();
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
     let helper = super::helper_path(&app);
@@ -680,5 +768,3 @@ pub async fn export_video_gif(
     insert_imported(&conn, &mut item, &app)?;
     Ok(item)
 }
-
-

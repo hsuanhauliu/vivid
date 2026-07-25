@@ -12,19 +12,19 @@ static OCR_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
 #[derive(Clone, Serialize)]
 pub struct OcrProgress {
     pub current: usize,
-    pub total:   usize,
-    pub done:    bool,
+    pub total: usize,
+    pub done: bool,
 }
 
 #[derive(Clone, Serialize)]
 pub struct OcrStatus {
     pub scanned: i64,
-    pub total:   i64,
+    pub total: i64,
 }
 
 #[derive(Clone, Serialize)]
 pub struct OcrItem {
-    pub id:   String,
+    pub id: String,
     pub text: String,
 }
 
@@ -47,8 +47,8 @@ fn ocr_image(helper: &Path, image_path: &str) -> Result<String, String> {
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
-    let parsed: HelperOcr = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("bad helper output: {e}"))?;
+    let parsed: HelperOcr =
+        serde_json::from_slice(&output.stdout).map_err(|e| format!("bad helper output: {e}"))?;
     Ok(parsed.text)
 }
 
@@ -72,7 +72,14 @@ pub fn run_ocr_all(app: tauri::AppHandle) -> Result<(), String> {
         };
         let total = items.len();
         if total == 0 {
-            let _ = app.emit("ocr-progress", OcrProgress { current: 0, total: 0, done: true });
+            let _ = app.emit(
+                "ocr-progress",
+                OcrProgress {
+                    current: 0,
+                    total: 0,
+                    done: true,
+                },
+            );
             return;
         }
 
@@ -89,11 +96,14 @@ pub fn run_ocr_all(app: tauri::AppHandle) -> Result<(), String> {
                 tracing::warn!(id, %path, "File missing, skipping OCR");
             }
 
-            let _ = app.emit("ocr-progress", OcrProgress {
-                current: i + 1,
-                total,
-                done: i + 1 == total,
-            });
+            let _ = app.emit(
+                "ocr-progress",
+                OcrProgress {
+                    current: i + 1,
+                    total,
+                    done: i + 1 == total,
+                },
+            );
         }
     });
     Ok(())
@@ -128,7 +138,10 @@ pub(crate) fn trigger_ocr(app: &tauri::AppHandle, id: String, path: String) {
         let helper = super::helper_path(&app);
         let text = match ocr_image(&helper, &path) {
             Ok(t) => t,
-            Err(e) => { tracing::warn!(id, %path, error = %e, "OCR failed"); return; }
+            Err(e) => {
+                tracing::warn!(id, %path, error = %e, "OCR failed");
+                return;
+            }
         };
         {
             let db = app.state::<DbState>();
@@ -147,8 +160,7 @@ mod tests {
 
     #[test]
     fn parses_helper_output() {
-        let parsed: HelperOcr =
-            serde_json::from_str(r#"{"text":"Hello Vivid OCR 2026"}"#).unwrap();
+        let parsed: HelperOcr = serde_json::from_str(r#"{"text":"Hello Vivid OCR 2026"}"#).unwrap();
         assert_eq!(parsed.text, "Hello Vivid OCR 2026");
     }
 

@@ -11,14 +11,14 @@ fn open() -> Connection {
 
 fn item(id: &str, file_path: &str) -> MediaItem {
     MediaItem {
-        id:           id.to_string(),
-        file_path:    file_path.to_string(),
-        source_path:  Some(format!("orig:{file_path}")),
-        file_name:    "test.jpg".to_string(),
+        id: id.to_string(),
+        file_path: file_path.to_string(),
+        source_path: Some(format!("orig:{file_path}")),
+        file_name: "test.jpg".to_string(),
         display_name: "Test".to_string(),
-        media_type:   "image".to_string(),
-        created_at:   "2024-01-01T00:00:00+00:00".to_string(),
-        updated_at:   "2024-01-01T00:00:00+00:00".to_string(),
+        media_type: "image".to_string(),
+        created_at: "2024-01-01T00:00:00+00:00".to_string(),
+        updated_at: "2024-01-01T00:00:00+00:00".to_string(),
         ..MediaItem::default()
     }
 }
@@ -56,10 +56,10 @@ fn insert_and_fetch_one() {
     insert(&conn, &it).unwrap();
 
     let fetched = fetch_one(&conn, "id-1").unwrap();
-    assert_eq!(fetched.id,           "id-1");
-    assert_eq!(fetched.file_path,    "/tmp/a.jpg");
+    assert_eq!(fetched.id, "id-1");
+    assert_eq!(fetched.file_path, "/tmp/a.jpg");
     assert_eq!(fetched.display_name, "Test");
-    assert_eq!(fetched.media_type,   "image");
+    assert_eq!(fetched.media_type, "image");
     assert!(!fetched.starred);
     assert!(!fetched.favorited);
 }
@@ -96,15 +96,17 @@ fn update_fields() {
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
 
     let updated = update(
-        &conn, "id-1",
+        &conn,
+        "id-1",
         "New Name",
         "A description",
         &["tag1".to_string(), "tag2".to_string()],
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(updated.display_name, "New Name");
-    assert_eq!(updated.description,  "A description");
-    assert_eq!(updated.tags,         vec!["tag1", "tag2"]);
+    assert_eq!(updated.description, "A description");
+    assert_eq!(updated.tags, vec!["tag1", "tag2"]);
 }
 
 #[test]
@@ -112,7 +114,7 @@ fn toggle_star_flips_state() {
     let conn = open();
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
 
-    let after_first  = toggle_star(&conn, "id-1").unwrap();
+    let after_first = toggle_star(&conn, "id-1").unwrap();
     assert!(after_first.starred);
 
     let after_second = toggle_star(&conn, "id-1").unwrap();
@@ -189,7 +191,11 @@ fn hard_deleting_an_item_cleans_up_its_collection_membership() {
     remove(&conn, "id-1").unwrap();
 
     let count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM collection_items WHERE item_id='id-1'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM collection_items WHERE item_id='id-1'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(count, 0);
 }
@@ -205,7 +211,11 @@ fn cover_item_id_clears_when_its_item_is_hard_deleted() {
 
     remove(&conn, "id-1").unwrap();
 
-    let fetched = get_collections(&conn).unwrap().into_iter().find(|c| c.id == g.id).unwrap();
+    let fetched = get_collections(&conn)
+        .unwrap()
+        .into_iter()
+        .find(|c| c.id == g.id)
+        .unwrap();
     assert!(fetched.cover_item_id.is_none());
 }
 
@@ -236,11 +246,17 @@ fn active_identity_by_path_excludes_trashed_and_unknown() {
     let conn = open();
     insert(&conn, &item("a", "/lib/a.jpg")).unwrap();
 
-    assert!(active_identity_by_path(&conn, "/lib/a.jpg").unwrap().is_some());
-    assert!(active_identity_by_path(&conn, "/lib/nope.jpg").unwrap().is_none());
+    assert!(active_identity_by_path(&conn, "/lib/a.jpg")
+        .unwrap()
+        .is_some());
+    assert!(active_identity_by_path(&conn, "/lib/nope.jpg")
+        .unwrap()
+        .is_none());
 
     trash_item(&conn, "a").unwrap();
-    assert!(active_identity_by_path(&conn, "/lib/a.jpg").unwrap().is_none());
+    assert!(active_identity_by_path(&conn, "/lib/a.jpg")
+        .unwrap()
+        .is_none());
 }
 
 // ── Trash ───────────────────────────────────────────────────────────────
@@ -282,10 +298,10 @@ fn collections_create_get_delete() {
     let g = create_collection(&conn, "Vacation", "#ff0000", Some("🌴"), "folder").unwrap();
 
     assert!(!g.id.is_empty());
-    assert_eq!(g.name,  "Vacation");
+    assert_eq!(g.name, "Vacation");
     assert_eq!(g.color, "#ff0000");
     assert_eq!(g.emoji.as_deref(), Some("🌴"));
-    assert_eq!(g.kind,  "folder");
+    assert_eq!(g.kind, "folder");
     assert!(g.pinned);
 
     let all = get_collections(&conn).unwrap();
@@ -304,7 +320,7 @@ fn rename_collection_persists() {
     assert_eq!(renamed.name, "New Name");
     // Other fields unchanged
     assert_eq!(renamed.color, "#fff");
-    assert_eq!(renamed.kind,  "album");
+    assert_eq!(renamed.kind, "album");
 }
 
 #[test]
@@ -386,7 +402,7 @@ fn embedding_set_and_get() {
     insert(&conn, &item("id-1", "/tmp/a.jpg")).unwrap();
 
     let bytes = vec![0x3f, 0x80, 0x00, 0x00u8]; // 1.0f32 LE
-    let tags  = vec!["mountain".to_string(), "sunset".to_string()];
+    let tags = vec!["mountain".to_string(), "sunset".to_string()];
     set_embedding(&conn, "id-1", &bytes, &tags).unwrap();
 
     let retrieved = get_embedding(&conn, "id-1").unwrap().unwrap();
@@ -449,16 +465,21 @@ fn audio_meta_roundtrip() {
     insert(&conn, &it).unwrap();
 
     let updated = update_audio_meta(
-        &conn, "id-1",
-        Some("Artist Name"), Some("Album Name"), Some("Song Title"),
-        Some(2023), Some(3),
-    ).unwrap();
+        &conn,
+        "id-1",
+        Some("Artist Name"),
+        Some("Album Name"),
+        Some("Song Title"),
+        Some(2023),
+        Some(3),
+    )
+    .unwrap();
 
     assert_eq!(updated.audio_artist.as_deref(), Some("Artist Name"));
-    assert_eq!(updated.audio_album.as_deref(),  Some("Album Name"));
-    assert_eq!(updated.audio_title.as_deref(),  Some("Song Title"));
-    assert_eq!(updated.audio_year,              Some(2023));
-    assert_eq!(updated.audio_track,             Some(3));
+    assert_eq!(updated.audio_album.as_deref(), Some("Album Name"));
+    assert_eq!(updated.audio_title.as_deref(), Some("Song Title"));
+    assert_eq!(updated.audio_year, Some(2023));
+    assert_eq!(updated.audio_track, Some(3));
 }
 
 #[test]
@@ -519,10 +540,10 @@ fn get_library_stats_counts_correctly() {
 
     let stats = get_library_stats(&conn).unwrap();
 
-    assert_eq!(stats.total_images,    1);
-    assert_eq!(stats.total_videos,    1);
-    assert_eq!(stats.total_audio,     1);
-    assert_eq!(stats.total_indexed,   1); // only the image
+    assert_eq!(stats.total_images, 1);
+    assert_eq!(stats.total_videos, 1);
+    assert_eq!(stats.total_audio, 1);
+    assert_eq!(stats.total_indexed, 1); // only the image
     assert_eq!(stats.total_unindexed, 1); // the video
 }
 
@@ -616,7 +637,10 @@ fn create_fetch_and_list_folders() {
     let fetched = fetch_folder(&conn, &f.id).unwrap();
     assert_eq!(fetched.id, f.id);
 
-    assert_eq!(folder_id_by_rel_path(&conn, "Trip").unwrap(), Some(f.id.clone()));
+    assert_eq!(
+        folder_id_by_rel_path(&conn, "Trip").unwrap(),
+        Some(f.id.clone())
+    );
     assert_eq!(folder_id_by_rel_path(&conn, "Nope").unwrap(), None);
 
     // Real folder + the always-present virtual Uncategorized entry.
@@ -697,9 +721,16 @@ fn delete_folder_subtree_removes_descendants_but_not_siblings() {
 
     delete_folder_subtree(&conn, "Trip").unwrap();
 
-    let remaining: Vec<String> = list_folders(&conn).unwrap().into_iter().map(|f| f.rel_path).collect();
+    let remaining: Vec<String> = list_folders(&conn)
+        .unwrap()
+        .into_iter()
+        .map(|f| f.rel_path)
+        .collect();
     // The virtual Uncategorized entry is always present alongside real folders.
-    assert_eq!(remaining, vec![UNCATEGORIZED.to_string(), "TripOther".to_string()]);
+    assert_eq!(
+        remaining,
+        vec![UNCATEGORIZED.to_string(), "TripOther".to_string()]
+    );
 }
 
 #[test]
@@ -766,13 +797,22 @@ fn rename_folder_tree_rewrites_rel_paths_file_paths_and_name() {
     assert_eq!(beach.rel_path, "Vacation/Beach");
 
     // Items directly in and nested under the renamed folder both moved.
-    assert_eq!(fetch_one(&conn, "direct").unwrap().file_path, format!("{root}/Vacation/a.jpg"));
-    assert_eq!(fetch_one(&conn, "nested").unwrap().file_path, format!("{root}/Vacation/Beach/b.jpg"));
+    assert_eq!(
+        fetch_one(&conn, "direct").unwrap().file_path,
+        format!("{root}/Vacation/a.jpg")
+    );
+    assert_eq!(
+        fetch_one(&conn, "nested").unwrap().file_path,
+        format!("{root}/Vacation/Beach/b.jpg")
+    );
 
     // The prefix-look-alike sibling folder and its item are untouched.
     let sibling = all.iter().find(|f| f.name == "TripOther").unwrap();
     assert_eq!(sibling.rel_path, "TripOther");
-    assert_eq!(fetch_one(&conn, "sibling").unwrap().file_path, format!("{root}/TripOther/c.jpg"));
+    assert_eq!(
+        fetch_one(&conn, "sibling").unwrap().file_path,
+        format!("{root}/TripOther/c.jpg")
+    );
 }
 
 #[test]
@@ -790,5 +830,8 @@ fn rename_folder_tree_rolls_back_on_conflict() {
     // Nothing was changed: original folder and item path both survive intact.
     let unchanged = fetch_folder(&conn, &trip.id).unwrap();
     assert_eq!(unchanged.rel_path, "Trip");
-    assert_eq!(fetch_one(&conn, "direct").unwrap().file_path, "/lib/Trip/a.jpg");
+    assert_eq!(
+        fetch_one(&conn, "direct").unwrap().file_path,
+        "/lib/Trip/a.jpg"
+    );
 }

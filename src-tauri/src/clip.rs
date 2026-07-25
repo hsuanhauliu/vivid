@@ -6,54 +6,149 @@ use std::path::Path;
 
 pub const TAG_VOCAB: &[&str] = &[
     // Landscapes & nature
-    "mountain", "ocean", "beach", "forest", "river", "lake", "desert",
-    "waterfall", "canyon", "valley", "field", "cliff",
+    "mountain",
+    "ocean",
+    "beach",
+    "forest",
+    "river",
+    "lake",
+    "desert",
+    "waterfall",
+    "canyon",
+    "valley",
+    "field",
+    "cliff",
     // Sky / weather
-    "sunset", "sunrise", "clouds", "night sky", "fog", "snow", "rain",
+    "sunset",
+    "sunrise",
+    "clouds",
+    "night sky",
+    "fog",
+    "snow",
+    "rain",
     // Flora
-    "flowers", "trees", "grass", "garden", "leaves",
+    "flowers",
+    "trees",
+    "grass",
+    "garden",
+    "leaves",
     // Fauna
-    "dog", "cat", "bird", "horse", "wildlife", "fish",
+    "dog",
+    "cat",
+    "bird",
+    "horse",
+    "wildlife",
+    "fish",
     // People
-    "portrait", "group of people", "children", "family",
-    "wedding", "selfie", "crowd",
+    "portrait",
+    "group of people",
+    "children",
+    "family",
+    "wedding",
+    "selfie",
+    "crowd",
     // Urban & architecture
-    "city skyline", "street", "building", "bridge", "interior",
-    "cafe", "market", "church", "skyscraper",
+    "city skyline",
+    "street",
+    "building",
+    "bridge",
+    "interior",
+    "cafe",
+    "market",
+    "church",
+    "skyscraper",
     // Transport
-    "car", "airplane", "boat", "train",
+    "car",
+    "airplane",
+    "boat",
+    "train",
     // Food & drink
-    "food", "coffee", "drink", "cooking", "restaurant",
+    "food",
+    "coffee",
+    "drink",
+    "cooking",
+    "restaurant",
     // Activities
-    "sports", "hiking", "swimming", "cycling", "yoga",
-    "music performance", "art", "reading",
+    "sports",
+    "hiking",
+    "swimming",
+    "cycling",
+    "yoga",
+    "music performance",
+    "art",
+    "reading",
     // Objects
-    "technology", "fashion", "furniture",
+    "technology",
+    "fashion",
+    "furniture",
     // Lighting / mood
-    "golden hour", "neon lights", "candlelight",
+    "golden hour",
+    "neon lights",
+    "candlelight",
     // Style
-    "black and white", "minimalist", "colorful", "vintage", "abstract",
+    "black and white",
+    "minimalist",
+    "colorful",
+    "vintage",
+    "abstract",
     // Scene type
-    "landscape", "aerial view", "macro photography", "studio photo",
-    "underwater", "space",
+    "landscape",
+    "aerial view",
+    "macro photography",
+    "studio photo",
+    "underwater",
+    "space",
     // Scene classification labels
-    "indoor scene", "outdoor scene", "urban scene", "nature scene",
+    "indoor scene",
+    "outdoor scene",
+    "urban scene",
+    "nature scene",
 ];
 
 // ── Mood vocabulary (vibe filter) ─────────────────────────────────────────────
 // Each entry: (display_name, embedding_prompt)
 
 pub const MOOD_VOCAB: &[(&str, &str)] = &[
-    ("Calm",         "a peaceful, serene, tranquil photograph with soft light and gentle atmosphere"),
-    ("Energetic",    "a dynamic, exciting, high-energy action photograph with vibrant motion"),
-    ("Romantic",     "a warm, intimate, romantic photograph with soft bokeh and golden tones"),
-    ("Melancholic",  "a moody, melancholic, nostalgic photograph with muted tones and solitude"),
-    ("Cozy",         "a cozy, warm, homely photograph indoors with comfort and soft lighting"),
-    ("Adventurous",  "an adventurous outdoor photograph in wild nature with dramatic scenery"),
-    ("Elegant",      "an elegant, sophisticated, luxurious photograph with refined composition"),
-    ("Playful",      "a fun, playful, joyful photograph with bright colors and happy subjects"),
-    ("Dramatic",     "a dramatic, intense, cinematic photograph with strong contrast and shadows"),
-    ("Minimalist",   "a minimalist, clean, simple photograph with negative space and few elements"),
+    (
+        "Calm",
+        "a peaceful, serene, tranquil photograph with soft light and gentle atmosphere",
+    ),
+    (
+        "Energetic",
+        "a dynamic, exciting, high-energy action photograph with vibrant motion",
+    ),
+    (
+        "Romantic",
+        "a warm, intimate, romantic photograph with soft bokeh and golden tones",
+    ),
+    (
+        "Melancholic",
+        "a moody, melancholic, nostalgic photograph with muted tones and solitude",
+    ),
+    (
+        "Cozy",
+        "a cozy, warm, homely photograph indoors with comfort and soft lighting",
+    ),
+    (
+        "Adventurous",
+        "an adventurous outdoor photograph in wild nature with dramatic scenery",
+    ),
+    (
+        "Elegant",
+        "an elegant, sophisticated, luxurious photograph with refined composition",
+    ),
+    (
+        "Playful",
+        "a fun, playful, joyful photograph with bright colors and happy subjects",
+    ),
+    (
+        "Dramatic",
+        "a dramatic, intense, cinematic photograph with strong contrast and shadows",
+    ),
+    (
+        "Minimalist",
+        "a minimalist, clean, simple photograph with negative space and few elements",
+    ),
 ];
 
 // ── Utilities (public) ────────────────────────────────────────────────────────
@@ -66,13 +161,16 @@ pub fn cosine_sim(a: &[f32], b: &[f32]) -> f32 {
 /// Serialise a Vec<f32> embedding to raw little-endian bytes for SQLite BLOB storage.
 pub fn embedding_to_bytes(emb: &[f32]) -> Vec<u8> {
     let mut out = Vec::with_capacity(emb.len() * 4);
-    for f in emb { out.extend_from_slice(&f.to_le_bytes()); }
+    for f in emb {
+        out.extend_from_slice(&f.to_le_bytes());
+    }
     out
 }
 
 /// Deserialise raw bytes back to Vec<f32>.
 pub fn bytes_to_embedding(bytes: &[u8]) -> Vec<f32> {
-    bytes.chunks_exact(4)
+    bytes
+        .chunks_exact(4)
         .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
         .collect()
 }
@@ -94,7 +192,8 @@ pub(crate) fn to_normed_vec(t: Tensor) -> Result<Vec<f32>> {
 /// If `path` is HEIC/HEIF, convert it to a temp JPEG via `sips` and return the
 /// temp path. Returns `None` for every other format (no conversion needed).
 pub(crate) fn heif_to_jpeg_if_needed(path: &Path) -> Result<Option<std::path::PathBuf>> {
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
@@ -110,8 +209,11 @@ pub(crate) fn sips_to_jpeg(path: &Path) -> Result<std::path::PathBuf> {
     let tmp = std::env::temp_dir().join(format!("vivid_sips_{}.jpg", uuid::Uuid::new_v4()));
     let status = std::process::Command::new("sips")
         .args([
-            "-s", "format", "jpeg",
-            "--out", tmp.to_str().ok_or_else(|| anyhow!("non-UTF8 tmp path"))?,
+            "-s",
+            "format",
+            "jpeg",
+            "--out",
+            tmp.to_str().ok_or_else(|| anyhow!("non-UTF8 tmp path"))?,
             path.to_str().ok_or_else(|| anyhow!("non-UTF8 path"))?,
         ])
         .stdout(std::process::Stdio::null())
@@ -128,7 +230,10 @@ pub(crate) fn sips_to_jpeg(path: &Path) -> Result<std::path::PathBuf> {
 /// Read the EXIF orientation tag (1–8). Defaults to 1 (no transform) when the
 /// file has no EXIF or can't be read.
 pub(crate) fn exif_orientation(path: &Path) -> u32 {
-    let file = match std::fs::File::open(path) { Ok(f) => f, Err(_) => return 1 };
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return 1,
+    };
     let mut buf = std::io::BufReader::new(file);
     match exif::Reader::new().read_from_container(&mut buf) {
         Ok(e) => e
@@ -148,7 +253,10 @@ pub(crate) fn exif_orientation(path: &Path) -> u32 {
 /// in a browser/OS viewer, which auto-rotates per this same tag. That gap is
 /// exactly what caused the image editor's crop/rotate/flip to save from the
 /// wrong pixel orientation despite looking right in the on-screen preview.
-pub(crate) fn apply_exif_orientation(img: image::DynamicImage, orientation: u32) -> image::DynamicImage {
+pub(crate) fn apply_exif_orientation(
+    img: image::DynamicImage,
+    orientation: u32,
+) -> image::DynamicImage {
     match orientation {
         2 => img.fliph(),
         3 => img.rotate180(),
@@ -267,13 +375,23 @@ mod tests {
     #[test]
     fn cosine_sim_diagonal() {
         // Two identical 45-degree vectors: [0.707, 0.707] · [0.707, 0.707] ≈ 1.0
-        let v = vec![std::f32::consts::FRAC_1_SQRT_2, std::f32::consts::FRAC_1_SQRT_2];
+        let v = vec![
+            std::f32::consts::FRAC_1_SQRT_2,
+            std::f32::consts::FRAC_1_SQRT_2,
+        ];
         assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-5);
     }
 
     #[test]
     fn embedding_bytes_roundtrip() {
-        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0, f32::MAX, f32::MIN_POSITIVE];
+        let original = vec![
+            1.0f32,
+            -0.5,
+            std::f32::consts::PI,
+            0.0,
+            f32::MAX,
+            f32::MIN_POSITIVE,
+        ];
         let bytes = embedding_to_bytes(&original);
         let recovered = bytes_to_embedding(&bytes);
         assert_eq!(original.len(), recovered.len());
@@ -359,5 +477,3 @@ mod tests {
         assert_eq!(out.get_pixel(0, 0), orig.get_pixel(2, 1));
     }
 }
-
-

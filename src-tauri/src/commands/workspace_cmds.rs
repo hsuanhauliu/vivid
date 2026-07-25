@@ -50,7 +50,9 @@ fn validate_new_workspace_path(
     }
     let candidate = normalize_abs(candidate);
 
-    let overlaps = |other: &Path| candidate == other || candidate.starts_with(other) || other.starts_with(&candidate);
+    let overlaps = |other: &Path| {
+        candidate == other || candidate.starts_with(other) || other.starts_with(&candidate)
+    };
 
     if overlaps(&normalize_abs(app_data_dir)) {
         return Err("That folder overlaps with Vivid's own app data directory".into());
@@ -58,7 +60,10 @@ fn validate_new_workspace_path(
     for w in existing {
         if let Some(p) = &w.path {
             if overlaps(&normalize_abs(Path::new(p))) {
-                return Err(format!("That folder overlaps with the existing workspace \"{}\"", w.name));
+                return Err(format!(
+                    "That folder overlaps with the existing workspace \"{}\"",
+                    w.name
+                ));
             }
         }
     }
@@ -73,8 +78,16 @@ fn validate_new_workspace_path(
 pub fn list_workspaces(app: AppHandle) -> Result<WorkspaceList, String> {
     let registry = workspace::load(&app_data_dir(&app)?);
     Ok(WorkspaceList {
-        workspaces: registry.workspaces.into_iter()
-            .map(|w| { let valid = w.path_exists(); WorkspaceEntry { workspace: w, valid } })
+        workspaces: registry
+            .workspaces
+            .into_iter()
+            .map(|w| {
+                let valid = w.path_exists();
+                WorkspaceEntry {
+                    workspace: w,
+                    valid,
+                }
+            })
             .collect(),
         active_id: registry.active_id,
     })
@@ -97,10 +110,15 @@ pub fn add_workspace(app: AppHandle, path: String, name: String) -> Result<Works
     let data_dir = app_data_dir(&app)?;
     let mut registry = workspace::load(&data_dir);
 
-    let clean_path = validate_new_workspace_path(Path::new(&path), &registry.workspaces, &data_dir)?;
+    let clean_path =
+        validate_new_workspace_path(Path::new(&path), &registry.workspaces, &data_dir)?;
     let trimmed = name.trim();
     let name = if trimmed.is_empty() {
-        clean_path.file_name().and_then(|n| n.to_str()).unwrap_or("Workspace").to_string()
+        clean_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Workspace")
+            .to_string()
     } else {
         trimmed.to_string()
     };
@@ -199,15 +217,28 @@ pub fn open_workspace(app: AppHandle, id: String) -> Result<(), String> {
 /// workspace effectively starts fresh at the new path and reconciliation
 /// (on next open) adopts whatever's there.
 #[tauri::command]
-pub fn update_workspace_path(app: AppHandle, id: String, path: String) -> Result<Workspace, String> {
+pub fn update_workspace_path(
+    app: AppHandle,
+    id: String,
+    path: String,
+) -> Result<Workspace, String> {
     let data_dir = app_data_dir(&app)?;
     let mut registry = workspace::load(&data_dir);
-    let idx = registry.workspaces.iter().position(|w| w.id == id).ok_or("Unknown workspace")?;
+    let idx = registry
+        .workspaces
+        .iter()
+        .position(|w| w.id == id)
+        .ok_or("Unknown workspace")?;
     if registry.workspaces[idx].kind != WorkspaceKind::External {
         return Err("Only external workspaces have a folder path to update".into());
     }
-    let others: Vec<Workspace> = registry.workspaces.iter().enumerate()
-        .filter(|(i, _)| *i != idx).map(|(_, w)| w.clone()).collect();
+    let others: Vec<Workspace> = registry
+        .workspaces
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != idx)
+        .map(|(_, w)| w.clone())
+        .collect();
     let clean_path = validate_new_workspace_path(Path::new(&path), &others, &data_dir)?;
     registry.workspaces[idx].path = Some(clean_path.to_string_lossy().into_owned());
     let updated = registry.workspaces[idx].clone();
@@ -219,12 +250,20 @@ pub fn update_workspace_path(app: AppHandle, id: String, path: String) -> Result
 /// Pure rename logic, factored out so it's testable without an `AppHandle`.
 /// Trims and validates the new name, then updates `registry` in place and
 /// returns the updated workspace.
-fn rename_in_registry<'a>(registry: &'a mut WorkspaceRegistry, id: &str, name: &str) -> Result<&'a Workspace, String> {
+fn rename_in_registry<'a>(
+    registry: &'a mut WorkspaceRegistry,
+    id: &str,
+    name: &str,
+) -> Result<&'a Workspace, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
         return Err("Name can't be empty".into());
     }
-    let ws = registry.workspaces.iter_mut().find(|w| w.id == id).ok_or("Unknown workspace")?;
+    let ws = registry
+        .workspaces
+        .iter_mut()
+        .find(|w| w.id == id)
+        .ok_or("Unknown workspace")?;
     ws.name = trimmed.to_string();
     Ok(ws)
 }
@@ -305,7 +344,11 @@ mod tests {
     #[test]
     fn reject_nonexistent_folder() {
         let app_data = tempdir().unwrap();
-        let err = validate_new_workspace_path(Path::new("/definitely/not/a/real/path"), &[], app_data.path());
+        let err = validate_new_workspace_path(
+            Path::new("/definitely/not/a/real/path"),
+            &[],
+            app_data.path(),
+        );
         assert!(err.is_err());
     }
 
@@ -346,7 +389,9 @@ mod tests {
         let app_data = tempdir().unwrap();
         let existing = tempdir().unwrap();
         let workspaces = vec![ws("w1", existing.path())];
-        assert!(validate_new_workspace_path(existing.path(), &workspaces, app_data.path()).is_err());
+        assert!(
+            validate_new_workspace_path(existing.path(), &workspaces, app_data.path()).is_err()
+        );
     }
 
     #[test]
@@ -387,16 +432,23 @@ mod tests {
     #[test]
     fn rename_updates_matching_workspace() {
         let mut reg = registry_with_default();
-        let updated = rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "My Photos").unwrap();
+        let updated =
+            rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "My Photos").unwrap();
         assert_eq!(updated.name, "My Photos");
-        assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "My Photos");
+        assert_eq!(
+            reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name,
+            "My Photos"
+        );
     }
 
     #[test]
     fn rename_trims_whitespace() {
         let mut reg = registry_with_default();
         rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "  Trimmed  ").unwrap();
-        assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "Trimmed");
+        assert_eq!(
+            reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name,
+            "Trimmed"
+        );
     }
 
     #[test]
@@ -404,7 +456,10 @@ mod tests {
         let mut reg = registry_with_default();
         assert!(rename_in_registry(&mut reg, workspace::DEFAULT_WORKSPACE_ID, "   ").is_err());
         // Unchanged on rejection.
-        assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "My Library");
+        assert_eq!(
+            reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name,
+            "My Library"
+        );
     }
 
     #[test]
@@ -424,6 +479,9 @@ mod tests {
         });
         rename_in_registry(&mut reg, "w2", "Renamed").unwrap();
         assert_eq!(reg.find("w2").unwrap().name, "Renamed");
-        assert_eq!(reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name, "My Library");
+        assert_eq!(
+            reg.find(workspace::DEFAULT_WORKSPACE_ID).unwrap().name,
+            "My Library"
+        );
     }
 }

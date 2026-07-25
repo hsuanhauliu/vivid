@@ -86,7 +86,12 @@ pub fn watch_init(app: &AppHandle) {
         std::thread::sleep(HEALTH_CHECK);
         if !mdir.is_dir() {
             tracing::warn!(path = %mdir.display(), "workspace root no longer reachable");
-            let _ = app3.emit("workspace-unavailable", WorkspaceUnavailable { name: ws_name.clone() });
+            let _ = app3.emit(
+                "workspace-unavailable",
+                WorkspaceUnavailable {
+                    name: ws_name.clone(),
+                },
+            );
             break;
         }
         // Still-registered check: if this process's workspace was removed or
@@ -111,11 +116,19 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             // Removed (or renamed away, which looks identical to a removal +
             // a separate creation event for the new name). Hard-delete the
             // tracked row, if any — trash doesn't apply, the file is gone.
-            let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
+            let conn = match state.0.lock() {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
             if let Ok(Some(known)) = db::active_identity_by_path(&conn, &path_str) {
                 let _ = db::remove_missing(&conn, std::slice::from_ref(&known.id));
                 drop(conn);
-                let _ = app.emit("media-removed", MediaRemoved { ids: vec![known.id] });
+                let _ = app.emit(
+                    "media-removed",
+                    MediaRemoved {
+                        ids: vec![known.id],
+                    },
+                );
                 continue;
             }
             // Not a tracked file — a *folder* may have been removed instead
@@ -124,7 +137,10 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             // else ever revisits the `folders` table once a folder's adopted.
             let rel = rel_dir(&p, mdir);
             let is_folder = !rel.is_empty()
-                && db::folder_id_by_rel_path(&conn, &rel).ok().flatten().is_some();
+                && db::folder_id_by_rel_path(&conn, &rel)
+                    .ok()
+                    .flatten()
+                    .is_some();
             if is_folder && db::delete_folder_subtree(&conn, &rel).is_ok() {
                 drop(conn);
                 let _ = app.emit("folders-changed", ());
@@ -145,12 +161,19 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
         }
 
         let existing = {
-            let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
+            let conn = match state.0.lock() {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
             db::active_identity_by_path(&conn, &path_str).ok().flatten()
         };
 
-        let Ok(meta) = std::fs::metadata(&p) else { continue };
-        let mtime = meta.modified().ok()
+        let Ok(meta) = std::fs::metadata(&p) else {
+            continue;
+        };
+        let mtime = meta
+            .modified()
+            .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
@@ -159,7 +182,10 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
         match existing {
             Some(known) => {
                 if known.mtime != Some(mtime) || known.file_size != size {
-                    let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
+                    let conn = match state.0.lock() {
+                        Ok(c) => c,
+                        Err(_) => continue,
+                    };
                     let updated = if db::mark_modified(&conn, &known.id, size, mtime).is_ok() {
                         db::fetch_one(&conn, &known.id).ok()
                     } else {
@@ -168,7 +194,12 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
                     drop(conn);
                     if let Some(item) = updated {
                         if item.media_type == "image" || item.media_type == "video" {
-                            super::trigger_thumb(app, known.id.clone(), path_str.clone(), item.media_type.clone());
+                            super::trigger_thumb(
+                                app,
+                                known.id.clone(),
+                                path_str.clone(),
+                                item.media_type.clone(),
+                            );
                         }
                         let _ = app.emit("media-updated", item);
                     }
@@ -184,8 +215,14 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
                 // adopted any other way, not a cut-down version of it.
                 if let Ok(mut item) = super::build_item(&p, Some(path_str.clone())) {
                     super::enrich_item_metadata(&mut item, &p);
-                    let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
-                    let dir_rel = normalize_abs(&p).parent().map(|d| rel_dir(d, mdir)).unwrap_or_default();
+                    let conn = match state.0.lock() {
+                        Ok(c) => c,
+                        Err(_) => continue,
+                    };
+                    let dir_rel = normalize_abs(&p)
+                        .parent()
+                        .map(|d| rel_dir(d, mdir))
+                        .unwrap_or_default();
                     item.folder_id = if dir_rel.is_empty() {
                         None
                     } else {
@@ -196,7 +233,12 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
                         drop(conn);
                         super::trigger_embed_if_ready(app);
                         if item.media_type == "image" || item.media_type == "video" {
-                            super::trigger_thumb(app, item.id.clone(), item.file_path.clone(), item.media_type.clone());
+                            super::trigger_thumb(
+                                app,
+                                item.id.clone(),
+                                item.file_path.clone(),
+                                item.media_type.clone(),
+                            );
                         }
                         // Same event the regular import pipeline streams
                         // batches through — `useImport` already prepends
@@ -216,7 +258,8 @@ struct MediaRemoved {
 }
 
 fn rel_dir(dir: &Path, mdir: &Path) -> String {
-    dir.strip_prefix(mdir).ok()
+    dir.strip_prefix(mdir)
+        .ok()
         .map(|r| r.to_string_lossy().replace('\\', "/"))
         .unwrap_or_default()
 }
@@ -232,5 +275,9 @@ fn settled(p: &Path) -> bool {
 
 fn dedup(paths: &[PathBuf]) -> Vec<PathBuf> {
     let mut seen = std::collections::HashSet::new();
-    paths.iter().filter(|p| seen.insert((*p).clone())).cloned().collect()
+    paths
+        .iter()
+        .filter(|p| seen.insert((*p).clone()))
+        .cloned()
+        .collect()
 }

@@ -41,5 +41,8 @@ pub fn init() {
 
 fn log_directory() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(home).join("Library").join("Logs").join("Vivid")
+    PathBuf::from(home)
+        .join("Library")
+        .join("Logs")
+        .join("Vivid")
 }

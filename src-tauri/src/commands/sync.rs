@@ -102,7 +102,10 @@ impl TargetStatus {
             state: "idle".into(),
             last_sync: None,
             message: None,
-            copied: 0, updated: 0, deleted: 0, imported: 0,
+            copied: 0,
+            updated: 0,
+            deleted: 0,
+            imported: 0,
         }
     }
 }
@@ -210,7 +213,9 @@ pub fn set_sync_config(
     state: State<'_, SyncState>,
 ) -> Result<SyncConfig, String> {
     if config.targets.len() > MAX_TARGETS {
-        return Err(format!("At most {MAX_TARGETS} sync destinations are allowed"));
+        return Err(format!(
+            "At most {MAX_TARGETS} sync destinations are allowed"
+        ));
     }
     // Reject duplicate destinations — two mirrors fighting over one folder would
     // each try to "prune" the other's files.
@@ -247,14 +252,18 @@ pub fn list_dir_names(path: String) -> Result<Vec<String>, String> {
         Ok(rd) => rd,
         Err(_) => return Ok(vec![]), // missing/unreadable → treat as empty
     };
-    Ok(rd.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect())
+    Ok(rd
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect())
 }
 
 /// Force a destination (or all of them) back to a perfect mirror.
 #[tauri::command]
 pub fn sync_remirror(target_id: Option<String>, state: State<'_, SyncState>) -> Result<(), String> {
     if let Some(tx) = state.tx.lock().unwrap().as_ref() {
-        tx.send(SyncMsg::ReMirror(target_id)).map_err(|e| e.to_string())?;
+        tx.send(SyncMsg::ReMirror(target_id))
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -284,7 +293,10 @@ struct Worker {
 fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: Sender<SyncMsg>) {
     let mdir = match media_dir(&app) {
         Ok(d) => d,
-        Err(e) => { tracing::error!(error = %e, "sync: no media dir"); return; }
+        Err(e) => {
+            tracing::error!(error = %e, "sync: no media dir");
+            return;
+        }
     };
     let cfg = load_config(&app);
     let manifests = load_manifests(&app);
@@ -305,7 +317,9 @@ fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: 
         let hb = self_tx.clone();
         std::thread::spawn(move || loop {
             std::thread::sleep(OFFLINE_RETRY);
-            if hb.send(SyncMsg::Reconcile).is_err() { break; }
+            if hb.send(SyncMsg::Reconcile).is_err() {
+                break;
+            }
         });
     }
 
@@ -313,8 +327,11 @@ fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: 
         match msg {
             SyncMsg::Reconfigure(cfg) => {
                 // Preserve manifests for targets that survive; drop the rest.
-                let mut manifests: ManifestMap = w.targets.iter()
-                    .map(|t| (t.cfg.id.clone(), t.manifest.clone())).collect();
+                let mut manifests: ManifestMap = w
+                    .targets
+                    .iter()
+                    .map(|t| (t.cfg.id.clone(), t.manifest.clone()))
+                    .collect();
                 for extra in load_manifests(&w.app) {
                     manifests.entry(extra.0).or_insert(extra.1);
                 }
@@ -330,9 +347,15 @@ fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: 
                 let skips = &mut w.notified_skips;
                 let mut changed = false;
                 for t in &mut w.targets {
-                    if t.offline { t.reconcile(&app, &mdir, skips, false); changed = true; }
+                    if t.offline {
+                        t.reconcile(&app, &mdir, skips, false);
+                        changed = true;
+                    }
                 }
-                if changed { w.publish_status(); w.persist_manifests(); }
+                if changed {
+                    w.publish_status();
+                    w.persist_manifests();
+                }
             }
             SyncMsg::ReMirror(id) => {
                 let app = w.app.clone();
@@ -372,11 +395,20 @@ fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: 
 impl Worker {
     /// Rebuild the target list from config, carrying over each target's manifest.
     fn set_targets(&mut self, targets: Vec<SyncTarget>, manifests: &ManifestMap) {
-        self.targets = targets.into_iter().map(|cfg| {
-            let manifest = manifests.get(&cfg.id).cloned().unwrap_or_default();
-            let status = TargetStatus::new(&cfg.id);
-            TargetState { cfg, manifest, offline: false, status, _watch: None }
-        }).collect();
+        self.targets = targets
+            .into_iter()
+            .map(|cfg| {
+                let manifest = manifests.get(&cfg.id).cloned().unwrap_or_default();
+                let status = TargetStatus::new(&cfg.id);
+                TargetState {
+                    cfg,
+                    manifest,
+                    offline: false,
+                    status,
+                    _watch: None,
+                }
+            })
+            .collect();
     }
 
     fn rearm_watchers(&mut self, tx: &Sender<SyncMsg>) {
@@ -386,11 +418,18 @@ impl Worker {
             let ltx = tx.clone();
             if let Ok(mut deb) = new_debouncer(DEBOUNCE, None, move |res: DebounceEventResult| {
                 if let Ok(events) = res {
-                    let paths: Vec<PathBuf> = events.into_iter().flat_map(|e| e.event.paths).collect();
-                    if !paths.is_empty() { let _ = ltx.send(SyncMsg::LibraryChanged(paths)); }
+                    let paths: Vec<PathBuf> =
+                        events.into_iter().flat_map(|e| e.event.paths).collect();
+                    if !paths.is_empty() {
+                        let _ = ltx.send(SyncMsg::LibraryChanged(paths));
+                    }
                 }
             }) {
-                if deb.watcher().watch(&self.mdir, RecursiveMode::Recursive).is_ok() {
+                if deb
+                    .watcher()
+                    .watch(&self.mdir, RecursiveMode::Recursive)
+                    .is_ok()
+                {
                     deb.cache().add_root(&self.mdir, RecursiveMode::Recursive);
                     self._lib_watch = Some(deb);
                 }
@@ -401,13 +440,18 @@ impl Worker {
         for t in &mut self.targets {
             t._watch = None;
             let dest = PathBuf::from(&t.cfg.dest);
-            if !dest.exists() { continue; }
+            if !dest.exists() {
+                continue;
+            }
             let dtx = tx.clone();
             let id = t.cfg.id.clone();
             if let Ok(mut deb) = new_debouncer(DEBOUNCE, None, move |res: DebounceEventResult| {
                 if let Ok(events) = res {
-                    let paths: Vec<PathBuf> = events.into_iter().flat_map(|e| e.event.paths).collect();
-                    if !paths.is_empty() { let _ = dtx.send(SyncMsg::DestChanged(id.clone(), paths)); }
+                    let paths: Vec<PathBuf> =
+                        events.into_iter().flat_map(|e| e.event.paths).collect();
+                    if !paths.is_empty() {
+                        let _ = dtx.send(SyncMsg::DestChanged(id.clone(), paths));
+                    }
                 }
             }) {
                 if deb.watcher().watch(&dest, RecursiveMode::Recursive).is_ok() {
@@ -430,36 +474,57 @@ impl Worker {
     }
 
     fn publish_status(&self) {
-        let status = SyncStatus { targets: self.targets.iter().map(|t| t.status.clone()).collect() };
+        let status = SyncStatus {
+            targets: self.targets.iter().map(|t| t.status.clone()).collect(),
+        };
         let st = self.app.state::<SyncState>();
         *st.status.lock().unwrap() = status.clone();
         let _ = self.app.emit("sync-status", status);
     }
 
     fn persist_manifests(&self) {
-        let map: ManifestMap = self.targets.iter()
-            .map(|t| (t.cfg.id.clone(), t.manifest.clone())).collect();
+        let map: ManifestMap = self
+            .targets
+            .iter()
+            .map(|t| (t.cfg.id.clone(), t.manifest.clone()))
+            .collect();
         save_manifests(&self.app, &map);
     }
 }
 
 impl TargetState {
-    fn dest_path(&self) -> PathBuf { PathBuf::from(&self.cfg.dest) }
+    fn dest_path(&self) -> PathBuf {
+        PathBuf::from(&self.cfg.dest)
+    }
 
     /// The selected library roots as rel_paths (`""` = whole library).
     fn roots(&self) -> Vec<String> {
-        if self.cfg.folders.is_empty() { vec![String::new()] } else { self.cfg.folders.clone() }
+        if self.cfg.folders.is_empty() {
+            vec![String::new()]
+        } else {
+            self.cfg.folders.clone()
+        }
     }
 
-    fn in_scope(&self, rel: &str) -> bool { rel_in_scope(rel, &self.roots()) }
+    fn in_scope(&self, rel: &str) -> bool {
+        rel_in_scope(rel, &self.roots())
+    }
 
-    fn now_iso() -> String { chrono::Utc::now().to_rfc3339() }
+    fn now_iso() -> String {
+        chrono::Utc::now().to_rfc3339()
+    }
 
     // ── Full reconcile ───────────────────────────────────────────────────────
 
     /// Bring this target's destination into a perfect mirror and import any
     /// drop-ins. `force` re-copies even files that look up to date.
-    fn reconcile(&mut self, app: &AppHandle, mdir: &Path, skips: &mut HashSet<PathBuf>, force: bool) {
+    fn reconcile(
+        &mut self,
+        app: &AppHandle,
+        mdir: &Path,
+        skips: &mut HashSet<PathBuf>,
+        force: bool,
+    ) {
         let dest = self.dest_path();
         if fs::create_dir_all(&dest).is_err() {
             self.offline = true;
@@ -478,7 +543,11 @@ impl TargetState {
         // 1. Desired: every library file under a selected root, by rel_path.
         let mut desired: HashMap<String, PathBuf> = HashMap::new();
         for root in self.roots() {
-            let base = if root.is_empty() { mdir.to_path_buf() } else { mdir.join(&root) };
+            let base = if root.is_empty() {
+                mdir.to_path_buf()
+            } else {
+                mdir.join(&root)
+            };
             collect_files(&base, mdir, &mut desired);
         }
 
@@ -487,31 +556,52 @@ impl TargetState {
             let dst = dest.join(rel);
             if force || is_stale(src, &dst) {
                 let existed = dst.exists();
-                if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
+                if let Some(parent) = dst.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
                 if super::copy_file_durably(src, &dst).is_ok() {
-                    if existed { updated += 1; } else { copied += 1; }
+                    if existed {
+                        updated += 1;
+                    } else {
+                        copied += 1;
+                    }
                 }
             }
-            self.manifest.insert(rel.clone(), meta_of(&dst).unwrap_or(FileMeta { size: 0, mtime: 0 }));
+            self.manifest.insert(
+                rel.clone(),
+                meta_of(&dst).unwrap_or(FileMeta { size: 0, mtime: 0 }),
+            );
         }
 
         // 3. Walk the destination: prune library-deleted files, import drop-ins.
         let mut dest_files: HashMap<String, PathBuf> = HashMap::new();
         for root in self.roots() {
-            let base = if root.is_empty() { dest.clone() } else { dest.join(&root) };
+            let base = if root.is_empty() {
+                dest.clone()
+            } else {
+                dest.join(&root)
+            };
             collect_files(&base, &dest, &mut dest_files);
         }
         for (rel, dpath) in &dest_files {
-            if desired.contains_key(rel) { continue; }
+            if desired.contains_key(rel) {
+                continue;
+            }
             if self.manifest.contains_key(rel) {
                 // We mirrored this; the library no longer has it → library deleted it.
-                if fs::remove_file(dpath).is_ok() { deleted += 1; }
+                if fs::remove_file(dpath).is_ok() {
+                    deleted += 1;
+                }
                 self.manifest.remove(rel);
             } else if self.cfg.pull_in {
-                if self.import_dropin(app, mdir, skips, dpath, rel) { imported += 1; }
+                if self.import_dropin(app, mdir, skips, dpath, rel) {
+                    imported += 1;
+                }
             } else {
                 // True mirror, no pull-in: extraneous file → remove.
-                if fs::remove_file(dpath).is_ok() { deleted += 1; }
+                if fs::remove_file(dpath).is_ok() {
+                    deleted += 1;
+                }
             }
         }
 
@@ -522,7 +612,10 @@ impl TargetState {
             state: "idle".into(),
             last_sync: Some(Self::now_iso()),
             message: None,
-            copied, updated, deleted, imported,
+            copied,
+            updated,
+            deleted,
+            imported,
         };
         tracing::info!(target = %self.cfg.id, copied, updated, deleted, imported, "mirror reconcile complete");
     }
@@ -530,23 +623,37 @@ impl TargetState {
     // ── Incremental: library changed ─────────────────────────────────────────
 
     fn on_library_changed(&mut self, _app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
-        if self.offline { return; }
+        if self.offline {
+            return;
+        }
         let dest = self.dest_path();
 
         let (mut copied, mut updated, mut deleted) = (0usize, 0usize, 0usize);
         for p in dedup(paths) {
-            let rel = match rel_of(&p, mdir) { Some(r) => r, None => continue };
-            if !self.in_scope(&rel) { continue; }
+            let rel = match rel_of(&p, mdir) {
+                Some(r) => r,
+                None => continue,
+            };
+            if !self.in_scope(&rel) {
+                continue;
+            }
             let dst = dest.join(&rel);
             if p.exists() && p.is_file() {
                 if is_stale(&p, &dst) {
                     let existed = dst.exists();
-                    if let Some(parent) = dst.parent() { let _ = fs::create_dir_all(parent); }
+                    if let Some(parent) = dst.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
                     if super::copy_file_durably(&p, &dst).is_ok() {
-                        if existed { updated += 1; } else { copied += 1; }
+                        if existed {
+                            updated += 1;
+                        } else {
+                            copied += 1;
+                        }
                     }
                 }
-                self.manifest.insert(rel, meta_of(&dst).unwrap_or(FileMeta { size: 0, mtime: 0 }));
+                self.manifest
+                    .insert(rel, meta_of(&dst).unwrap_or(FileMeta { size: 0, mtime: 0 }));
             } else if !p.exists()
                 && (self.manifest.remove(&rel).is_some() || dst.exists())
                 && fs::remove_file(&dst).is_ok()
@@ -560,7 +667,10 @@ impl TargetState {
                 id: self.cfg.id.clone(),
                 state: "idle".into(),
                 last_sync: Some(Self::now_iso()),
-                copied, updated, deleted, imported: 0,
+                copied,
+                updated,
+                deleted,
+                imported: 0,
                 message: None,
             };
         }
@@ -568,31 +678,48 @@ impl TargetState {
 
     // ── Incremental: destination changed ─────────────────────────────────────
 
-    fn on_dest_changed(&mut self, app: &AppHandle, mdir: &Path, skips: &mut HashSet<PathBuf>, paths: &[PathBuf]) {
+    fn on_dest_changed(
+        &mut self,
+        app: &AppHandle,
+        mdir: &Path,
+        skips: &mut HashSet<PathBuf>,
+        paths: &[PathBuf],
+    ) {
         let dest = self.dest_path();
 
         for p in dedup(paths) {
-            if p.is_dir() { continue; }
-            let rel = match rel_of(&p, &dest) { Some(r) => r, None => continue };
+            if p.is_dir() {
+                continue;
+            }
+            let rel = match rel_of(&p, &dest) {
+                Some(r) => r,
+                None => continue,
+            };
             let src = mdir.join(&rel);
 
             match self.manifest.get(&rel).cloned() {
                 Some(expected) => {
                     if !src.exists() {
-                        if !p.exists() { self.manifest.remove(&rel); }
+                        if !p.exists() {
+                            self.manifest.remove(&rel);
+                        }
                         continue;
                     }
                     if !p.exists() {
                         // Deleted in the destination → restore (library wins).
-                        if let Some(parent) = p.parent() { let _ = fs::create_dir_all(parent); }
+                        if let Some(parent) = p.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
                         if super::copy_file_durably(&src, &p).is_ok() {
-                            self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
+                            self.manifest
+                                .insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "restored", &file_label(&rel));
                         }
                     } else if meta_of(&p).as_ref() != Some(&expected) {
                         // Differs from what we wrote → external edit → overwrite.
                         if super::copy_file_durably(&src, &p).is_ok() {
-                            self.manifest.insert(rel.clone(), meta_of(&p).unwrap_or(expected));
+                            self.manifest
+                                .insert(rel.clone(), meta_of(&p).unwrap_or(expected));
                             notify(app, "reverted", &file_label(&rel));
                         }
                     }
@@ -617,8 +744,17 @@ impl TargetState {
     /// Other). On success the original destination file is removed: the
     /// library→dest mirror re-creates the canonical copy at the library's
     /// rel_path, so the file is adopted rather than duplicated.
-    fn import_dropin(&mut self, app: &AppHandle, _mdir: &Path, skips: &mut HashSet<PathBuf>, path: &Path, rel: &str) -> bool {
-        if !settled(path) { return false; }
+    fn import_dropin(
+        &mut self,
+        app: &AppHandle,
+        _mdir: &Path,
+        skips: &mut HashSet<PathBuf>,
+        path: &Path,
+        rel: &str,
+    ) -> bool {
+        if !settled(path) {
+            return false;
+        }
 
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if crate::models::extension_to_media_type(ext).is_none() {
@@ -628,7 +764,8 @@ impl TargetState {
             return false;
         }
 
-        let parent_rel = Path::new(rel).parent()
+        let parent_rel = Path::new(rel)
+            .parent()
             .map(|p| p.to_string_lossy().replace('\\', "/"))
             .unwrap_or_default();
         let folder_id = {
@@ -646,8 +783,14 @@ impl TargetState {
             true,
         );
         match res {
-            Ok(()) => { let _ = fs::remove_file(path); true }
-            Err(e) => { tracing::warn!(error = %e, "drop-in import failed"); false }
+            Ok(()) => {
+                let _ = fs::remove_file(path);
+                true
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "drop-in import failed");
+                false
+            }
         }
     }
 }
@@ -655,22 +798,35 @@ impl TargetState {
 // ── Free helpers ─────────────────────────────────────────────────────────────
 
 fn notify(app: &AppHandle, kind: &str, name: &str) {
-    let _ = app.emit("sync-notice", SyncNotice { kind: kind.into(), name: name.into() });
+    let _ = app.emit(
+        "sync-notice",
+        SyncNotice {
+            kind: kind.into(),
+            name: name.into(),
+        },
+    );
 }
 
 /// Is `rel` inside one of the selected roots? `""` root = whole library.
 fn rel_in_scope(rel: &str, roots: &[String]) -> bool {
-    roots.iter().any(|r| r.is_empty() || rel == r || rel.starts_with(&format!("{r}/")))
+    roots
+        .iter()
+        .any(|r| r.is_empty() || rel == r || rel.starts_with(&format!("{r}/")))
 }
 
 /// Rel_path of `p` under `base`, with forward slashes; None if not under base.
 fn rel_of(p: &Path, base: &Path) -> Option<String> {
-    p.strip_prefix(base).ok().map(|r| r.to_string_lossy().replace('\\', "/"))
+    p.strip_prefix(base)
+        .ok()
+        .map(|r| r.to_string_lossy().replace('\\', "/"))
 }
 
 /// Recursively collect files under `base`, keyed by rel_path relative to `root`.
 fn collect_files(base: &Path, root: &Path, out: &mut HashMap<String, PathBuf>) {
-    let rd = match fs::read_dir(base) { Ok(r) => r, Err(_) => return };
+    let rd = match fs::read_dir(base) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
     for entry in rd.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -690,7 +846,9 @@ fn is_stale(src: &Path, dst: &Path) -> bool {
         (Ok(sm), Ok(dm)) => (sm, dm),
         _ => return true,
     };
-    if sm.len() != dm.len() { return true; }
+    if sm.len() != dm.len() {
+        return true;
+    }
     match (sm.modified(), dm.modified()) {
         (Ok(st), Ok(dt)) => st > dt,
         _ => false,
@@ -699,11 +857,16 @@ fn is_stale(src: &Path, dst: &Path) -> bool {
 
 fn meta_of(p: &Path) -> Option<FileMeta> {
     let m = p.metadata().ok()?;
-    let mtime = m.modified().ok()
+    let mtime = m
+        .modified()
+        .ok()
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    Some(FileMeta { size: m.len(), mtime })
+    Some(FileMeta {
+        size: m.len(),
+        mtime,
+    })
 }
 
 /// True once a file's size has stopped growing (a copy in progress has settled).
@@ -715,12 +878,19 @@ fn settled(p: &Path) -> bool {
 }
 
 fn file_label(rel: &str) -> String {
-    Path::new(rel).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| rel.into())
+    Path::new(rel)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| rel.into())
 }
 
 fn dedup(paths: &[PathBuf]) -> Vec<PathBuf> {
     let mut seen = HashSet::new();
-    paths.iter().filter(|p| seen.insert((*p).clone())).cloned().collect()
+    paths
+        .iter()
+        .filter(|p| seen.insert((*p).clone()))
+        .cloned()
+        .collect()
 }
 
 /// Recursively remove empty directories under `root` (but keep `root` itself).
@@ -733,13 +903,17 @@ fn prune_empty_dirs(root: &Path) {
                 if p.is_dir() {
                     // rec returns true when the child was empty (and removed);
                     // a child that survives keeps this dir non-empty.
-                    if !rec(&p, false) { empty = false; }
+                    if !rec(&p, false) {
+                        empty = false;
+                    }
                 } else {
                     empty = false;
                 }
             }
         }
-        if empty && !is_root { let _ = fs::remove_dir(dir); }
+        if empty && !is_root {
+            let _ = fs::remove_dir(dir);
+        }
         empty
     }
     rec(root, true);
@@ -768,11 +942,21 @@ fn folder_id_for_rel(conn: &rusqlite::Connection, rel: &str) -> Option<String> {
 // rather than the raw app-data dir so switching workspaces doesn't share or
 // clobber stale mirror state between them.
 fn config_path(app: &AppHandle) -> Option<PathBuf> {
-    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_config.json"))
+    Some(
+        app.state::<crate::workspace::WorkspaceState>()
+            .paths
+            .data_dir
+            .join("sync_config.json"),
+    )
 }
 
 fn manifest_path(app: &AppHandle) -> Option<PathBuf> {
-    Some(app.state::<crate::workspace::WorkspaceState>().paths.data_dir.join("sync_manifest.json"))
+    Some(
+        app.state::<crate::workspace::WorkspaceState>()
+            .paths
+            .data_dir
+            .join("sync_manifest.json"),
+    )
 }
 
 fn load_config(app: &AppHandle) -> SyncConfig {
@@ -812,9 +996,16 @@ mod tests {
 
     fn write_at(dir: &Path, name: &str, bytes: &[u8], mtime: SystemTime) -> PathBuf {
         let p = dir.join(name);
-        if let Some(parent) = p.parent() { fs::create_dir_all(parent).unwrap(); }
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
         fs::write(&p, bytes).unwrap();
-        File::options().write(true).open(&p).unwrap().set_modified(mtime).unwrap();
+        File::options()
+            .write(true)
+            .open(&p)
+            .unwrap()
+            .set_modified(mtime)
+            .unwrap();
         p
     }
 
@@ -957,7 +1148,10 @@ mod tests {
     #[test]
     fn rel_of_strips_base_and_normalizes_slashes() {
         let base = Path::new("/lib/media");
-        assert_eq!(rel_of(Path::new("/lib/media/Photos/a.jpg"), base).as_deref(), Some("Photos/a.jpg"));
+        assert_eq!(
+            rel_of(Path::new("/lib/media/Photos/a.jpg"), base).as_deref(),
+            Some("Photos/a.jpg")
+        );
         assert_eq!(rel_of(Path::new("/elsewhere/a.jpg"), base), None);
     }
 }
