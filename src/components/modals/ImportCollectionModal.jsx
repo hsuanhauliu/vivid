@@ -8,6 +8,34 @@ import './ImportCollectionModal.css';
 
 const KIND_ICON = { album: BookImage, playlist: Disc };
 
+const AUDIO_EXTS = new Set([
+  'mp3',
+  'wav',
+  'flac',
+  'm4a',
+  'aac',
+  'ogg',
+  'opus',
+  'wma',
+  'aiff',
+  'aif',
+  'alac',
+]);
+const VIDEO_EXTS = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+const IMAGE_EXTS = new Set([
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'webp',
+  'heic',
+  'heif',
+  'bmp',
+  'tiff',
+  'avif',
+]);
+const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
+
 // A collection cover, falling back to a kind icon (album/playlist) when the
 // collection has neither a cover image nor an emoji.
 function CollectionRowAvatar({ group, allItems }) {
@@ -167,33 +195,6 @@ export default function ImportCollectionModal({
       : folderList;
   }, [folderList, folderSearch]);
 
-  const AUDIO_EXTS = new Set([
-    'mp3',
-    'wav',
-    'flac',
-    'm4a',
-    'aac',
-    'ogg',
-    'opus',
-    'wma',
-    'aiff',
-    'aif',
-    'alac',
-  ]);
-  const VIDEO_EXTS = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
-  const IMAGE_EXTS = new Set([
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'webp',
-    'heic',
-    'heif',
-    'bmp',
-    'tiff',
-    'avif',
-  ]);
-  const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
   const hasAudio = useMemo(() => paths.some((p) => AUDIO_EXTS.has(pathExt(p))), [paths]);
   const hasVideo = useMemo(() => paths.some((p) => VIDEO_EXTS.has(pathExt(p))), [paths]);
   const hasImage = useMemo(() => paths.some((p) => IMAGE_EXTS.has(pathExt(p))), [paths]);

@@ -856,6 +856,7 @@ export default function VideoPlayer({
     revealChrome,
     changeZoom,
     resetView,
+    fullscreenRef,
   ]);
 
   // ── Media element events ────────────────────────────────────────────────────

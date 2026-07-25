@@ -503,7 +503,7 @@ export default function App() {
     // via bulk import (drag-drop, watched folders) never get scanned unless
     // the user manually clicks "Scan for text" in Settings.
     invoke('run_ocr_all').catch(console.error);
-  }, []);
+  }, [setAllItems]);
 
   // mood names are static — load them immediately, no model needed
   useEffect(() => {
@@ -561,22 +561,25 @@ export default function App() {
         setSelected(updated);
       }
     },
-    [],
+    [setAllItems, setSelected],
   );
 
   // Open the in-app image picker for this audio item (Vivid manages photos, so
   // pick a cover from the library rather than the system file dialog).
   const handleSetAudioCover = useCallback((item) => setAudioCoverTarget(item), []);
 
-  const handleRemoveAudioCover = useCallback(async (item) => {
-    try {
-      const updated = await invoke('set_audio_cover', { id: item.id, coverPath: null });
-      setAllItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
-      setSelected((prev) => (prev?.id === item.id ? updated : prev));
-    } catch (e) {
-      console.error('Remove cover failed:', e);
-    }
-  }, []);
+  const handleRemoveAudioCover = useCallback(
+    async (item) => {
+      try {
+        const updated = await invoke('set_audio_cover', { id: item.id, coverPath: null });
+        setAllItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
+        setSelected((prev) => (prev?.id === item.id ? updated : prev));
+      } catch (e) {
+        console.error('Remove cover failed:', e);
+      }
+    },
+    [setAllItems, setSelected],
+  );
 
   // Apply a chosen cover path to the pending audio item, then close the picker.
   const applyAudioCover = useCallback(
@@ -592,7 +595,7 @@ export default function App() {
         console.error('Set cover failed:', e);
       }
     },
-    [audioCoverTarget],
+    [audioCoverTarget, setAllItems, setSelected],
   );
 
   // Fallback: pick an image file from outside the library via the system dialog.
@@ -652,47 +655,62 @@ export default function App() {
   // An in-place edit repointed the file (HEIC re-encoded to JPEG): the id is
   // unchanged but file_path/display_name moved. Update every surface holding
   // the item so they follow it to the new path.
-  const handleItemUpdated = useCallback((updated) => {
-    setAllItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
-    setEditorItem((prev) => (prev?.id === updated.id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === updated.id ? updated : prev));
-    setSelected((prev) => (prev?.id === updated.id ? updated : prev));
-  }, []);
+  const handleItemUpdated = useCallback(
+    (updated) => {
+      setAllItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      setEditorItem((prev) => (prev?.id === updated.id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === updated.id ? updated : prev));
+      setSelected((prev) => (prev?.id === updated.id ? updated : prev));
+    },
+    [setAllItems, setSelected],
+  );
 
-  const handleStarToggle = useCallback(async (id) => {
-    const updated = await invoke('toggle_star', { id });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === id ? updated : prev));
-  }, []);
+  const handleStarToggle = useCallback(
+    async (id) => {
+      const updated = await invoke('toggle_star', { id });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === id ? updated : prev));
+    },
+    [setAllItems, setSelected],
+  );
 
-  const handleRemoveAutoTag = useCallback(async (id, tag) => {
-    const updated = await invoke('remove_auto_tag', { id, tag });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === id ? updated : prev));
-  }, []);
+  const handleRemoveAutoTag = useCallback(
+    async (id, tag) => {
+      const updated = await invoke('remove_auto_tag', { id, tag });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === id ? updated : prev));
+    },
+    [setAllItems, setSelected],
+  );
 
-  const handleRetagImage = useCallback(async (id) => {
-    const updated = await invoke('embed_and_tag_image', { id });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === id ? updated : prev));
-    return updated;
-  }, []);
+  const handleRetagImage = useCallback(
+    async (id) => {
+      const updated = await invoke('embed_and_tag_image', { id });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === id ? updated : prev));
+      return updated;
+    },
+    [setAllItems, setSelected],
+  );
 
   // Toggles a single collection's membership for one item — `isMember` tells
   // it which way to flip. An item can belong to any number of collections at
   // once, so this only ever touches the one collection being clicked.
-  const handleSetCollection = useCallback(async (id, collectionId, isMember) => {
-    const updated = await invoke(isMember ? 'remove_from_collection' : 'add_to_collection', {
-      id,
-      collectionId,
-    });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === id ? updated : prev));
-  }, []);
+  const handleSetCollection = useCallback(
+    async (id, collectionId, isMember) => {
+      const updated = await invoke(isMember ? 'remove_from_collection' : 'add_to_collection', {
+        id,
+        collectionId,
+      });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === id ? updated : prev));
+    },
+    [setAllItems, setSelected],
+  );
 
   const handleRemove = useCallback(
     (id) => {
@@ -715,7 +733,7 @@ export default function App() {
         },
       });
     },
-    [t],
+    [t, setAllItems, setSelected, setCheckedIds],
   );
 
   // ── Multi-select mutations ────────────────────────────────────────────────
@@ -733,7 +751,7 @@ export default function App() {
         setConfirm(null);
       },
     });
-  }, [checkedIds, clearChecked, t]);
+  }, [checkedIds, clearChecked, t, setAllItems]);
 
   const handleMassTag = useCallback(
     async (tagsToAdd) => {
@@ -756,7 +774,7 @@ export default function App() {
         return prev.map((it) => map[it.id] ?? it);
       });
     },
-    [checkedIds, allItems],
+    [checkedIds, allItems, setAllItems],
   );
 
   // Adds every checked item to a collection — additive, doesn't disturb
@@ -792,7 +810,7 @@ export default function App() {
         showToast('error', t('notif.moveToCollectionFailed', { count: failed.length }));
       }
     },
-    [checkedIds, allItems, collections, showToast, t],
+    [checkedIds, allItems, collections, showToast, t, setAllItems],
   );
 
   const handleMassMoveFolder = useCallback(
@@ -816,7 +834,7 @@ export default function App() {
         }
       }
     },
-    [checkedIds, allItems, folders, showToast, t],
+    [checkedIds, allItems, folders, showToast, t, setAllItems],
   );
 
   const handleMoveToFolder = useCallback(
@@ -836,18 +854,21 @@ export default function App() {
         }
       }
     },
-    [allItems, folders, showToast, t],
+    [allItems, folders, showToast, t, setAllItems],
   );
 
-  const handleAddResultsToCollection = useCallback(async (collectionId, items) => {
-    const updated = await Promise.all(
-      items.map((i) => invoke('add_to_collection', { id: i.id, collectionId })),
-    );
-    setAllItems((prev) => {
-      const map = Object.fromEntries(updated.map((it) => [it.id, it]));
-      return prev.map((it) => map[it.id] ?? it);
-    });
-  }, []);
+  const handleAddResultsToCollection = useCallback(
+    async (collectionId, items) => {
+      const updated = await Promise.all(
+        items.map((i) => invoke('add_to_collection', { id: i.id, collectionId })),
+      );
+      setAllItems((prev) => {
+        const map = Object.fromEntries(updated.map((it) => [it.id, it]));
+        return prev.map((it) => map[it.id] ?? it);
+      });
+    },
+    [setAllItems],
+  );
 
   // ── Drag files onto a collection or folder ────────────────────────────────
   const handleCollectionDrop = useCallback(
@@ -980,7 +1001,7 @@ export default function App() {
         return prev.map((it) => map[it.id] ?? it);
       });
     },
-    [allItems],
+    [allItems, setAllItems],
   );
 
   // Renames the actual on-disk filename — distinct from handleBatchRename
@@ -1011,15 +1032,18 @@ export default function App() {
         );
       }
     },
-    [showToast, t],
+    [showToast, t, setAllItems],
   );
 
-  const handleColorLabel = useCallback(async (id, label) => {
-    const updated = await invoke('set_color_label', { id, label: label ?? null });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setContextMenu(null);
-  }, []);
+  const handleColorLabel = useCallback(
+    async (id, label) => {
+      const updated = await invoke('set_color_label', { id, label: label ?? null });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setContextMenu(null);
+    },
+    [setAllItems, setSelected],
+  );
 
   // ── Navigation history (back / forward like a browser) ─────────────────────
   const applyNavSnapshot = useCallback(
@@ -1058,12 +1082,15 @@ export default function App() {
         return [trimmed, ...filtered].slice(0, 5);
       });
     },
-    [searchHistoryEnabled],
+    [searchHistoryEnabled, setSearchHistory],
   );
 
-  const removeFromHistory = useCallback((term) => {
-    setSearchHistory((prev) => prev.filter((h) => h !== term));
-  }, []);
+  const removeFromHistory = useCallback(
+    (term) => {
+      setSearchHistory((prev) => prev.filter((h) => h !== term));
+    },
+    [setSearchHistory],
+  );
 
   const handleSaveSearch = useCallback(
     (name, snapshot) => {
@@ -1101,7 +1128,7 @@ export default function App() {
         },
       });
     },
-    [savedSearches, t],
+    [savedSearches, t, setSavedSearches],
   );
 
   const handleSearchGo = useCallback(() => {
@@ -1158,7 +1185,7 @@ export default function App() {
         },
       });
     },
-    [activeCollection, t],
+    [activeCollection, t, reloadMedia],
   );
 
   const [pinnedOrder, setPinnedOrder] = usePersistentState(
@@ -1168,11 +1195,14 @@ export default function App() {
     JSON.stringify,
   );
 
-  const handleSidebarPin = useCallback(async (id, pin) => {
-    const updated = await invoke('set_sidebar_pin', { id, pinned: pin });
-    setCollections((prev) => prev.map((g) => (g.id === id ? updated : g)));
-    if (!pin) setPinnedOrder((prev) => prev.filter((x) => x !== id));
-  }, []);
+  const handleSidebarPin = useCallback(
+    async (id, pin) => {
+      const updated = await invoke('set_sidebar_pin', { id, pinned: pin });
+      setCollections((prev) => prev.map((g) => (g.id === id ? updated : g)));
+      if (!pin) setPinnedOrder((prev) => prev.filter((x) => x !== id));
+    },
+    [setPinnedOrder],
+  );
 
   const handleReorderPins = useCallback(
     (orderedIds) => setPinnedOrder(orderedIds),
@@ -1210,7 +1240,7 @@ export default function App() {
         });
       });
     },
-    [activeTag, view, pushNav, clearChecked, clearSearchAndFilters, guardedNav],
+    [activeTag, view, pushNav, clearChecked, clearSearchAndFilters, guardedNav, setActiveFolder],
   );
 
   const handleTagClick = useCallback(
@@ -1262,7 +1292,7 @@ export default function App() {
         });
       });
     },
-    [activeCollection, search, view, pushNav, guardedNav],
+    [activeCollection, search, view, pushNav, guardedNav, setActiveFolder],
   );
 
   // Core folder-selection logic, shared by the sidebar/detail-panel entry
@@ -1287,7 +1317,7 @@ export default function App() {
         view: 'library',
       });
     },
-    [activeFolder, search, pushNav],
+    [activeFolder, search, pushNav, setActiveFolder],
   );
 
   // Select an on-disk folder: filter the library to its subtree.
@@ -1313,11 +1343,11 @@ export default function App() {
       filter,
       activeTag,
       activeCollection,
-      view,
       pushNav,
       clearChecked,
       clearSearchAndFilters,
       guardedNav,
+      setActiveFolder,
     ],
   );
 
@@ -1402,7 +1432,7 @@ export default function App() {
       setSelected(null);
       handleViewChange('worldmap', { mapFocusId: item.id });
     },
-    [handleViewChange],
+    [handleViewChange, setSelected],
   );
 
   // "View on Map" from an album's title bar — restricts the World Map to
@@ -1421,15 +1451,18 @@ export default function App() {
       setSelected(null);
       handleViewChange('worldmap', { mapScope: albumImages });
     },
-    [handleViewChange, showToast, t],
+    [handleViewChange, showToast, t, setSelected],
   );
 
-  const handleSetLocation = useCallback(async (id, lat, lng) => {
-    const updated = await invoke('set_media_location', { id, lat, lng });
-    setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
-    setSelected((prev) => (prev?.id === id ? updated : prev));
-    setViewerItem((prev) => (prev?.id === id ? updated : prev));
-  }, []);
+  const handleSetLocation = useCallback(
+    async (id, lat, lng) => {
+      const updated = await invoke('set_media_location', { id, lat, lng });
+      setAllItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
+      setSelected((prev) => (prev?.id === id ? updated : prev));
+      setViewerItem((prev) => (prev?.id === id ? updated : prev));
+    },
+    [setAllItems, setSelected],
+  );
 
   // `navItems` scopes FileViewer's prev/next navigation to something other
   // than the default `visible` set — e.g. the World Map passes just the
@@ -1477,7 +1510,7 @@ export default function App() {
     (item) => {
       if (!isSelecting) setSelected((prev) => (prev?.id === item.id ? null : item));
     },
-    [isSelecting],
+    [isSelecting, setSelected],
   );
 
   const handleCardContextMenu = useCallback((e, item) => {
@@ -1511,40 +1544,43 @@ export default function App() {
   );
 
   // Called when a transform creates a copy — add to library and navigate to it
-  const handleNewItem = useCallback(async (item, dest = null) => {
-    setAllItems((prev) => [item, ...prev]);
-    setViewerItem(item);
-    if (!dest) return;
-    try {
-      let updated = item;
-      if (dest.folderId) {
-        const [moved] = await invoke('move_to_folder', {
-          itemIds: [item.id],
-          folderId: dest.folderId,
-        });
-        if (moved) updated = moved;
-      } else if (dest.newFolderName) {
-        const folder = await invoke('create_folder', { name: dest.newFolderName });
-        if (folder) {
+  const handleNewItem = useCallback(
+    async (item, dest = null) => {
+      setAllItems((prev) => [item, ...prev]);
+      setViewerItem(item);
+      if (!dest) return;
+      try {
+        let updated = item;
+        if (dest.folderId) {
           const [moved] = await invoke('move_to_folder', {
             itemIds: [item.id],
-            folderId: folder.id,
+            folderId: dest.folderId,
           });
           if (moved) updated = moved;
+        } else if (dest.newFolderName) {
+          const folder = await invoke('create_folder', { name: dest.newFolderName });
+          if (folder) {
+            const [moved] = await invoke('move_to_folder', {
+              itemIds: [item.id],
+              folderId: folder.id,
+            });
+            if (moved) updated = moved;
+          }
         }
+        if (dest.collectionId) {
+          updated = await invoke('add_to_collection', {
+            id: updated.id,
+            collectionId: dest.collectionId,
+          });
+        }
+        setAllItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+        setViewerItem(updated);
+      } catch (e) {
+        console.error('Failed to assign copy to folder/collection:', e);
       }
-      if (dest.collectionId) {
-        updated = await invoke('add_to_collection', {
-          id: updated.id,
-          collectionId: dest.collectionId,
-        });
-      }
-      setAllItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      setViewerItem(updated);
-    } catch (e) {
-      console.error('Failed to assign copy to folder/collection:', e);
-    }
-  }, []);
+    },
+    [setAllItems],
+  );
 
   const handleShare = useCallback((filePaths) => {
     invoke('share_files', { filePaths }).catch(console.error);
@@ -1818,7 +1854,16 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [viewerItem, playerItem, visible, selected, handleCardOpen, isSelecting, setCheckedIds]);
+  }, [
+    viewerItem,
+    playerItem,
+    visible,
+    selected,
+    handleCardOpen,
+    isSelecting,
+    setCheckedIds,
+    setSelected,
+  ]);
 
   // Queue for the bottom player: explicit (playlist) queue takes priority
   const playerQueue = useMemo(() => {

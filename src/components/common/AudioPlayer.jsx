@@ -69,7 +69,7 @@ export default function AudioPlayer({
     // Keep current item first, shuffle the rest
     const rest = rawQueue.filter((i) => i.id !== item.id);
     return [item, ...shuffleArr(rest)];
-  }, [rawQueue, shuffleOn, playlistMode, item?.id]);
+  }, [rawQueue, shuffleOn, playlistMode, item]);
 
   useEffect(() => {
     setWaveform(null);

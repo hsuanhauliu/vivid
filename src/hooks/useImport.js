@@ -140,7 +140,7 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
       cancelled = true;
       unlisteners.forEach((fn) => fn());
     };
-  }, []);
+  }, [setAllItems]);
 
   // ── Native drag-drop (web File.path is unavailable in WKWebView) ───────────
   useEffect(() => {

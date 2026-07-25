@@ -422,7 +422,7 @@ function TimelineScrubber({ monthKeys, scrollAreaRef, activeMonth }) {
 
     el.addEventListener('mousedown', onDown);
     return () => el.removeEventListener('mousedown', onDown);
-  }, []);
+  }, [scrollAreaRef]);
 
   function handleClick(e, key) {
     if (dragRef.current?.moved) return;

@@ -312,6 +312,10 @@ export default function DetailPanel({
         .then(setExifMeta)
         .catch(console.error);
     }
+    // Deliberately keyed on id alone: re-syncing on every `item` reference
+    // change (e.g. an unrelated field updating elsewhere in `allItems`)
+    // would wipe out in-progress edits/dirty state for the still-open item.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
   // Re-sync pending auto-tag removals whenever the item's actual auto_tags
