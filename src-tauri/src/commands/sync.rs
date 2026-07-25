@@ -339,7 +339,7 @@ fn worker_loop(app: AppHandle, rx: std::sync::mpsc::Receiver<SyncMsg>, self_tx: 
                 let mdir = w.mdir.clone();
                 let skips = &mut w.notified_skips;
                 for t in &mut w.targets {
-                    if id.as_ref().map_or(true, |x| *x == t.cfg.id) {
+                    if id.as_ref().is_none_or(|x| *x == t.cfg.id) {
                         t.reconcile(&app, &mdir, skips, true);
                     }
                 }
@@ -547,10 +547,11 @@ impl TargetState {
                     }
                 }
                 self.manifest.insert(rel, meta_of(&dst).unwrap_or(FileMeta { size: 0, mtime: 0 }));
-            } else if !p.exists() {
-                if self.manifest.remove(&rel).is_some() || dst.exists() {
-                    if fs::remove_file(&dst).is_ok() { deleted += 1; }
-                }
+            } else if !p.exists()
+                && (self.manifest.remove(&rel).is_some() || dst.exists())
+                && fs::remove_file(&dst).is_ok()
+            {
+                deleted += 1;
             }
         }
         if copied + updated + deleted > 0 {

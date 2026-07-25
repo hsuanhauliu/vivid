@@ -1009,8 +1009,8 @@ pub struct ReconcileResult {
 /// Bring the DB in sync with what's actually on disk for an external
 /// workspace's root: adopt new files, hard-delete rows whose file is gone,
 /// and invalidate derived data (thumbnail/dims/embedding/OCR) for files
-/// whose size or mtime changed underneath Vivid. Runs as one directory walk
-/// + one DB query + an in-memory diff, so it stays fast even at 10k+ files —
+/// whose size or mtime changed underneath Vivid. Runs as one directory walk,
+/// one DB query, and an in-memory diff, so it stays fast even at 10k+ files —
 /// the actual DB writes (insert/delete/mark-modified) are the only blocking
 /// part; thumbnail and embedding regeneration for what changed happens in
 /// the background afterward, same as a regular import.
@@ -2267,7 +2267,7 @@ pub fn find_duplicates(state: State<DbState>) -> Result<Vec<Vec<MediaItem>>, Str
         .into_values()
         .filter(|g| g.len() > 1)
         .collect();
-    collections.sort_by(|a, b| b.len().cmp(&a.len()));
+    collections.sort_by_key(|b| std::cmp::Reverse(b.len()));
     Ok(collections)
 }
 

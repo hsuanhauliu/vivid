@@ -124,7 +124,7 @@ impl SiglipClip {
     /// Encode an image file → L2-normalised embedding.
     pub fn embed_image(&self, path: &Path) -> Result<Vec<f32>> {
         let heic_path = heif_to_jpeg_if_needed(path)?;
-        let open_path = heic_path.as_ref().map(|p| p.as_path()).unwrap_or(path);
+        let open_path = heic_path.as_deref().unwrap_or(path);
         let img = match image::open(open_path) {
             Ok(img) => img,
             Err(_) if heic_path.is_none() => {

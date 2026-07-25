@@ -547,6 +547,11 @@ pb's writeObjects_({{theImage}})"#
 /// this always lands on a new sibling filename and repoints the DB row
 /// rather than literally overwriting the same path, so the webview never
 /// serves a stale cached copy of a file whose path didn't change.
+// Each parameter maps 1:1 to a value the frontend already tracks as separate
+// state (file path, item id, trim range, save mode, resolution cap) and to
+// the invoke() call's argument names — bundling them into a params struct
+// would just move the same eight fields one level down, not reduce them.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn trim_video(
     app: tauri::AppHandle,

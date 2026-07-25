@@ -60,7 +60,6 @@ pub fn watch_init(app: &AppHandle) {
     }
     let mdir = ws_state.paths.media_dir.clone();
     let ws_name = ws_state.workspace.name.clone();
-    drop(ws_state);
 
     let app2 = app.clone();
     let mdir2 = mdir.clone();
@@ -114,7 +113,7 @@ fn handle_changes(app: &AppHandle, mdir: &Path, paths: &[PathBuf]) {
             // tracked row, if any — trash doesn't apply, the file is gone.
             let conn = match state.0.lock() { Ok(c) => c, Err(_) => continue };
             if let Ok(Some(known)) = db::active_identity_by_path(&conn, &path_str) {
-                let _ = db::remove_missing(&conn, &[known.id.clone()]);
+                let _ = db::remove_missing(&conn, std::slice::from_ref(&known.id));
                 drop(conn);
                 let _ = app.emit("media-removed", MediaRemoved { ids: vec![known.id] });
                 continue;

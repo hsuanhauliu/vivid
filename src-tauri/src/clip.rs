@@ -161,126 +161,6 @@ pub(crate) fn apply_exif_orientation(img: image::DynamicImage, orientation: u32)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cosine_sim_identical_unit_vector() {
-        let v = vec![1.0f32, 0.0, 0.0];
-        assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn cosine_sim_orthogonal() {
-        let a = vec![1.0f32, 0.0, 0.0];
-        let b = vec![0.0f32, 1.0, 0.0];
-        assert!(cosine_sim(&a, &b).abs() < 1e-6);
-    }
-
-    #[test]
-    fn cosine_sim_opposite() {
-        let a = vec![1.0f32, 0.0, 0.0];
-        let b = vec![-1.0f32, 0.0, 0.0];
-        assert!((cosine_sim(&a, &b) - (-1.0)).abs() < 1e-6);
-    }
-
-    #[test]
-    fn cosine_sim_diagonal() {
-        // Two identical 45-degree vectors: [0.707, 0.707] · [0.707, 0.707] ≈ 1.0
-        let v = vec![std::f32::consts::FRAC_1_SQRT_2, std::f32::consts::FRAC_1_SQRT_2];
-        assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-5);
-    }
-
-    #[test]
-    fn embedding_bytes_roundtrip() {
-        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0, f32::MAX, f32::MIN_POSITIVE];
-        let bytes = embedding_to_bytes(&original);
-        let recovered = bytes_to_embedding(&bytes);
-        assert_eq!(original.len(), recovered.len());
-        for (a, b) in original.iter().zip(recovered.iter()) {
-            assert!((a - b).abs() < 1e-10, "mismatch: {a} != {b}");
-        }
-    }
-
-    #[test]
-    fn embedding_bytes_length() {
-        let emb = vec![0.0f32; 512]; // CLIP produces 512-dim embeddings
-        let bytes = embedding_to_bytes(&emb);
-        assert_eq!(bytes.len(), 512 * 4); // 4 bytes per f32
-        let recovered = bytes_to_embedding(&bytes);
-        assert_eq!(recovered.len(), 512);
-    }
-
-    #[test]
-    fn empty_embedding_roundtrip() {
-        let emb: Vec<f32> = vec![];
-        let bytes = embedding_to_bytes(&emb);
-        assert!(bytes.is_empty());
-        let recovered = bytes_to_embedding(&bytes);
-        assert!(recovered.is_empty());
-    }
-
-    // ── EXIF orientation ────────────────────────────────────────────────────
-
-    use image::{DynamicImage, GenericImageView, Rgb, RgbImage};
-
-    // 3 wide × 2 tall, every pixel a distinct gray so transforms are observable.
-    fn sample() -> DynamicImage {
-        let mut img = RgbImage::new(3, 2);
-        let mut v = 0u8;
-        for y in 0..2 {
-            for x in 0..3 {
-                img.put_pixel(x, y, Rgb([v, v, v]));
-                v += 10;
-            }
-        }
-        DynamicImage::ImageRgb8(img)
-    }
-
-    #[test]
-    fn identity_for_normal_and_unknown_orientation() {
-        let img = sample();
-        for o in [1u32, 0, 99] {
-            let out = apply_exif_orientation(img.clone(), o);
-            assert_eq!((out.width(), out.height()), (3, 2), "orientation {o}");
-        }
-    }
-
-    #[test]
-    fn quarter_turns_swap_dimensions() {
-        let img = sample();
-        for o in [5u32, 6, 7, 8] {
-            let out = apply_exif_orientation(img.clone(), o);
-            assert_eq!((out.width(), out.height()), (2, 3), "orientation {o}");
-        }
-    }
-
-    #[test]
-    fn flips_and_half_turn_preserve_dimensions() {
-        let img = sample();
-        for o in [2u32, 3, 4] {
-            let out = apply_exif_orientation(img.clone(), o);
-            assert_eq!((out.width(), out.height()), (3, 2), "orientation {o}");
-        }
-    }
-
-    #[test]
-    fn horizontal_flip_mirrors_columns() {
-        let orig = sample().to_rgb8();
-        let out = apply_exif_orientation(sample(), 2).to_rgb8();
-        assert_eq!(out.get_pixel(0, 0), orig.get_pixel(2, 0));
-        assert_eq!(out.get_pixel(2, 0), orig.get_pixel(0, 0));
-    }
-
-    #[test]
-    fn rotate180_sends_top_left_to_bottom_right() {
-        let orig = sample().to_rgb8();
-        let out = apply_exif_orientation(sample(), 3).to_rgb8();
-        assert_eq!(out.get_pixel(0, 0), orig.get_pixel(2, 1));
-    }
-}
-
 /// Extract a single poster frame from a video file to a temp JPEG via the
 /// Swift helper (AVFoundation — no ffmpeg). The helper tries 5s first, falls
 /// back to 0s if the video is shorter.
@@ -359,4 +239,125 @@ fn cover_via_lofty(audio_path: &Path) -> Result<Option<std::path::PathBuf>> {
     std::fs::write(&tmp, data).map_err(|e| anyhow!("write cover: {e}"))?;
     Ok(Some(tmp))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cosine_sim_identical_unit_vector() {
+        let v = vec![1.0f32, 0.0, 0.0];
+        assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_sim_orthogonal() {
+        let a = vec![1.0f32, 0.0, 0.0];
+        let b = vec![0.0f32, 1.0, 0.0];
+        assert!(cosine_sim(&a, &b).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_sim_opposite() {
+        let a = vec![1.0f32, 0.0, 0.0];
+        let b = vec![-1.0f32, 0.0, 0.0];
+        assert!((cosine_sim(&a, &b) - (-1.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_sim_diagonal() {
+        // Two identical 45-degree vectors: [0.707, 0.707] · [0.707, 0.707] ≈ 1.0
+        let v = vec![std::f32::consts::FRAC_1_SQRT_2, std::f32::consts::FRAC_1_SQRT_2];
+        assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn embedding_bytes_roundtrip() {
+        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0, f32::MAX, f32::MIN_POSITIVE];
+        let bytes = embedding_to_bytes(&original);
+        let recovered = bytes_to_embedding(&bytes);
+        assert_eq!(original.len(), recovered.len());
+        for (a, b) in original.iter().zip(recovered.iter()) {
+            assert!((a - b).abs() < 1e-10, "mismatch: {a} != {b}");
+        }
+    }
+
+    #[test]
+    fn embedding_bytes_length() {
+        let emb = vec![0.0f32; 512]; // CLIP produces 512-dim embeddings
+        let bytes = embedding_to_bytes(&emb);
+        assert_eq!(bytes.len(), 512 * 4); // 4 bytes per f32
+        let recovered = bytes_to_embedding(&bytes);
+        assert_eq!(recovered.len(), 512);
+    }
+
+    #[test]
+    fn empty_embedding_roundtrip() {
+        let emb: Vec<f32> = vec![];
+        let bytes = embedding_to_bytes(&emb);
+        assert!(bytes.is_empty());
+        let recovered = bytes_to_embedding(&bytes);
+        assert!(recovered.is_empty());
+    }
+
+    // ── EXIF orientation ────────────────────────────────────────────────────
+
+    use image::{DynamicImage, Rgb, RgbImage};
+
+    // 3 wide × 2 tall, every pixel a distinct gray so transforms are observable.
+    fn sample() -> DynamicImage {
+        let mut img = RgbImage::new(3, 2);
+        let mut v = 0u8;
+        for y in 0..2 {
+            for x in 0..3 {
+                img.put_pixel(x, y, Rgb([v, v, v]));
+                v += 10;
+            }
+        }
+        DynamicImage::ImageRgb8(img)
+    }
+
+    #[test]
+    fn identity_for_normal_and_unknown_orientation() {
+        let img = sample();
+        for o in [1u32, 0, 99] {
+            let out = apply_exif_orientation(img.clone(), o);
+            assert_eq!((out.width(), out.height()), (3, 2), "orientation {o}");
+        }
+    }
+
+    #[test]
+    fn quarter_turns_swap_dimensions() {
+        let img = sample();
+        for o in [5u32, 6, 7, 8] {
+            let out = apply_exif_orientation(img.clone(), o);
+            assert_eq!((out.width(), out.height()), (2, 3), "orientation {o}");
+        }
+    }
+
+    #[test]
+    fn flips_and_half_turn_preserve_dimensions() {
+        let img = sample();
+        for o in [2u32, 3, 4] {
+            let out = apply_exif_orientation(img.clone(), o);
+            assert_eq!((out.width(), out.height()), (3, 2), "orientation {o}");
+        }
+    }
+
+    #[test]
+    fn horizontal_flip_mirrors_columns() {
+        let orig = sample().to_rgb8();
+        let out = apply_exif_orientation(sample(), 2).to_rgb8();
+        assert_eq!(out.get_pixel(0, 0), orig.get_pixel(2, 0));
+        assert_eq!(out.get_pixel(2, 0), orig.get_pixel(0, 0));
+    }
+
+    #[test]
+    fn rotate180_sends_top_left_to_bottom_right() {
+        let orig = sample().to_rgb8();
+        let out = apply_exif_orientation(sample(), 3).to_rgb8();
+        assert_eq!(out.get_pixel(0, 0), orig.get_pixel(2, 1));
+    }
+}
+
 

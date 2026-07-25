@@ -24,7 +24,7 @@ fn resolve_filename(url: &str, given: Option<&str>, content_type: &str) -> Resul
         }
     }
     let url_path = url.split('?').next().unwrap_or(url);
-    let url_name = url_path.split('/').last().unwrap_or("").trim();
+    let url_name = url_path.split('/').next_back().unwrap_or("").trim();
     if !url_name.is_empty() && url_name.contains('.') {
         return Ok(url_name.to_string());
     }
@@ -155,7 +155,7 @@ pub async fn start_download_bg(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| {
             url.split('?').next().unwrap_or(&url)
-               .split('/').last().unwrap_or("download").to_string()
+               .split('/').next_back().unwrap_or("download").to_string()
         });
 
     emit_dl(&app, DlProgress { job_id: job_id.clone(), label: label.clone(), current: 0, total: 1, file_name: None, done: false, error: None, success_count: 0 });
@@ -413,6 +413,28 @@ pub async fn start_playlist_bg(
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
+fn find_stem_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
+    fs::read_dir(dir).ok()?.find(|e| {
+        e.as_ref().ok()
+            .and_then(|e| e.file_name().to_str().map(|n| n.starts_with(stem)))
+            .unwrap_or(false)
+    }).and_then(|e| e.ok()).map(|e| e.path())
+}
+
+fn apply_audio_meta(item: &mut MediaItem, path: &Path) {
+    if let Ok(meta) = extract_audio_meta(path) {
+        if meta.title.is_some() {
+            item.display_name = meta.title.clone().unwrap_or_else(|| item.display_name.clone());
+        }
+        item.audio_title    = meta.title;
+        item.audio_artist   = meta.artist;
+        item.audio_album    = meta.album;
+        item.audio_track    = meta.track;
+        item.audio_duration = meta.duration_secs;
+        item.audio_year     = meta.year;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::resolve_filename;
@@ -474,27 +496,5 @@ mod tests {
             "image/jpeg; charset=utf-8",
         ).unwrap();
         assert_eq!(r, "download.jpg");
-    }
-}
-
-fn find_stem_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
-    fs::read_dir(dir).ok()?.find(|e| {
-        e.as_ref().ok()
-            .and_then(|e| e.file_name().to_str().map(|n| n.starts_with(stem)))
-            .unwrap_or(false)
-    }).and_then(|e| e.ok()).map(|e| e.path())
-}
-
-fn apply_audio_meta(item: &mut MediaItem, path: &Path) {
-    if let Ok(meta) = extract_audio_meta(path) {
-        if meta.title.is_some() {
-            item.display_name = meta.title.clone().unwrap_or_else(|| item.display_name.clone());
-        }
-        item.audio_title    = meta.title;
-        item.audio_artist   = meta.artist;
-        item.audio_album    = meta.album;
-        item.audio_track    = meta.track;
-        item.audio_duration = meta.duration_secs;
-        item.audio_year     = meta.year;
     }
 }

@@ -258,7 +258,7 @@ pub fn run() {
             // Copy/Paste, etc.) is lost. macOS-only for now — Windows/Linux use
             // a per-window menu bar instead of a global one, and the Settings >
             // Library workspace switcher already covers those platforms.
-            rebuild_workspace_menu(&app.handle());
+            rebuild_workspace_menu(app.handle());
 
             tracing::info!("Vivid started");
 

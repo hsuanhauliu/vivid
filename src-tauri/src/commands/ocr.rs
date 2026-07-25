@@ -115,24 +115,6 @@ pub fn get_ocr_status(state: State<DbState>) -> Result<OcrStatus, String> {
     Ok(OcrStatus { scanned, total })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::HelperOcr;
-
-    #[test]
-    fn parses_helper_output() {
-        let parsed: HelperOcr =
-            serde_json::from_str(r#"{"text":"Hello Vivid OCR 2026"}"#).unwrap();
-        assert_eq!(parsed.text, "Hello Vivid OCR 2026");
-    }
-
-    #[test]
-    fn parses_empty_text() {
-        let parsed: HelperOcr = serde_json::from_str(r#"{"text":""}"#).unwrap();
-        assert!(parsed.text.is_empty());
-    }
-}
-
 /// Fire-and-forget OCR for a single newly imported image so it becomes
 /// searchable without a manual scan. Scoped to the one item — it does NOT scan
 /// the whole backlog (that's the manual "Scan text" button's job), which avoids
@@ -157,4 +139,22 @@ pub(crate) fn trigger_ocr(app: &tauri::AppHandle, id: String, path: String) {
         // get_all_media refetch on every single import.
         let _ = app.emit("ocr-item", OcrItem { id, text });
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HelperOcr;
+
+    #[test]
+    fn parses_helper_output() {
+        let parsed: HelperOcr =
+            serde_json::from_str(r#"{"text":"Hello Vivid OCR 2026"}"#).unwrap();
+        assert_eq!(parsed.text, "Hello Vivid OCR 2026");
+    }
+
+    #[test]
+    fn parses_empty_text() {
+        let parsed: HelperOcr = serde_json::from_str(r#"{"text":""}"#).unwrap();
+        assert!(parsed.text.is_empty());
+    }
 }

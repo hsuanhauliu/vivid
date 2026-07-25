@@ -46,9 +46,5 @@ jobs:
           workspaces: src-tauri
       - run: cargo test
         working-directory: src-tauri
-      # No -D warnings: the crate currently has a backlog of pre-existing
-      # clippy warnings unrelated to any one change. This still fails on
-      # actual compile errors, just not on lint nits, until that backlog is
-      # cleaned up and this can be tightened.
-      - run: cargo clippy --all-targets
+      - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
