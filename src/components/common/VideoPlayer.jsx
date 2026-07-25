@@ -1137,7 +1137,11 @@ export default function VideoPlayer({
                 // main player to briefly flash black when it pauses.
                 src={hover ? (videoSrc ?? undefined) : undefined}
                 muted
-                preload="none"
+                // "none" would skip loading metadata entirely, so seekPreview's
+                // currentTime assignment has nothing to seek against and the
+                // preview stays permanently black — "metadata" is the minimum
+                // that lets a seek actually resolve to a frame.
+                preload="metadata"
                 playsInline
               />
               {fineLevel > 0 && (
