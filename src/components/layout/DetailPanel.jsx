@@ -45,7 +45,7 @@ function MetaRow({ label, value, mono }) {
   );
 }
 
-function ExifSection({ meta, item, t }) {
+function ExifSection({ meta, t }) {
   if (!meta) return null;
 
   const hasCamera = meta.camera_make || meta.camera_model;
@@ -759,7 +759,7 @@ export default function DetailPanel({
         )}
 
         {/* ── EXIF metadata ── */}
-        <ExifSection meta={exifMeta} item={item} t={t} />
+        <ExifSection meta={exifMeta} t={t} />
       </ScrollArea>
 
       {showLocationPicker && (

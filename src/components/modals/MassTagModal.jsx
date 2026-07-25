@@ -83,12 +83,7 @@ export default function MassTagModal({ count, allItems = [], onApply, onClose })
   }
 
   return (
-    <Modal
-      wide
-      onClose={onClose}
-      icon={<Tag size={20} />}
-      title={t('massTag.title', { count })}
-    >
+    <Modal wide onClose={onClose} icon={<Tag size={20} />} title={t('massTag.title', { count })}>
       <div className="modal-form">
         <div className="field">
           <label>{t('massTag.tagsToAdd')}</label>

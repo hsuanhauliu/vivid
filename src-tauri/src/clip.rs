@@ -188,13 +188,13 @@ mod tests {
     #[test]
     fn cosine_sim_diagonal() {
         // Two identical 45-degree vectors: [0.707, 0.707] · [0.707, 0.707] ≈ 1.0
-        let v = vec![0.70710678f32, 0.70710678];
+        let v = vec![std::f32::consts::FRAC_1_SQRT_2, std::f32::consts::FRAC_1_SQRT_2];
         assert!((cosine_sim(&v, &v) - 1.0).abs() < 1e-5);
     }
 
     #[test]
     fn embedding_bytes_roundtrip() {
-        let original = vec![1.0f32, -0.5, 3.14159, 0.0, f32::MAX, f32::MIN_POSITIVE];
+        let original = vec![1.0f32, -0.5, std::f32::consts::PI, 0.0, f32::MAX, f32::MIN_POSITIVE];
         let bytes = embedding_to_bytes(&original);
         let recovered = bytes_to_embedding(&bytes);
         assert_eq!(original.len(), recovered.len());

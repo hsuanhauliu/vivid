@@ -431,7 +431,6 @@ export default function DownloadModal({ onClose, collections = [], folders = [] 
 
   // For ytdlp tab: audio → playlists only; video → both albums and playlists.
   const ytdlpCollectionKinds = ytFormat === 'audio' ? ['playlist'] : ['album', 'playlist'];
-  const ytdlpEligibleCollections = collections.filter((g) => ytdlpCollectionKinds.includes(g.kind));
   // Playlist tab: only audio tracks go into playlists.
   const showPlaylistCollection = ytFormat === 'audio';
 

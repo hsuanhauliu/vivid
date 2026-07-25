@@ -217,9 +217,7 @@ function CollectionList({
     // nested in a group) rather than trying to keep the tree shape — a
     // search result you have to expand a group to see isn't really "found".
     const base = groupable && !search ? collections.filter((g) => !g.parent_id) : collections;
-    const list = base.filter(
-      (g) => !search || g.name.toLowerCase().includes(search.toLowerCase()),
-    );
+    const list = base.filter((g) => !search || g.name.toLowerCase().includes(search.toLowerCase()));
     return sortList(list);
   }, [collections, search, groupable, sortList]);
 

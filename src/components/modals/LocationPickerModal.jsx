@@ -18,12 +18,7 @@ export default function LocationPickerModal({ item, onSave, onClose }) {
   }
 
   return (
-    <Modal
-      wide
-      onClose={onClose}
-      icon={<MapPin size={20} />}
-      title={t('detail.setLocationTitle')}
-    >
+    <Modal wide onClose={onClose} icon={<MapPin size={20} />} title={t('detail.setLocationTitle')}>
       <p className="location-picker-hint">{t('detail.setLocationHint')}</p>
 
       <div className="map-view location-picker-map">

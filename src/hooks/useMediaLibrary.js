@@ -48,7 +48,12 @@ export default function useMediaLibrary() {
       setAllItems((prev) =>
         prev.map((it) =>
           it.id === payload.id
-            ? { ...it, thumb_path: payload.thumb_path, width: payload.width, height: payload.height }
+            ? {
+                ...it,
+                thumb_path: payload.thumb_path,
+                width: payload.width,
+                height: payload.height,
+              }
             : it,
         ),
       );

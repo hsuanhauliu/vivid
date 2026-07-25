@@ -44,6 +44,5 @@ export default function useDismiss(
       if (outside) document.removeEventListener('mousedown', onDown);
       if (escape) document.removeEventListener('keydown', onKey);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, onDismiss, enabled, escape, outside]);
 }

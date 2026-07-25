@@ -1,0 +1,54 @@
+name: CI
+
+# Lint, test, and format-check every PR and push to a long-lived branch.
+# Complements audit.yml (dependency vulnerabilities) and next-build.yml/
+# release.yml (does it actually package into a working .dmg) — this is the
+# "is the code itself correct" gate that was previously not run anywhere.
+on:
+  push:
+    branches:
+      - main
+      - next
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend (lint, format, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      # Cheap extra smoke test beyond lint — catches things like an unresolved
+      # import that eslint doesn't always flag depending on the rule config.
+      - run: npm run build
+
+  rust:
+    name: Rust (test, clippy)
+    # Not ubuntu-latest: the macOS-only bits (objc2 bindings, the Swift
+    # helper compiled from build.rs) don't compile/link on Linux, and Tauri's
+    # Linux backend needs system webkit2gtk packages this repo has never
+    # installed anywhere. Matches next-build.yml/release.yml, which are also
+    # macos-14-only for the same reason.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo test
+        working-directory: src-tauri
+      # No -D warnings: the crate currently has a backlog of pre-existing
+      # clippy warnings unrelated to any one change. This still fails on
+      # actual compile errors, just not on lint nits, until that backlog is
+      # cleaned up and this can be tightened.
+      - run: cargo clippy --all-targets
+        working-directory: src-tauri
