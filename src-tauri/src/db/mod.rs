@@ -29,10 +29,7 @@ pub use trash::*;
 /// the current schema. There is exactly one schema — no upgrade path from an
 /// older shape — so every statement here is unconditional: no `ALTER TABLE`,
 /// no `column_exists` guards. A pre-1.0 database that predates this schema
-/// isn't supported; delete it and let Vivid create a fresh one. The one
-/// exception is `migrate_drop_source_path_unique`, run right below — an
-/// actual migration, kept deliberately narrow (single column, single
-/// constraint) rather than opening the door to a general migration system.
+/// isn't supported; delete it and let Vivid create a fresh one.
 pub fn init(conn: &Connection) -> Result<()> {
     // Connection-level tuning + constraint enforcement, issued standalone
     // before any schema statement. `PRAGMA foreign_keys` is a documented
@@ -49,8 +46,6 @@ pub fn init(conn: &Connection) -> Result<()> {
          PRAGMA temp_store = MEMORY;
          PRAGMA mmap_size = 1073741824;",
     )?;
-
-    migrate_drop_source_path_unique(conn)?;
 
     conn.execute_batch(
         "-- The on-disk directory tree under the managed library root. Distinct
@@ -102,10 +97,7 @@ pub fn init(conn: &Connection) -> Result<()> {
              -- Deliberately not UNIQUE: importing the same source twice is a
              -- valid user action (e.g. re-importing on purpose) and should
              -- produce a second library entry, not silently vanish under
-             -- INSERT OR IGNORE. See `migrate_drop_source_path_unique` for
-             -- dropping this constraint on a database created before this
-             -- changed (a real ALTER-TABLE-style migration — the only one
-             -- this schema has needed so far).
+             -- INSERT OR IGNORE.
              source_path         TEXT,
              file_name           TEXT NOT NULL,
              display_name        TEXT NOT NULL,
@@ -178,139 +170,6 @@ pub fn init(conn: &Connection) -> Result<()> {
     )?;
 
     Ok(())
-}
-
-/// One-off migration: drops the UNIQUE constraint on `media_items.source_path`
-/// for a database created before it was removed (see the column comment in
-/// `init`'s `media_items` schema for why). No-op on a fresh database (the
-/// table doesn't exist yet, so there's nothing to detect) and on a database
-/// that's already been migrated. SQLite has no `ALTER TABLE ... DROP
-/// CONSTRAINT`, so this follows SQLite's documented 12-step procedure for
-/// schema changes ALTER TABLE can't express: rebuild the table under a new
-/// name, copy the data across, swap it in.
-fn migrate_drop_source_path_unique(conn: &Connection) -> Result<()> {
-    if !media_items_has_source_path_unique(conn)? {
-        return Ok(());
-    }
-    tracing::info!("Migrating media_items: dropping UNIQUE constraint on source_path");
-
-    // Foreign keys can't be toggled mid-transaction, and collection_items
-    // references media_items(id) — drop enforcement for the duration of the
-    // rebuild, then verify integrity explicitly before re-enabling it.
-    conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
-    let result: Result<()> = (|| {
-        conn.execute_batch(
-            "BEGIN IMMEDIATE;
-             CREATE TABLE media_items_new (
-                 id                  TEXT PRIMARY KEY,
-                 file_path           TEXT NOT NULL UNIQUE,
-                 source_path         TEXT,
-                 file_name           TEXT NOT NULL,
-                 display_name        TEXT NOT NULL,
-                 media_type          TEXT NOT NULL,
-                 file_size           INTEGER NOT NULL DEFAULT 0,
-                 mtime               INTEGER,
-                 folder_id           TEXT REFERENCES folders(id),
-                 description         TEXT NOT NULL DEFAULT '',
-                 tags                TEXT NOT NULL DEFAULT '[]',
-                 auto_tags           TEXT NOT NULL DEFAULT '[]',
-                 starred             INTEGER NOT NULL DEFAULT 0,
-                 favorited           INTEGER NOT NULL DEFAULT 0,
-                 color_label         TEXT,
-                 sort_order          INTEGER NOT NULL DEFAULT 0,
-                 gps_lat             REAL,
-                 gps_lng             REAL,
-                 date_taken          TEXT,
-                 width               INTEGER,
-                 height              INTEGER,
-                 embedding           BLOB,
-                 ocr_text            TEXT,
-                 ocr_scanned         INTEGER NOT NULL DEFAULT 0,
-                 thumb_path          TEXT,
-                 camera_make         TEXT,
-                 camera_model        TEXT,
-                 audio_title         TEXT,
-                 audio_artist        TEXT,
-                 audio_album         TEXT,
-                 audio_track         INTEGER,
-                 audio_duration_secs REAL,
-                 audio_year          INTEGER,
-                 audio_cover         TEXT,
-                 deleted_at          TEXT,
-                 created_at          TEXT NOT NULL,
-                 updated_at          TEXT NOT NULL
-             );
-             INSERT INTO media_items_new (
-                 id, file_path, source_path, file_name, display_name, media_type,
-                 file_size, mtime, folder_id, description, tags, auto_tags, starred,
-                 favorited, color_label, sort_order, gps_lat, gps_lng, date_taken,
-                 width, height, embedding, ocr_text, ocr_scanned, thumb_path,
-                 camera_make, camera_model, audio_title, audio_artist, audio_album,
-                 audio_track, audio_duration_secs, audio_year, audio_cover,
-                 deleted_at, created_at, updated_at
-             )
-             SELECT
-                 id, file_path, source_path, file_name, display_name, media_type,
-                 file_size, mtime, folder_id, description, tags, auto_tags, starred,
-                 favorited, color_label, sort_order, gps_lat, gps_lng, date_taken,
-                 width, height, embedding, ocr_text, ocr_scanned, thumb_path,
-                 camera_make, camera_model, audio_title, audio_artist, audio_album,
-                 audio_track, audio_duration_secs, audio_year, audio_cover,
-                 deleted_at, created_at, updated_at
-             FROM media_items;
-             DROP TABLE media_items;
-             ALTER TABLE media_items_new RENAME TO media_items;",
-        )?;
-        let ok: bool = conn
-            .prepare("PRAGMA foreign_key_check")?
-            .query_map([], |_| Ok(()))?
-            .next()
-            .is_none();
-        if !ok {
-            return Err(rusqlite::Error::SqliteFailure(
-                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
-                Some("foreign_key_check failed after source_path migration".into()),
-            ));
-        }
-        conn.execute_batch("COMMIT;")?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = conn.execute_batch("ROLLBACK;");
-    }
-    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
-    result
-}
-
-/// Whether `media_items.source_path` currently has a UNIQUE index (inline
-/// column constraints and table-level UNIQUE constraints both surface as
-/// ordinary auto-named indexes here — no need to parse the CREATE TABLE SQL).
-fn media_items_has_source_path_unique(conn: &Connection) -> Result<bool> {
-    let table_exists: bool = conn.query_row(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_items'",
-        [],
-        |r| r.get::<_, i64>(0),
-    )? > 0;
-    if !table_exists {
-        return Ok(false);
-    }
-    let mut list_stmt = conn.prepare("PRAGMA index_list(media_items)")?;
-    let indexes: Vec<(String, bool)> = list_stmt
-        .query_map([], |row| Ok((row.get::<_, String>(1)?, row.get::<_, i64>(2)? == 1)))?
-        .collect::<Result<Vec<_>>>()?;
-    for (name, is_unique) in indexes {
-        if !is_unique {
-            continue;
-        }
-        let mut info_stmt = conn.prepare(&format!("PRAGMA index_info(\"{name}\")"))?;
-        let cols: Vec<String> = info_stmt
-            .query_map([], |row| row.get::<_, String>(2))?
-            .collect::<Result<Vec<_>>>()?;
-        if cols == ["source_path"] {
-            return Ok(true);
-        }
-    }
-    Ok(false)
 }
 
 // Column order in SELECT_MEDIA:
