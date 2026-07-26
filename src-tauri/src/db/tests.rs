@@ -95,6 +95,36 @@ fn set_embedding_records_has_embedding_and_set_embed_error_records_failure() {
     assert_eq!(fetched.embed_error, None);
 }
 
+// ── Thumbnails ──────────────────────────────────────────────────────────
+
+#[test]
+fn set_thumb_error_stops_retries_and_set_thumb_dims_clears_it() {
+    let conn = open();
+    let mut it = item("a", "/x/a.mov");
+    it.media_type = "video".to_string();
+    insert(&conn, &it).unwrap();
+
+    // No thumbnail yet and no recorded failure — it's a retry candidate.
+    assert_eq!(get_items_without_thumb(&conn).unwrap().len(), 1);
+
+    set_thumb_error(&conn, "a", "could not extract a frame from /x/a.mov").unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(
+        fetched.thumb_path, None,
+        "a failed attempt must not fabricate a thumbnail path"
+    );
+    // The whole point: a permanently-failing item stops showing up, instead
+    // of failing identically (and logging identically) on every pass.
+    assert!(get_items_without_thumb(&conn).unwrap().is_empty());
+
+    // A later successful generation (e.g. after a codec becomes supported)
+    // clears the recorded failure and produces a normal thumbnail row.
+    set_thumb_dims(&conn, "a", "/thumbs/a.jpg", 640, 480).unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(fetched.thumb_path.as_deref(), Some("/thumbs/a.jpg"));
+    assert!(get_items_without_thumb(&conn).unwrap().is_empty());
+}
+
 // ── Schema migration ────────────────────────────────────────────────────
 
 #[test]

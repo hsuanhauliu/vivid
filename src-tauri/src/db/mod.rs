@@ -133,6 +133,14 @@ pub fn init(conn: &Connection) -> Result<()> {
              -- successful scan (`ocr_scanned` flips to 1 at the same time).
              ocr_error           TEXT,
              thumb_path          TEXT,
+             -- Set when the last thumbnail/poster-frame extraction failed
+             -- (cleared on success). Without this, an item whose thumbnail
+             -- can never be generated (e.g. a video codec AVFoundation can't
+             -- decode a frame from) would fail the exact same way on every
+             -- single `generate_thumbnails_all` pass forever — this lets
+             -- `get_items_without_thumb` stop retrying it, since a
+             -- content-independent failure won't fix itself on retry.
+             thumb_error         TEXT,
              camera_make         TEXT,
              camera_model        TEXT,
              audio_title         TEXT,
@@ -201,7 +209,11 @@ fn add_missing_columns(conn: &Connection) -> Result<()> {
     // (column name, SQL type) — surfaces the last CLIP-embed/OCR failure per
     // item so the UI can show *why* processing didn't happen instead of it
     // just silently never finishing (see DetailPanel's processing status).
-    for (name, ty) in [("embed_error", "TEXT"), ("ocr_error", "TEXT")] {
+    for (name, ty) in [
+        ("embed_error", "TEXT"),
+        ("ocr_error", "TEXT"),
+        ("thumb_error", "TEXT"),
+    ] {
         if !existing.contains(name) {
             conn.execute_batch(&format!("ALTER TABLE media_items ADD COLUMN {name} {ty}"))?;
         }

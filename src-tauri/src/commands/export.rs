@@ -512,8 +512,24 @@ pub fn get_playable_video_path(
     file_path: String,
     force: Option<bool>,
 ) -> Result<String, String> {
-    if !force.unwrap_or(false) && !needs_transcode(&file_path) {
-        return Ok(file_path);
+    ensure_playable_video_path(&app, &file_path, force.unwrap_or(false))
+}
+
+/// The actual work behind `get_playable_video_path`, callable directly from
+/// other backend pipelines (thumbnail poster-frame extraction, CLIP video
+/// embedding) — not just as a Tauri command reached via `invoke()` from the
+/// frontend. Those pipelines extract frames the same AVFoundation way video
+/// *playback* used to before this fallback existed, so they hit the exact
+/// same "container's fine, codec (VP9 above all) isn't" failure — and
+/// without this, fixing playback alone left thumbnails/AI search/OCR
+/// permanently failing on a file the user can now actually watch.
+pub(crate) fn ensure_playable_video_path(
+    app: &tauri::AppHandle,
+    file_path: &str,
+    force: bool,
+) -> Result<String, String> {
+    if !force && !needs_transcode(file_path) {
+        return Ok(file_path.to_string());
     }
 
     use sha2::{Digest, Sha256};
@@ -533,7 +549,7 @@ pub fn get_playable_video_path(
             "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
         )?;
         let status = std::process::Command::new(&ffmpeg)
-            .args(["-y", "-i", &file_path])
+            .args(["-y", "-i", file_path])
             .args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"])
             .args(["-c:a", "aac", "-b:a", "192k"])
             .arg(&out_path)

@@ -311,7 +311,11 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
                         let _ = db::set_thumb_dims(&conn, id, &thumb_str, w, h);
                     }
                     Ok(None) => {} // audio with no embedded artwork
-                    Err(e) => tracing::warn!(id, %path, error = %e, "thumbnail failed"),
+                    Err(e) => {
+                        tracing::warn!(id, %path, error = %e, "thumbnail failed");
+                        let conn = db.0.lock().unwrap();
+                        let _ = db::set_thumb_error(&conn, id, &e);
+                    }
                 }
             }
             let _ = app.emit(
@@ -366,7 +370,12 @@ pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, me
                 );
             }
             Ok(None) => {} // audio with no embedded artwork
-            Err(e) => tracing::warn!(id, %path, error = %e, "thumbnail failed"),
+            Err(e) => {
+                tracing::warn!(id, %path, error = %e, "thumbnail failed");
+                let db = app.state::<DbState>();
+                let conn = db.0.lock().unwrap();
+                let _ = db::set_thumb_error(&conn, &id, &e);
+            }
         }
     });
 }

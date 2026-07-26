@@ -151,26 +151,44 @@ pub fn get_images_without_ocr(conn: &Connection) -> Result<Vec<(String, String)>
 }
 
 /// Record the cached thumbnail path and the source image's (EXIF-corrected)
-/// pixel dimensions in one update.
+/// pixel dimensions in one update. Clears any previously recorded thumbnail
+/// failure.
 pub fn set_thumb_dims(conn: &Connection, id: &str, thumb_path: &str, w: u32, h: u32) -> Result<()> {
     conn.execute(
-        "UPDATE media_items SET thumb_path=?1, width=?2, height=?3 WHERE id=?4",
+        "UPDATE media_items SET thumb_path=?1, width=?2, height=?3, thumb_error=NULL WHERE id=?4",
         params![thumb_path, w, h, id],
     )?;
     Ok(())
 }
 
-/// Items without a cached thumbnail yet, smallest files first. Covers images
-/// and videos (videos get a poster frame extracted via AVFoundation; GIFs get
-/// their first frame, same as any other image — `image::open` on a GIF only
-/// ever decodes frame 0). Audio is included so embedded cover art (e.g.
-/// yt-dlp --embed-thumbnail) gets extracted; audio with no artwork simply
-/// yields no thumbnail and is harmlessly re-attempted on later passes.
+/// Record why the last thumbnail/poster-frame attempt for one item failed —
+/// mirrors `set_embed_error`/`set_ocr_error`. Unlike those, this is the only
+/// signal that stops the item being retried (there's no separate "attempted"
+/// flag for thumbnails — `thumb_path IS NULL` alone means either), so a file
+/// whose thumbnail can never be generated (e.g. a video codec AVFoundation
+/// can't extract a frame from) stops being retried on every single pass
+/// instead of failing identically forever.
+pub fn set_thumb_error(conn: &Connection, id: &str, error: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE media_items SET thumb_error=?1 WHERE id=?2",
+        params![error, id],
+    )?;
+    Ok(())
+}
+
+/// Items without a cached thumbnail yet (and not previously marked as
+/// permanently failed — see `set_thumb_error`), smallest files first. Covers
+/// images and videos (videos get a poster frame extracted via AVFoundation;
+/// GIFs get their first frame, same as any other image — `image::open` on a
+/// GIF only ever decodes frame 0). Audio is included so embedded cover art
+/// (e.g. yt-dlp --embed-thumbnail) gets extracted; audio with no artwork
+/// simply yields `Ok(None)` (not an error, so `thumb_error` is never set for
+/// it) and is harmlessly re-attempted on later passes.
 /// Returns `(id, file_path, media_type)`.
 pub fn get_items_without_thumb(conn: &Connection) -> Result<Vec<(String, String, String)>> {
     let mut stmt = conn.prepare(
         "SELECT id, file_path, media_type FROM media_items \
-         WHERE deleted_at IS NULL AND thumb_path IS NULL \
+         WHERE deleted_at IS NULL AND thumb_path IS NULL AND thumb_error IS NULL \
          AND media_type IN ('image', 'video', 'audio') \
          ORDER BY file_size ASC",
     )?;
@@ -377,8 +395,8 @@ pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) ->
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
         "UPDATE media_items SET file_size=?1, mtime=?2, thumb_path=NULL, width=NULL, height=NULL, \
-         embedding=NULL, embed_error=NULL, ocr_scanned=0, ocr_text=NULL, ocr_error=NULL, \
-         updated_at=?3 WHERE id=?4",
+         thumb_error=NULL, embedding=NULL, embed_error=NULL, ocr_scanned=0, ocr_text=NULL, \
+         ocr_error=NULL, updated_at=?3 WHERE id=?4",
         params![file_size, mtime, now, id],
     )?;
     Ok(())
