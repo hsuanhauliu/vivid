@@ -435,9 +435,15 @@ const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 
 /// Return a path the webview can actually play. Formats WKWebView can't decode
 /// (WMV/VC-1, AVI, FLV, MKV/Matroska) are transcoded to a cached H.264/AAC MP4
-/// via ffmpeg; everything else passes through unchanged.
+/// via ffmpeg; everything else passes through unchanged — unless `force` is
+/// set, which skips the extension check. Some containers (.mov above all)
+/// can hold codecs WKWebView can't decode even though most files with that
+/// extension play fine (e.g. old Cinepak/Sorenson/MPEG-4 Part 2 video, or
+/// unsupported audio codecs) — the frontend can't know that ahead of time,
+/// so it retries with `force: true` after the native `<video>` element
+/// actually fails to play a file we assumed was fine.
 #[tauri::command]
-pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
+pub fn get_playable_video_path(file_path: String, force: Option<bool>) -> Result<String, String> {
     let path = Path::new(&file_path);
     let ext = path
         .extension()
@@ -445,7 +451,7 @@ pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
         .unwrap_or("")
         .to_lowercase();
 
-    if !UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str()) {
+    if !force.unwrap_or(false) && !UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str()) {
         return Ok(file_path);
     }
 

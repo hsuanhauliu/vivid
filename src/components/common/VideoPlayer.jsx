@@ -89,7 +89,7 @@ export default function VideoPlayer({
   onError,
 }) {
   const { t } = useTranslation();
-  const { src: videoSrc, error: videoSrcError } = useVideoSrc(item.file_path);
+  const { src: videoSrc, error: videoSrcError, retryWithTranscode } = useVideoSrc(item.file_path);
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
   const seekRef = useRef(null);
@@ -915,6 +915,11 @@ export default function VideoPlayer({
         onTimeUpdate={onTimeUpdate}
         onLoadedMetadata={onLoadedMetadata}
         onProgress={onProgress}
+        // A container we assumed was natively playable (almost always .mov)
+        // can still hold a codec WKWebView can't decode — fall back to the
+        // same forced ffmpeg transcode used for WMV/AVI/FLV/MKV instead of
+        // leaving a permanently black, silently-broken player.
+        onError={retryWithTranscode}
         onPlay={() => {
           hasPlayedRef.current = true;
           setPlaying(true);
