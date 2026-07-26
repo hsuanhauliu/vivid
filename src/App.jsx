@@ -23,6 +23,7 @@ import {
   ScanSearch,
   Keyboard,
   CalendarDays,
+  Loader,
 } from 'lucide-react';
 import Sidebar from './components/layout/Sidebar';
 import SecondaryPanel from './components/layout/SecondaryPanel';
@@ -2579,7 +2580,11 @@ export default function App() {
                       !activeTag && (
                         <button
                           className="icon-btn toolbar-dupes-btn"
-                          title={t('toolbar.findDuplicates')}
+                          title={
+                            scanningDupes
+                              ? t('toolbar.findDuplicatesScanning')
+                              : t('toolbar.findDuplicates')
+                          }
                           onClick={() =>
                             handleFindDuplicates(
                               filter === 'image'
@@ -2593,7 +2598,11 @@ export default function App() {
                           }
                           disabled={scanningDupes}
                         >
-                          <ScanSearch size={13} />
+                          {scanningDupes ? (
+                            <Loader size={13} className="spin" />
+                          ) : (
+                            <ScanSearch size={13} />
+                          )}
                         </button>
                       )}
                     <div className="lc-spacer" />
@@ -2821,6 +2830,7 @@ export default function App() {
           activeCollection={activeCollection}
           onSetCover={handleSetCollectionCover}
           onError={(msg) => showToast('error', msg)}
+          onToast={showToast}
         />
       )}
 

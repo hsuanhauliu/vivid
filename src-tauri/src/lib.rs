@@ -337,6 +337,7 @@ pub fn run() {
             commands::export_stripped,
             commands::get_displayable_path,
             commands::get_playable_video_path,
+            commands::video_needs_transcode,
             commands::share_files,
             commands::find_duplicates,
             commands::update_item_order,

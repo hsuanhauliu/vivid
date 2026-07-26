@@ -751,6 +751,7 @@
   "toolbar": {
     "similarTo": "Similar to",
     "findDuplicates": "Find duplicates",
+    "findDuplicatesScanning": "Scanning for duplicates…",
     "worldMap": "World map view",
     "screenshot": "Take screenshot (interactive)",
     "keyboardShortcuts": "Keyboard shortcuts (?)",
@@ -850,7 +851,10 @@
     "moveToCollectionFailed_other": "{{count}} files couldn't be moved (incompatible with collection)",
     "noGeotaggedInAlbum": "No geotagged images in this album to show on the map.",
     "renameFilesFailed_one": "{{count}} file could not be renamed",
-    "renameFilesFailed_other": "{{count}} files could not be renamed"
+    "renameFilesFailed_other": "{{count}} files could not be renamed",
+    "fileSaved": "Saved {{name}}",
+    "fileExported": "Exported {{name}}",
+    "cleanCopySaved": "Saved clean copy {{name}}"
   },
   "results": {
     "count_one": "{{count}} result",

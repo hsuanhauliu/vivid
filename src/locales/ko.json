@@ -726,6 +726,7 @@
   "toolbar": {
     "similarTo": "유사한 항목:",
     "findDuplicates": "중복 항목 찾기",
+    "findDuplicatesScanning": "중복 항목 검색 중…",
     "worldMap": "세계 지도 보기",
     "screenshot": "스크린샷 찍기 (대화형)",
     "keyboardShortcuts": "키보드 단축키 (?)",
@@ -810,7 +811,10 @@
     "alreadyInCollection": "{{count}}개 항목이 이미 {{name}}에 있습니다",
     "moveToCollectionFailed": "{{count}}개 파일을 이동할 수 없습니다 (컬렉션과 호환되지 않음)",
     "noGeotaggedInAlbum": "이 앨범에는 지도에 표시할 위치 정보가 있는 이미지가 없습니다.",
-    "renameFilesFailed": "{{count}}개 파일의 이름을 변경하지 못했습니다"
+    "renameFilesFailed": "{{count}}개 파일의 이름을 변경하지 못했습니다",
+    "fileSaved": "{{name}} 저장됨",
+    "fileExported": "{{name}} 내보냄",
+    "cleanCopySaved": "클린 사본 {{name}} 저장됨"
   },
   "results": {
     "count": "결과 {{count}}개",

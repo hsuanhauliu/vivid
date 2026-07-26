@@ -468,6 +468,28 @@ fn probe_video_codec(file_path: &str) -> Option<String> {
     (!codec.is_empty()).then_some(codec)
 }
 
+fn needs_transcode(file_path: &str) -> bool {
+    let ext = Path::new(file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str())
+        || probe_video_codec(file_path)
+            .is_some_and(|codec| !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()))
+}
+
+/// Fast (no ffmpeg run) check the frontend calls before deciding how to render
+/// the player: `true` means playback will need the transcode fallback, so the
+/// UI should show a "converting" state up front rather than attempting to
+/// play — and likely fail black-frame-silently on — the raw source first.
+/// Runs the same extension + probed-codec check as `get_playable_video_path`,
+/// just without the (potentially multi-second) transcode step.
+#[tauri::command]
+pub fn video_needs_transcode(file_path: String) -> bool {
+    needs_transcode(&file_path)
+}
+
 /// Return a path the webview can actually play. Formats WKWebView can't decode
 /// at all (WMV/VC-1, AVI, FLV, MKV/Matroska) are always transcoded; other
 /// extensions are probed for their actual video codec (when ffprobe is
@@ -490,19 +512,7 @@ pub fn get_playable_video_path(
     file_path: String,
     force: Option<bool>,
 ) -> Result<String, String> {
-    let path = Path::new(&file_path);
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    let needs_transcode = force.unwrap_or(false)
-        || UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str())
-        || probe_video_codec(&file_path)
-            .is_some_and(|codec| !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()));
-
-    if !needs_transcode {
+    if !force.unwrap_or(false) && !needs_transcode(&file_path) {
         return Ok(file_path);
     }
 

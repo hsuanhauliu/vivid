@@ -744,6 +744,7 @@
   "toolbar": {
     "similarTo": "Similaire à",
     "findDuplicates": "Trouver les doublons",
+    "findDuplicatesScanning": "Recherche de doublons…",
     "worldMap": "Vue carte du monde",
     "screenshot": "Prendre une capture d'écran (interactive)",
     "keyboardShortcuts": "Raccourcis clavier (?)",
@@ -843,7 +844,10 @@
     "moveToCollectionFailed_other": "{{count}} fichiers n'ont pas pu être déplacés (incompatibles avec la collection)",
     "noGeotaggedInAlbum": "Cet album ne contient aucune image géolocalisée à afficher sur la carte.",
     "renameFilesFailed_one": "{{count}} fichier n'a pas pu être renommé",
-    "renameFilesFailed_other": "{{count}} fichiers n'ont pas pu être renommés"
+    "renameFilesFailed_other": "{{count}} fichiers n'ont pas pu être renommés",
+    "fileSaved": "{{name}} enregistré",
+    "fileExported": "{{name}} exporté",
+    "cleanCopySaved": "Copie nettoyée {{name}} enregistrée"
   },
   "results": {
     "count_one": "{{count}} résultat",

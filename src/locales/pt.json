@@ -744,6 +744,7 @@
   "toolbar": {
     "similarTo": "Semelhante a",
     "findDuplicates": "Encontrar duplicados",
+    "findDuplicatesScanning": "Procurando duplicados…",
     "worldMap": "Visualização do mapa mundial",
     "screenshot": "Capturar tela (interativo)",
     "keyboardShortcuts": "Atalhos de teclado (?)",
@@ -843,7 +844,10 @@
     "moveToCollectionFailed_other": "{{count}} arquivos não puderam ser movidos (incompatíveis com a coleção)",
     "noGeotaggedInAlbum": "Este álbum não tem imagens com geolocalização para mostrar no mapa.",
     "renameFilesFailed_one": "Não foi possível renomear {{count}} arquivo",
-    "renameFilesFailed_other": "Não foi possível renomear {{count}} arquivos"
+    "renameFilesFailed_other": "Não foi possível renomear {{count}} arquivos",
+    "fileSaved": "{{name}} salvo",
+    "fileExported": "{{name}} exportado",
+    "cleanCopySaved": "Cópia limpa {{name}} salva"
   },
   "results": {
     "count_one": "{{count}} resultado",

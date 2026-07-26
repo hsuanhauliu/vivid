@@ -89,7 +89,12 @@ export default function VideoPlayer({
   onError,
 }) {
   const { t } = useTranslation();
-  const { src: videoSrc, error: videoSrcError, retryWithTranscode } = useVideoSrc(item.file_path);
+  const {
+    src: videoSrc,
+    status: videoSrcStatus,
+    error: videoSrcError,
+    retryWithTranscode,
+  } = useVideoSrc(item.file_path);
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
   const seekRef = useRef(null);
@@ -933,9 +938,12 @@ export default function VideoPlayer({
       />
 
       {/* Formats WKWebView can't decode natively get transcoded (via ffmpeg,
-          if installed) on first play; that can take a while for a large
-          file, so show progress instead of a player that looks broken/frozen. */}
-      {!videoSrc && !videoSrcError && (
+          if installed) before the <video> element is ever given a src —
+          otherwise it'd sit on a permanently black frame with nothing to
+          signal that ffmpeg is busy in the background rather than the app
+          just hanging. Covers both the brief 'checking' probe and the
+          (possibly multi-second) 'converting' transcode itself. */}
+      {(videoSrcStatus === 'checking' || videoSrcStatus === 'converting') && (
         <div className="vp-converting">
           <div className="vp-converting-spinner" />
           <span>{t('viewer.convertingVideo')}</span>

@@ -726,6 +726,7 @@
   "toolbar": {
     "similarTo": "相似于",
     "findDuplicates": "查找重复项",
+    "findDuplicatesScanning": "正在扫描重复项…",
     "worldMap": "世界地图视图",
     "screenshot": "截图（可交互）",
     "keyboardShortcuts": "键盘快捷键 (?)",
@@ -810,7 +811,10 @@
     "alreadyInCollection": "{{count}} 个项目已在“{{name}}”中",
     "moveToCollectionFailed": "{{count}} 个文件无法移动（与合集类型不兼容）",
     "noGeotaggedInAlbum": "此相册中没有带地理位置信息的图片可在地图上显示。",
-    "renameFilesFailed": "{{count}} 个文件重命名失败"
+    "renameFilesFailed": "{{count}} 个文件重命名失败",
+    "fileSaved": "已保存 {{name}}",
+    "fileExported": "已导出 {{name}}",
+    "cleanCopySaved": "已保存清理副本 {{name}}"
   },
   "results": {
     "count": "{{count}} 个结果",

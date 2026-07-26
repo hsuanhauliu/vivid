@@ -744,6 +744,7 @@
   "toolbar": {
     "similarTo": "Ähnlich wie",
     "findDuplicates": "Duplikate finden",
+    "findDuplicatesScanning": "Suche nach Duplikaten…",
     "worldMap": "Weltkarte anzeigen",
     "screenshot": "Screenshot aufnehmen (interaktiv)",
     "keyboardShortcuts": "Tastaturkürzel (?)",
@@ -843,7 +844,10 @@
     "moveToCollectionFailed_other": "{{count}} Dateien konnten nicht verschoben werden (nicht kompatibel mit der Sammlung)",
     "noGeotaggedInAlbum": "Dieses Album enthält keine geotaggten Bilder, die auf der Karte angezeigt werden können.",
     "renameFilesFailed_one": "{{count}} Datei konnte nicht umbenannt werden",
-    "renameFilesFailed_other": "{{count}} Dateien konnten nicht umbenannt werden"
+    "renameFilesFailed_other": "{{count}} Dateien konnten nicht umbenannt werden",
+    "fileSaved": "{{name}} gespeichert",
+    "fileExported": "{{name}} exportiert",
+    "cleanCopySaved": "Bereinigte Kopie {{name}} gespeichert"
   },
   "results": {
     "count_one": "{{count}} Ergebnis",

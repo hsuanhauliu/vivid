@@ -69,6 +69,7 @@ export default function ContextMenu({
   onEdit,
   onRenameFile,
   onError,
+  onToast,
 }) {
   const { t } = useTranslation();
   const ref = useRef(null);
@@ -135,7 +136,10 @@ export default function ContextMenu({
         defaultPath: item.file_name,
         filters: [{ name: 'Media', extensions: [ext] }],
       });
-      if (dest) await invoke('export_file', { srcPath: item.file_path, destPath: dest });
+      if (dest) {
+        await invoke('export_file', { srcPath: item.file_path, destPath: dest });
+        onToast?.('success', t('notif.fileSaved', { name: dest.split('/').pop() }));
+      }
     } catch (e) {
       onError?.(`Save failed: ${e}`);
     }
@@ -153,7 +157,10 @@ export default function ContextMenu({
           { name: chosenFormat ? chosenFormat.toUpperCase() : 'Original', extensions: [ext] },
         ],
       });
-      if (dest) await invoke('export_as', { srcPath: item.file_path, destPath: dest, isImage });
+      if (dest) {
+        await invoke('export_as', { srcPath: item.file_path, destPath: dest, isImage });
+        onToast?.('success', t('notif.fileExported', { name: dest.split('/').pop() }));
+      }
     } catch (e) {
       onError?.(`Export failed: ${e}`);
     }
@@ -168,7 +175,10 @@ export default function ContextMenu({
         defaultPath: `${stem}-clean.${ext}`,
         filters: [{ name: 'Image', extensions: [ext, 'jpg', 'png'] }],
       });
-      if (dest) await invoke('export_stripped', { srcPath: item.file_path, destPath: dest });
+      if (dest) {
+        await invoke('export_stripped', { srcPath: item.file_path, destPath: dest });
+        onToast?.('success', t('notif.cleanCopySaved', { name: dest.split('/').pop() }));
+      }
     } catch (e) {
       onError?.(`Save clean copy failed: ${e}`);
     }

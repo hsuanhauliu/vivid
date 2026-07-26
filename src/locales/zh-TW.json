@@ -734,6 +734,7 @@
   "toolbar": {
     "similarTo": "相似於",
     "findDuplicates": "尋找重複項目",
+    "findDuplicatesScanning": "正在掃描重複項目…",
     "worldMap": "世界地圖檢視",
     "screenshot": "截圖（互動式）",
     "keyboardShortcuts": "鍵盤快速鍵 (?)",
@@ -847,7 +848,10 @@
     "alreadyInCollection": "{{count}} 個項目已在「{{name}}」中",
     "moveToCollectionFailed": "{{count}} 個檔案無法移動（與收藏類型不相容）",
     "noGeotaggedInAlbum": "此相簿中沒有含地理位置資訊的圖片可在地圖上顯示。",
-    "renameFilesFailed": "{{count}} 個檔案重新命名失敗"
+    "renameFilesFailed": "{{count}} 個檔案重新命名失敗",
+    "fileSaved": "已儲存 {{name}}",
+    "fileExported": "已匯出 {{name}}",
+    "cleanCopySaved": "已儲存清理副本 {{name}}"
   },
   "results": {
     "count_one": "{{count}} 個結果",

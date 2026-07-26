@@ -726,6 +726,7 @@
   "toolbar": {
     "similarTo": "Tương tự với",
     "findDuplicates": "Tìm tệp trùng lặp",
+    "findDuplicatesScanning": "Đang quét tệp trùng lặp…",
     "worldMap": "Chế độ xem bản đồ thế giới",
     "screenshot": "Chụp ảnh màn hình (tương tác)",
     "keyboardShortcuts": "Phím tắt (?)",
@@ -814,7 +815,10 @@
     "alreadyInCollection": "{{count}} mục đã có trong {{name}}",
     "moveToCollectionFailed": "{{count}} tệp không thể di chuyển (không tương thích với bộ sưu tập)",
     "noGeotaggedInAlbum": "Không có ảnh nào có vị trí trong album này để hiển thị trên bản đồ.",
-    "renameFilesFailed": "Không thể đổi tên {{count}} tệp"
+    "renameFilesFailed": "Không thể đổi tên {{count}} tệp",
+    "fileSaved": "Đã lưu {{name}}",
+    "fileExported": "Đã xuất {{name}}",
+    "cleanCopySaved": "Đã lưu bản sao sạch {{name}}"
   },
   "results": {
     "count": "{{count}} kết quả",

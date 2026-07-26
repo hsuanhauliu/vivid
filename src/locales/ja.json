@@ -734,6 +734,7 @@
   "toolbar": {
     "similarTo": "類似：",
     "findDuplicates": "重複を検索",
+    "findDuplicatesScanning": "重複をスキャン中…",
     "worldMap": "世界地図表示",
     "screenshot": "スクリーンショット（インタラクティブ）",
     "keyboardShortcuts": "キーボードショートカット (?)",
@@ -847,7 +848,10 @@
     "alreadyInCollection": "{{count}} 件はすでに「{{name}}」にあります",
     "moveToCollectionFailed": "{{count}} 件のファイルを移動できませんでした（コレクションと非互換）",
     "noGeotaggedInAlbum": "このアルバムには地図に表示できる位置情報付きの画像がありません。",
-    "renameFilesFailed": "{{count}} 件のファイル名を変更できませんでした"
+    "renameFilesFailed": "{{count}} 件のファイル名を変更できませんでした",
+    "fileSaved": "{{name}} を保存しました",
+    "fileExported": "{{name}} を書き出しました",
+    "cleanCopySaved": "クリーンコピー {{name}} を保存しました"
   },
   "results": {
     "count_one": "{{count}} 件",
