@@ -704,6 +704,8 @@
   "sort": {
     "dateNewest": "拍攝日期（最新）",
     "dateOldest": "拍攝日期（最舊）",
+    "addedNewest": "加入日期（最新）",
+    "addedOldest": "加入日期（最舊）",
     "nameAz": "名稱 A→Z",
     "nameZa": "名稱 Z→A",
     "sizeDesc": "最大在前",
@@ -724,6 +726,7 @@
     "listTitle": "清單檢視",
     "timelineTitle": "依日期分組（最新優先）",
     "timelineAscTitle": "依日期分組（最舊優先）",
+    "timelineNeedsDateSort": "依拍攝日期排序後才能依日期分組",
     "smaller": "較小",
     "larger": "較大",
     "cardSize": "卡片大小"

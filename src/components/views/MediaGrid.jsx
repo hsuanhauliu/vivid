@@ -703,6 +703,7 @@ export default function MediaGrid({
   gridZoom,
   viewMode,
   timelineGrouping,
+  timelineDateField = 'capture',
   onReorder,
   onCardDragStart,
   reorderable = false,
@@ -1055,8 +1056,8 @@ export default function MediaGrid({
   );
 
   const monthGroups = useMemo(
-    () => (timelineGrouping ? groupByMonth(items, timelineGrouping) : null),
-    [items, timelineGrouping],
+    () => (timelineGrouping ? groupByMonth(items, timelineGrouping, timelineDateField) : null),
+    [items, timelineGrouping, timelineDateField],
   );
   const monthKeys = useMemo(() => monthGroups?.map((g) => g.month) ?? [], [monthGroups]);
 

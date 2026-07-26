@@ -696,6 +696,8 @@
   "sort": {
     "dateNewest": "拍摄日期（最新在前）",
     "dateOldest": "拍摄日期（最早在前）",
+    "addedNewest": "添加日期（最新在前）",
+    "addedOldest": "添加日期（最早在前）",
     "nameAz": "名称 A→Z",
     "nameZa": "名称 Z→A",
     "sizeDesc": "文件从大到小",
@@ -716,6 +718,7 @@
     "listTitle": "列表视图",
     "timelineTitle": "按日期分组（最新在前）",
     "timelineAscTitle": "按日期分组（最早在前）",
+    "timelineNeedsDateSort": "按拍摄日期排序后才能按日期分组",
     "smaller": "缩小",
     "larger": "放大",
     "cardSize": "卡片大小"

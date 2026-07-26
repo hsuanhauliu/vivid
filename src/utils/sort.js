@@ -64,6 +64,15 @@ export function sortItems(items, sortBy) {
         (x, y) => compareDateMissingLast(x, y, ascending),
       );
     }
+    case 'added-asc':
+    case 'added-desc': {
+      const ascending = sortBy === 'added-asc';
+      return sortByKey(arr, addedDate, (x, y) => {
+        if (x === y) return 0;
+        const xFirst = ascending ? x < y : x > y;
+        return xFirst ? -1 : 1;
+      });
+    }
     case 'name-asc':
       return sortByKey(
         arr,
@@ -86,11 +95,16 @@ export function sortItems(items, sortBy) {
 }
 
 // "Date" sorts by captured date, with undated items pushed to the end and
-// tie-broken by added date (see sortItems) — no separate "Added" sort is
-// needed on top of that anymore.
+// tie-broken by added date (see sortItems) — that's "when was this photo
+// taken", not "when did it land in Vivid". "Recently Added" is the latter:
+// always by created_at, no capture-date preference, so a batch of old scans
+// imported today shows up together instead of scattered by their (possibly
+// decades-old) capture dates.
 export const SORT_OPTIONS = [
   { value: 'date-desc', labelKey: 'sort.dateNewest' },
   { value: 'date-asc', labelKey: 'sort.dateOldest' },
+  { value: 'added-desc', labelKey: 'sort.addedNewest' },
+  { value: 'added-asc', labelKey: 'sort.addedOldest' },
   { value: 'name-asc', labelKey: 'sort.nameAz' },
   { value: 'name-desc', labelKey: 'sort.nameZa' },
   { value: 'size-desc', labelKey: 'sort.sizeDesc' },

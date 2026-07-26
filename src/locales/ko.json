@@ -696,6 +696,8 @@
   "sort": {
     "dateNewest": "촬영 날짜 (최신순)",
     "dateOldest": "촬영 날짜 (오래된순)",
+    "addedNewest": "추가된 날짜 (최신순)",
+    "addedOldest": "추가된 날짜 (오래된순)",
     "nameAz": "이름 A→Z",
     "nameZa": "이름 Z→A",
     "sizeDesc": "큰 파일 먼저",
@@ -716,6 +718,7 @@
     "listTitle": "목록 보기",
     "timelineTitle": "날짜별 그룹화 (최신순)",
     "timelineAscTitle": "날짜별 그룹화 (오래된순)",
+    "timelineNeedsDateSort": "날짜별로 그룹화하려면 촬영 날짜순으로 정렬하세요",
     "smaller": "작게",
     "larger": "크게",
     "cardSize": "카드 크기"

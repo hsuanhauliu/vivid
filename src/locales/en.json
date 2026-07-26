@@ -721,6 +721,8 @@
   "sort": {
     "dateNewest": "Capture date (newest)",
     "dateOldest": "Capture date (oldest)",
+    "addedNewest": "Date added (newest)",
+    "addedOldest": "Date added (oldest)",
     "nameAz": "Name A→Z",
     "nameZa": "Name Z→A",
     "sizeDesc": "Largest first",
@@ -741,6 +743,7 @@
     "listTitle": "List view",
     "timelineTitle": "Group by date (newest first)",
     "timelineAscTitle": "Group by date (oldest first)",
+    "timelineNeedsDateSort": "Sort by capture date to group by date",
     "smaller": "Smaller",
     "larger": "Larger",
     "cardSize": "Card size"

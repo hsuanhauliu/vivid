@@ -696,6 +696,8 @@
   "sort": {
     "dateNewest": "Ngày chụp (mới nhất)",
     "dateOldest": "Ngày chụp (cũ nhất)",
+    "addedNewest": "Ngày thêm vào (mới nhất)",
+    "addedOldest": "Ngày thêm vào (cũ nhất)",
     "nameAz": "Tên A→Z",
     "nameZa": "Tên Z→A",
     "sizeDesc": "Lớn nhất trước",
@@ -716,6 +718,7 @@
     "listTitle": "Chế độ danh sách",
     "timelineTitle": "Nhóm theo ngày (mới nhất trước)",
     "timelineAscTitle": "Nhóm theo ngày (cũ nhất trước)",
+    "timelineNeedsDateSort": "Sắp xếp theo ngày chụp để nhóm theo ngày",
     "smaller": "Nhỏ hơn",
     "larger": "Lớn hơn",
     "cardSize": "Kích thước thẻ"

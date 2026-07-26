@@ -714,6 +714,8 @@
   "sort": {
     "dateNewest": "Data de captura (mais recentes)",
     "dateOldest": "Data de captura (mais antigas)",
+    "addedNewest": "Data de adição (mais recentes)",
+    "addedOldest": "Data de adição (mais antigas)",
     "nameAz": "Nome A→Z",
     "nameZa": "Nome Z→A",
     "sizeDesc": "Maiores primeiro",
@@ -734,6 +736,7 @@
     "listTitle": "Visualização em lista",
     "timelineTitle": "Agrupar por data (mais recentes primeiro)",
     "timelineAscTitle": "Agrupar por data (mais antigas primeiro)",
+    "timelineNeedsDateSort": "Ordene pela data de captura para agrupar por data",
     "smaller": "Menor",
     "larger": "Maior",
     "cardSize": "Tamanho do cartão"

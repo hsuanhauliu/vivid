@@ -714,6 +714,8 @@
   "sort": {
     "dateNewest": "Date de prise de vue (plus récent)",
     "dateOldest": "Date de prise de vue (plus ancien)",
+    "addedNewest": "Date d'ajout (plus récent)",
+    "addedOldest": "Date d'ajout (plus ancien)",
     "nameAz": "Nom A→Z",
     "nameZa": "Nom Z→A",
     "sizeDesc": "Le plus volumineux d'abord",
@@ -734,6 +736,7 @@
     "listTitle": "Vue en liste",
     "timelineTitle": "Grouper par date (plus récent en premier)",
     "timelineAscTitle": "Grouper par date (plus ancien en premier)",
+    "timelineNeedsDateSort": "Trier par date de prise de vue pour grouper par date",
     "smaller": "Plus petit",
     "larger": "Plus grand",
     "cardSize": "Taille des cartes"

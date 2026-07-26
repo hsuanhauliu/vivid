@@ -51,6 +51,19 @@ describe('sortItems', () => {
     expect(ids(sortItems(mixed, 'date-asc'))).toEqual(['z', 'undated-older', 'undated-newer']);
   });
 
+  it('sorts by added date (created_at), ignoring capture date entirely', () => {
+    // Unlike date-desc/date-asc, this should NOT prefer date_taken — an old
+    // scan (date_taken 1999) imported most recently (created_at newest)
+    // should still sort first under "recently added".
+    const added = [
+      { id: 'old-scan', date_taken: '1999-01-01', created_at: '2024-03-01' },
+      { id: 'mid', created_at: '2024-02-01' },
+      { id: 'earliest-added', created_at: '2024-01-01' },
+    ];
+    expect(ids(sortItems(added, 'added-desc'))).toEqual(['old-scan', 'mid', 'earliest-added']);
+    expect(ids(sortItems(added, 'added-asc'))).toEqual(['earliest-added', 'mid', 'old-scan']);
+  });
+
   it('sorts names naturally (IMG_2 before IMG_10) and case-insensitively', () => {
     // 'apple' vs 'IMG_*': case-insensitive, numeric-aware ordering
     expect(ids(sortItems(items, 'name-asc'))).toEqual(['c', 'b', 'a']);
@@ -77,6 +90,7 @@ describe('SORT_OPTIONS', () => {
     expect(new Set(values).size).toBe(values.length);
     expect(values).toContain('date-desc');
     expect(values).toContain('manual');
-    expect(values).not.toContain('added-desc');
+    expect(values).toContain('added-desc');
+    expect(values).toContain('added-asc');
   });
 });

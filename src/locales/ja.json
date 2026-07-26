@@ -704,6 +704,8 @@
   "sort": {
     "dateNewest": "撮影日（新しい順）",
     "dateOldest": "撮影日（古い順）",
+    "addedNewest": "追加日（新しい順）",
+    "addedOldest": "追加日（古い順）",
     "nameAz": "名前 A→Z",
     "nameZa": "名前 Z→A",
     "sizeDesc": "サイズ大きい順",
@@ -724,6 +726,7 @@
     "listTitle": "リスト表示",
     "timelineTitle": "日付でグループ化（新しい順）",
     "timelineAscTitle": "日付でグループ化（古い順）",
+    "timelineNeedsDateSort": "日付でグループ化するには撮影日で並べ替えてください",
     "smaller": "小さく",
     "larger": "大きく",
     "cardSize": "カードサイズ"

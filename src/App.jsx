@@ -23,8 +23,6 @@ import {
   ScanSearch,
   Keyboard,
   CalendarDays,
-  ArrowUp,
-  ArrowDown,
 } from 'lucide-react';
 import Sidebar from './components/layout/Sidebar';
 import SecondaryPanel from './components/layout/SecondaryPanel';
@@ -326,18 +324,35 @@ export default function App() {
   // Map old 'timeline' value to 'grid' — timeline is now a separate toggle.
   const viewMode = rawViewMode === 'timeline' ? 'grid' : rawViewMode;
   const setViewMode = (mode) => setViewModeMap((m) => ({ ...m, [viewKey]: mode }));
-  // false | 'desc' (newest first) | 'asc' (oldest first)
-  const [timelineGrouping, setTimelineGrouping] = usePersistentState(
-    'vivid-timeline-grouping',
+  // Whether Timeline grouping is toggled on. Its actual direction (and which
+  // date field it buckets by) is NOT independent state — it's derived from
+  // `sortBy` below, so the month headers and the items inside them can never
+  // disagree about order (the previous design tracked its own asc/desc
+  // separately from the main sort, so e.g. sorting by Name A→Z with Timeline
+  // on produced chronological month headers full of alphabetically-ordered
+  // photos, and the Timeline toggle's own "reverse" just flipped the
+  // alphabetical order instead of the chronology). Only meaningful — and
+  // only toggleable, see the button below — while `sortBy` is a date-based
+  // sort (capture date or added date); it stays remembered otherwise and
+  // silently resumes if the user sorts by date again.
+  const [timelineOn, setTimelineOn] = usePersistentState(
+    'vivid-timeline-on',
     false,
-    (v) => {
-      const s = JSON.parse(v);
-      return s === 'desc' || s === 'asc' ? s : false;
-    },
-    JSON.stringify,
+    boolDefaultFalse,
+    String,
   );
-  const cycleTimeline = () =>
-    setTimelineGrouping((v) => (v === false ? 'desc' : v === 'desc' ? 'asc' : false));
+  const isCaptureDateSort = sortBy === 'date-desc' || sortBy === 'date-asc';
+  const isAddedDateSort = sortBy === 'added-desc' || sortBy === 'added-asc';
+  const isDateSort = isCaptureDateSort || isAddedDateSort;
+  const timelineGrouping =
+    timelineOn && isDateSort
+      ? sortBy === 'date-desc' || sortBy === 'added-desc'
+        ? 'desc'
+        : 'asc'
+      : false;
+  // Which date field the timeline buckets by, matching sort.js's
+  // captureDate()/addedDate() semantics for whichever sort is active.
+  const timelineDateField = isAddedDateSort ? 'added' : 'capture';
   const [gridZoom, setGridZoom] = usePersistentState('vivid-grid-zoom', 160, Number);
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -2641,21 +2656,18 @@ export default function App() {
                     {filter !== 'audio' && viewMode !== 'list' && (
                       <button
                         className={`timeline-toggle-btn ${timelineGrouping ? 'active' : ''}`}
-                        onClick={cycleTimeline}
+                        onClick={() => setTimelineOn((v) => !v)}
+                        disabled={!isDateSort}
                         title={
-                          timelineGrouping === 'asc'
-                            ? t('viewMode.timelineAscTitle')
-                            : t('viewMode.timelineTitle')
+                          !isDateSort
+                            ? t('viewMode.timelineNeedsDateSort')
+                            : timelineGrouping === 'asc'
+                              ? t('viewMode.timelineAscTitle')
+                              : t('viewMode.timelineTitle')
                         }
                       >
                         <CalendarDays size={13} />
                         <span>{t('viewMode.timeline')}</span>
-                        {timelineGrouping === 'desc' && (
-                          <ArrowDown size={11} style={{ opacity: 0.7 }} />
-                        )}
-                        {timelineGrouping === 'asc' && (
-                          <ArrowUp size={11} style={{ opacity: 0.7 }} />
-                        )}
                       </button>
                     )}
                   </div>
@@ -2683,6 +2695,7 @@ export default function App() {
                     timelineGrouping={
                       filter !== 'audio' && viewMode !== 'list' ? timelineGrouping : false
                     }
+                    timelineDateField={timelineDateField}
                     onReorder={(reordered) => {
                       setAllItems((prev) => {
                         const map = new Map(
