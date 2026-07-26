@@ -1,6 +1,6 @@
 use crate::{db, models::MediaItem, DbState};
 use std::{fs, io, path::Path};
-use tauri::State;
+use tauri::{Manager, State};
 
 use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 
@@ -433,17 +433,63 @@ pub fn get_displayable_path(file_path: String) -> Result<String, String> {
 /// cached, same idea as the HEIC path above but heavier, so it's kept separate.
 const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 
+/// Video codecs WKWebView's AVFoundation-backed player is known to decode
+/// natively. A container extension alone doesn't guarantee one of these —
+/// e.g. .mov files re-muxed by some Android/social apps carry a VP9 video
+/// stream (Apple doesn't license VP9 at all), which opens fine as a
+/// container but never produces a frame.
+const PLAYABLE_VIDEO_CODECS: &[&str] = &["h264", "hevc", "mpeg4", "mjpeg", "prores"];
+
+/// Best-effort read of the first video stream's codec via ffprobe. `None` if
+/// ffprobe isn't installed or the probe fails for any reason — callers should
+/// treat that as "unknown, assume playable" rather than an error, since the
+/// probe is purely an optimization to catch bad codecs before playback ever
+/// starts.
+fn probe_video_codec(file_path: &str) -> Option<String> {
+    let ffprobe = resolve("ffprobe")?;
+    let output = std::process::Command::new(ffprobe)
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=codec_name",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(file_path)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let codec = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!codec.is_empty()).then_some(codec)
+}
+
 /// Return a path the webview can actually play. Formats WKWebView can't decode
-/// (WMV/VC-1, AVI, FLV, MKV/Matroska) are transcoded to a cached H.264/AAC MP4
-/// via ffmpeg; everything else passes through unchanged — unless `force` is
-/// set, which skips the extension check. Some containers (.mov above all)
-/// can hold codecs WKWebView can't decode even though most files with that
-/// extension play fine (e.g. old Cinepak/Sorenson/MPEG-4 Part 2 video, or
-/// unsupported audio codecs) — the frontend can't know that ahead of time,
-/// so it retries with `force: true` after the native `<video>` element
-/// actually fails to play a file we assumed was fine.
+/// at all (WMV/VC-1, AVI, FLV, MKV/Matroska) are always transcoded; other
+/// extensions are probed for their actual video codec (when ffprobe is
+/// available) since e.g. .mov can carry a codec — VP9 above all — that has
+/// nothing to do with the container being fine. Either way the source is
+/// transcoded to a cached H.264/AAC MP4 via ffmpeg; anything left passes
+/// through unchanged. `force` skips straight to transcoding regardless of
+/// extension or probed codec, for the frontend's last-resort retry after the
+/// native `<video>` element actually fails to play a file this all assumed
+/// was fine.
+///
+/// The cache lives under the app's data dir, not system `/tmp` — the asset
+/// protocol's scope (tauri.conf.json) only allows `$APPDATA/**`, so a file
+/// written to `/tmp` resolves to a `convertFileSrc` URL the webview silently
+/// refuses to load: no fetch, no decode error, just a permanently black
+/// player with nothing for a `<video>` error handler to even catch.
 #[tauri::command]
-pub fn get_playable_video_path(file_path: String, force: Option<bool>) -> Result<String, String> {
+pub fn get_playable_video_path(
+    app: tauri::AppHandle,
+    file_path: String,
+    force: Option<bool>,
+) -> Result<String, String> {
     let path = Path::new(&file_path);
     let ext = path
         .extension()
@@ -451,13 +497,27 @@ pub fn get_playable_video_path(file_path: String, force: Option<bool>) -> Result
         .unwrap_or("")
         .to_lowercase();
 
-    if !force.unwrap_or(false) && !UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str()) {
+    let needs_transcode = force.unwrap_or(false)
+        || UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str())
+        || probe_video_codec(&file_path)
+            .is_some_and(|codec| !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()));
+
+    if !needs_transcode {
         return Ok(file_path);
     }
 
     use sha2::{Digest, Sha256};
     let hash = hex::encode(Sha256::digest(file_path.as_bytes()));
-    let out_path = format!("/tmp/vivid_video_{}.mp4", &hash[..16]);
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("video_cache");
+    fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    let out_path = cache_dir
+        .join(format!("{}.mp4", &hash[..16]))
+        .to_string_lossy()
+        .into_owned();
     if !Path::new(&out_path).exists() {
         let ffmpeg = resolve("ffmpeg").ok_or(
             "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
