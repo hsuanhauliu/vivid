@@ -69,6 +69,10 @@ pub struct ClipProgress {
     pub file_name: String,
     pub auto_tags: Vec<String>,
     pub done: bool,
+    /// Set when embedding this specific item failed — lets the frontend
+    /// patch that item's processing-status UI live, not just the batch
+    /// current/total counter.
+    pub error: Option<String>,
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
@@ -488,6 +492,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                     file_name: String::new(),
                     auto_tags: vec![],
                     done: true,
+                    error: None,
                 },
             );
             return;
@@ -499,9 +504,16 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
 
             // Skip files that no longer exist on disk — still emit progress (with no
             // tags) so a missing file never swallows the final "done" event and
-            // leaves the UI stuck on "indexing…" forever.
+            // leaves the UI stuck on "indexing…" forever. Recorded as a real
+            // failure (not just a log line) since it's just as much a reason
+            // this item never got indexed as any other embed error.
             if !p.exists() {
+                let msg = "File no longer exists on disk";
                 tracing::warn!(id, %path, "File missing, skipping embed");
+                {
+                    let conn = db.0.lock().unwrap();
+                    let _ = db::set_embed_error(&conn, id, msg);
+                }
                 let _ = app.emit(
                     "clip-progress",
                     ClipProgress {
@@ -511,6 +523,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                         file_name: String::new(),
                         auto_tags: vec![],
                         done,
+                        error: Some(msg.to_string()),
                     },
                 );
                 continue;
@@ -536,6 +549,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                         file_name: String::new(),
                         auto_tags: vec![],
                         done: true,
+                        error: None,
                     },
                 );
                 break;
@@ -554,15 +568,18 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                 })
             };
 
-            let auto_tags = match result {
+            let (auto_tags, error) = match result {
                 Ok((bytes, tags)) => {
                     let conn = db.0.lock().unwrap();
                     let _ = db::set_embedding(&conn, id, &bytes, &tags);
-                    tags
+                    (tags, None)
                 }
                 Err(e) => {
                     tracing::error!(id, error = %e, "CLIP embed failed");
-                    vec![]
+                    let msg = e.to_string();
+                    let conn = db.0.lock().unwrap();
+                    let _ = db::set_embed_error(&conn, id, &msg);
+                    (vec![], Some(msg))
                 }
             };
 
@@ -575,6 +592,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                     file_name,
                     auto_tags,
                     done,
+                    error,
                 },
             );
         }

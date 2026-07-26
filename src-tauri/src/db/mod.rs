@@ -26,10 +26,12 @@ pub use stats::*;
 pub use trash::*;
 
 /// Open a fresh connection (or an existing database file) and bring it up to
-/// the current schema. There is exactly one schema — no upgrade path from an
-/// older shape — so every statement here is unconditional: no `ALTER TABLE`,
-/// no `column_exists` guards. A pre-1.0 database that predates this schema
-/// isn't supported; delete it and let Vivid create a fresh one.
+/// the current schema. There is exactly one *base* schema — no upgrade path
+/// from a shape that predates it, so every `CREATE TABLE`/`CREATE INDEX`
+/// statement here is unconditional. The one exception is `add_missing_columns`
+/// below: a handful of columns were added after users already had real
+/// libraries on disk, so those are applied as small, idempotent `ALTER TABLE`
+/// migrations instead of requiring a fresh database.
 pub fn init(conn: &Connection) -> Result<()> {
     // Connection-level tuning + constraint enforcement, issued standalone
     // before any schema statement. `PRAGMA foreign_keys` is a documented
@@ -118,8 +120,18 @@ pub fn init(conn: &Connection) -> Result<()> {
              width               INTEGER,
              height              INTEGER,
              embedding           BLOB,
+             -- Set when the last CLIP/SigLIP embed attempt for this item
+             -- failed (cleared on success) — surfaced in the detail panel so
+             -- a failure like 'could not extract a frame from this video'
+             -- isn't only visible in the backend log. NULL means either
+             -- never attempted or last attempt succeeded; distinguish those
+             -- with `embedding IS NULL`.
+             embed_error         TEXT,
              ocr_text            TEXT,
              ocr_scanned         INTEGER NOT NULL DEFAULT 0,
+             -- Same idea as embed_error, for the OCR pipeline. Cleared on a
+             -- successful scan (`ocr_scanned` flips to 1 at the same time).
+             ocr_error           TEXT,
              thumb_path          TEXT,
              camera_make         TEXT,
              camera_model        TEXT,
@@ -145,6 +157,8 @@ pub fn init(conn: &Connection) -> Result<()> {
              PRIMARY KEY (collection_id, item_id)
          );",
     )?;
+
+    add_missing_columns(conn)?;
 
     conn.execute_batch(
         // `file_path`/`rel_path` are already covered by their own UNIQUE
@@ -172,6 +186,29 @@ pub fn init(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Add columns introduced after the base schema shipped, each guarded by a
+/// `PRAGMA table_info` check so it's a no-op on a database that already has
+/// it — safe to run unconditionally on every `init()`, whether that's a
+/// fresh database (created with these columns already, via `CREATE TABLE`
+/// above — never actually missing them) or an existing one from before this
+/// migration was introduced.
+fn add_missing_columns(conn: &Connection) -> Result<()> {
+    let existing: std::collections::HashSet<String> = conn
+        .prepare("PRAGMA table_info(media_items)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+    // (column name, SQL type) — surfaces the last CLIP-embed/OCR failure per
+    // item so the UI can show *why* processing didn't happen instead of it
+    // just silently never finishing (see DetailPanel's processing status).
+    for (name, ty) in [("embed_error", "TEXT"), ("ocr_error", "TEXT")] {
+        if !existing.contains(name) {
+            conn.execute_batch(&format!("ALTER TABLE media_items ADD COLUMN {name} {ty}"))?;
+        }
+    }
+    Ok(())
+}
+
 // Column order in SELECT_MEDIA:
 //   0:id  1:file_path  2:source_path  3:file_name  4:display_name  5:media_type
 //   6:file_size  7:description  8:tags  9:starred
@@ -180,7 +217,8 @@ pub fn init(conn: &Connection) -> Result<()> {
 //   18:audio_title  19:audio_artist  20:audio_album  21:audio_track
 //   22:audio_duration_secs  23:audio_year  24:date_taken  25:favorited  26:audio_cover
 //   27:width  28:height  29:ocr_text  30:thumb_path  31:folder_id
-//   32:camera_make  33:camera_model
+//   32:camera_make  33:camera_model  34:ocr_scanned  35:embed_error
+//   36:ocr_error  37:has_embedding
 //
 // `collection_ids` is NOT selected here — it lives in the `collection_items`
 // junction table, not on `media_items`, so it can't be read off a single row.
@@ -228,6 +266,10 @@ pub(crate) fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<MediaItem> {
         thumb_path: row.get(30).ok(),
         camera_make: row.get(32).ok(),
         camera_model: row.get(33).ok(),
+        ocr_scanned: row.get::<_, i64>(34).unwrap_or(0) != 0,
+        embed_error: row.get(35).ok(),
+        ocr_error: row.get(36).ok(),
+        has_embedding: row.get::<_, i64>(37).unwrap_or(0) != 0,
     })
 }
 
@@ -237,7 +279,8 @@ pub(crate) const SELECT_MEDIA: &str =
      created_at, updated_at, sort_order, deleted_at, auto_tags, \
      audio_title, audio_artist, audio_album, audio_track, audio_duration_secs, audio_year, \
      date_taken, favorited, audio_cover, width, height, ocr_text, thumb_path, folder_id, \
-     camera_make, camera_model \
+     camera_make, camera_model, ocr_scanned, embed_error, ocr_error, \
+     (embedding IS NOT NULL) AS has_embedding \
      FROM media_items";
 
 /// Build a `(?,?,?)`-shaped placeholder list for a dynamic IN-clause of

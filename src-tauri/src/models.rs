@@ -58,6 +58,16 @@ pub struct MediaItem {
     pub thumb_path: Option<String>,
     pub camera_make: Option<String>,
     pub camera_model: Option<String>,
+    /// Whether OCR has been run for this item (vs. `ocr_text` alone, which
+    /// can't distinguish "not scanned yet" from "scanned, found no text").
+    pub ocr_scanned: bool,
+    /// Set when the last OCR attempt failed; cleared on success.
+    pub ocr_error: Option<String>,
+    /// Whether this item has a stored CLIP/SigLIP embedding — the raw bytes
+    /// themselves are never sent to the frontend, just this presence flag.
+    pub has_embedding: bool,
+    /// Set when the last CLIP/SigLIP embed attempt failed; cleared on success.
+    pub embed_error: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

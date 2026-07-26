@@ -353,6 +353,10 @@ pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<Med
         thumb_path: None,
         camera_make: None,
         camera_model: None,
+        ocr_scanned: false,
+        ocr_error: None,
+        has_embedding: false,
+        embed_error: None,
     })
 }
 

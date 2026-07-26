@@ -26,6 +26,9 @@ pub struct OcrStatus {
 pub struct OcrItem {
     pub id: String,
     pub text: String,
+    /// Set when this item's OCR attempt failed — `text` is empty in that
+    /// case (nothing was recognized, since the attempt didn't complete).
+    pub error: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -90,10 +93,16 @@ pub fn run_ocr_all(app: tauri::AppHandle) -> Result<(), String> {
                         let conn = db.0.lock().unwrap();
                         let _ = db::set_ocr(&conn, id, &text);
                     }
-                    Err(e) => tracing::warn!(id, %path, error = %e, "OCR failed, skipping"),
+                    Err(e) => {
+                        tracing::warn!(id, %path, error = %e, "OCR failed, skipping");
+                        let conn = db.0.lock().unwrap();
+                        let _ = db::set_ocr_error(&conn, id, &e);
+                    }
                 }
             } else {
                 tracing::warn!(id, %path, "File missing, skipping OCR");
+                let conn = db.0.lock().unwrap();
+                let _ = db::set_ocr_error(&conn, id, "File no longer exists on disk");
             }
 
             let _ = app.emit(
@@ -140,6 +149,20 @@ pub(crate) fn trigger_ocr(app: &tauri::AppHandle, id: String, path: String) {
             Ok(t) => t,
             Err(e) => {
                 tracing::warn!(id, %path, error = %e, "OCR failed");
+                let msg = e.to_string();
+                {
+                    let db = app.state::<DbState>();
+                    let conn = db.0.lock().unwrap();
+                    let _ = db::set_ocr_error(&conn, &id, &msg);
+                }
+                let _ = app.emit(
+                    "ocr-item",
+                    OcrItem {
+                        id,
+                        text: String::new(),
+                        error: Some(msg),
+                    },
+                );
                 return;
             }
         };
@@ -150,7 +173,14 @@ pub(crate) fn trigger_ocr(app: &tauri::AppHandle, id: String, path: String) {
         }
         // Targeted update: the UI patches just this item, avoiding a full
         // get_all_media refetch on every single import.
-        let _ = app.emit("ocr-item", OcrItem { id, text });
+        let _ = app.emit(
+            "ocr-item",
+            OcrItem {
+                id,
+                text,
+                error: None,
+            },
+        );
     });
 }
 

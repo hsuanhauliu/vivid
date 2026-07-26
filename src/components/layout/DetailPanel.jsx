@@ -14,6 +14,10 @@ import {
   RefreshCw,
   ExternalLink,
   Palette,
+  CheckCircle2,
+  AlertCircle,
+  Circle,
+  ChevronDown,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { folderIdOf } from '../../utils/folders';
@@ -41,6 +45,41 @@ function MetaRow({ label, value, mono }) {
     <div className="meta-row">
       <span>{label}</span>
       <span className={mono ? 'meta-mono' : ''}>{value}</span>
+    </div>
+  );
+}
+
+// One row of the "Processing status" section — shows whether a background AI
+// pipeline (CLIP/SigLIP embedding, OCR) has run for this item yet, and why it
+// didn't if it failed. Backend errors used to only ever reach a log line the
+// user never sees (e.g. "could not extract a frame from this video" for a
+// codec ffmpeg/AVFoundation can't read) — this surfaces that directly instead
+// of the item just silently never showing up in AI search or text results.
+function ProcessingStatusRow({ label, state, error, t }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="processing-row">
+      <div
+        className={`processing-row-main${error ? ' processing-row-clickable' : ''}`}
+        onClick={error ? () => setExpanded((v) => !v) : undefined}
+      >
+        {state === 'done' && <CheckCircle2 size={13} className="processing-icon-done" />}
+        {state === 'failed' && <AlertCircle size={13} className="processing-icon-failed" />}
+        {state === 'pending' && <Circle size={13} className="processing-icon-pending" />}
+        <span className="processing-row-label">{label}</span>
+        <span className={`processing-row-state processing-row-state-${state}`}>
+          {state === 'done' && t('detail.processingDone')}
+          {state === 'failed' && t('detail.processingFailed')}
+          {state === 'pending' && t('detail.processingPending')}
+        </span>
+        {error && (
+          <ChevronDown
+            size={12}
+            className={`processing-row-chevron${expanded ? ' processing-row-chevron-open' : ''}`}
+          />
+        )}
+      </div>
+      {error && expanded && <p className="processing-row-error">{error}</p>}
     </div>
   );
 }
@@ -569,6 +608,27 @@ export default function DetailPanel({
             </button>
           </div>
         </div>
+
+        {/* ── AI processing status ── */}
+        {(item.media_type === 'image' || item.media_type === 'video') && (
+          <div className="meta-section">
+            <p className="meta-section-title">{t('detail.processingStatus')}</p>
+            <ProcessingStatusRow
+              label={t('detail.aiSearchStatus')}
+              state={item.embed_error ? 'failed' : item.has_embedding ? 'done' : 'pending'}
+              error={item.embed_error}
+              t={t}
+            />
+            {item.media_type === 'image' && (
+              <ProcessingStatusRow
+                label={t('detail.textScanStatus')}
+                state={item.ocr_error ? 'failed' : item.ocr_scanned ? 'done' : 'pending'}
+                error={item.ocr_error}
+                t={t}
+              />
+            )}
+          </div>
+        )}
 
         {/* ── AI auto-tags ── */}
         {(item.media_type === 'image' || item.media_type === 'video') && onRetagImage && (

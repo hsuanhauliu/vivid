@@ -47,6 +47,91 @@ fn set_ocr_round_trips_and_flips_scanned() {
     assert_eq!((scanned, total), (2, 2));
 }
 
+#[test]
+fn set_ocr_error_records_failure_and_set_ocr_clears_it() {
+    let conn = open();
+    insert(&conn, &item("a", "/x/a.jpg")).unwrap();
+
+    set_ocr_error(&conn, "a", "vivid-helper ocr failed: no text detected").unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(
+        fetched.ocr_error.as_deref(),
+        Some("vivid-helper ocr failed: no text detected")
+    );
+    // Left unscanned so it's still retried.
+    assert!(!fetched.ocr_scanned);
+    assert_eq!(get_images_without_ocr(&conn).unwrap().len(), 1);
+
+    // A later successful scan clears the recorded error.
+    set_ocr(&conn, "a", "found it").unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert_eq!(fetched.ocr_error, None);
+    assert!(fetched.ocr_scanned);
+}
+
+// ── CLIP embedding ──────────────────────────────────────────────────────
+
+#[test]
+fn set_embedding_records_has_embedding_and_set_embed_error_records_failure() {
+    let conn = open();
+    insert(&conn, &item("a", "/x/a.jpg")).unwrap();
+
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert!(!fetched.has_embedding);
+    assert_eq!(fetched.embed_error, None);
+
+    set_embed_error(&conn, "a", "could not extract a frame from /x/a.jpg").unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert!(!fetched.has_embedding);
+    assert_eq!(
+        fetched.embed_error.as_deref(),
+        Some("could not extract a frame from /x/a.jpg")
+    );
+
+    // A later successful embed clears the recorded error.
+    set_embedding(&conn, "a", &[1, 2, 3], &["cat".to_string()]).unwrap();
+    let fetched = fetch_one(&conn, "a").unwrap();
+    assert!(fetched.has_embedding);
+    assert_eq!(fetched.embed_error, None);
+}
+
+// ── Schema migration ────────────────────────────────────────────────────
+
+#[test]
+fn add_missing_columns_backfills_an_old_schema_missing_them() {
+    let conn = Connection::open_in_memory().unwrap();
+    // A stand-in for a real pre-migration database: the base table shape
+    // without embed_error/ocr_error, built by hand instead of going through
+    // `init` (which always creates them, since they're now part of the base
+    // CREATE TABLE too) — this is the case the ALTER TABLE path in
+    // `add_missing_columns` exists to handle.
+    conn.execute_batch(
+        "CREATE TABLE media_items (
+             id TEXT PRIMARY KEY,
+             file_path TEXT NOT NULL UNIQUE,
+             embedding BLOB,
+             ocr_text TEXT,
+             ocr_scanned INTEGER NOT NULL DEFAULT 0
+         );",
+    )
+    .unwrap();
+
+    add_missing_columns(&conn).unwrap();
+    let columns: std::collections::HashSet<String> = conn
+        .prepare("PRAGMA table_info(media_items)")
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(1))
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect();
+    assert!(columns.contains("embed_error"));
+    assert!(columns.contains("ocr_error"));
+
+    // Idempotent: running it again against a table that already has both
+    // columns must not error.
+    add_missing_columns(&conn).unwrap();
+}
+
 // ── MediaItem CRUD ──────────────────────────────────────────────────────
 
 #[test]

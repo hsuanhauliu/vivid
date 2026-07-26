@@ -66,7 +66,8 @@ pub fn fetch_items_by_ids(conn: &Connection, ids: &[String]) -> Result<Vec<Media
     Ok(items)
 }
 
-/// Store a pre-computed embedding and its auto-generated tags for one item.
+/// Store a pre-computed embedding and its auto-generated tags for one item,
+/// clearing any previously recorded embed failure.
 pub fn set_embedding(
     conn: &Connection,
     id: &str,
@@ -75,8 +76,21 @@ pub fn set_embedding(
 ) -> Result<()> {
     let auto_tags_json = serde_json::to_string(auto_tags).unwrap_or_else(|_| "[]".into());
     conn.execute(
-        "UPDATE media_items SET embedding=?1, auto_tags=?2 WHERE id=?3",
+        "UPDATE media_items SET embedding=?1, auto_tags=?2, embed_error=NULL WHERE id=?3",
         params![embedding, auto_tags_json, id],
+    )?;
+    Ok(())
+}
+
+/// Record why the last embed attempt for one item failed — surfaced in the
+/// detail panel's processing status. The item is left without an embedding
+/// (so it's still picked up by `get_items_without_embeddings` and retried on
+/// the next pass); this just means the *next* failure or success overwrites
+/// this message rather than the item silently never showing a reason.
+pub fn set_embed_error(conn: &Connection, id: &str, error: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE media_items SET embed_error=?1 WHERE id=?2",
+        params![error, id],
     )?;
     Ok(())
 }

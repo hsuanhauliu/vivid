@@ -116,10 +116,22 @@ pub fn set_location(
 
 /// Store recognized OCR text for an item and mark it as scanned. An empty string
 /// is a valid result (image scanned, no text found) and still flips the flag.
+/// Clears any previously recorded OCR failure.
 pub fn set_ocr(conn: &Connection, id: &str, text: &str) -> Result<()> {
     conn.execute(
-        "UPDATE media_items SET ocr_text=?1, ocr_scanned=1 WHERE id=?2",
+        "UPDATE media_items SET ocr_text=?1, ocr_scanned=1, ocr_error=NULL WHERE id=?2",
         params![text, id],
+    )?;
+    Ok(())
+}
+
+/// Record why the last OCR attempt for one item failed — mirrors
+/// `set_embed_error`. `ocr_scanned` is deliberately left at 0 so the item is
+/// still picked up and retried by `get_images_without_ocr`.
+pub fn set_ocr_error(conn: &Connection, id: &str, error: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE media_items SET ocr_error=?1 WHERE id=?2",
+        params![error, id],
     )?;
     Ok(())
 }
@@ -365,7 +377,8 @@ pub fn mark_modified(conn: &Connection, id: &str, file_size: i64, mtime: i64) ->
     let now = chrono::Local::now().to_rfc3339();
     conn.execute(
         "UPDATE media_items SET file_size=?1, mtime=?2, thumb_path=NULL, width=NULL, height=NULL, \
-         embedding=NULL, ocr_scanned=0, ocr_text=NULL, updated_at=?3 WHERE id=?4",
+         embedding=NULL, embed_error=NULL, ocr_scanned=0, ocr_text=NULL, ocr_error=NULL, \
+         updated_at=?3 WHERE id=?4",
         params![file_size, mtime, now, id],
     )?;
     Ok(())
