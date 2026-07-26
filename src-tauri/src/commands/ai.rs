@@ -575,7 +575,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                     (tags, None)
                 }
                 Err(e) => {
-                    tracing::error!(id, error = %e, "CLIP embed failed");
+                    tracing::error!(id, error = %e, "SigLIP embed failed");
                     let msg = e.to_string();
                     let conn = db.0.lock().unwrap();
                     let _ = db::set_embed_error(&conn, id, &msg);
