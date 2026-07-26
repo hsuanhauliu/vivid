@@ -751,6 +751,7 @@
     "aiPlaceholder": "探しているものを説明してください…",
     "placeholder": "名前、タグ、または説明で検索…",
     "placeholderAlbums": "アルバムを検索…",
+    "scopeClearTitle": "{{scope}} 内を検索中 — クリックしてすべてのメディアを検索",
     "scope": {
       "title": "検索対象",
       "name": "ファイル名",

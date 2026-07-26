@@ -867,6 +867,7 @@
     "aiPlaceholder": "Describe lo que buscas…",
     "placeholder": "Buscar por nombre, etiqueta o descripción…",
     "placeholderAlbums": "Buscar álbumes…",
+    "scopeClearTitle": "Buscando en {{scope}} — haz clic para buscar en todos los medios",
     "scope": {
       "title": "Buscar en",
       "name": "Nombre de archivo",

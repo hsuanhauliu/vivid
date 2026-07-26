@@ -751,6 +751,7 @@
     "aiPlaceholder": "描述您要尋找的內容…",
     "placeholder": "依名稱、標籤或描述搜尋…",
     "placeholderAlbums": "搜尋相簿…",
+    "scopeClearTitle": "正在 {{scope}} 中搜尋 — 點擊以搜尋所有媒體",
     "scope": {
       "title": "搜尋範圍",
       "name": "檔案名稱",

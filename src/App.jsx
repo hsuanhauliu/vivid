@@ -1367,6 +1367,29 @@ export default function App() {
     ],
   );
 
+  // Search-bar scope chip: makes it obvious a search only runs against the
+  // current page's subset (Photos/Videos/Audio/Starred) rather than the
+  // whole library — "All Media" needs no chip since that *is* the whole
+  // library. Not shown inside a collection/album-group or folder — those
+  // already have their own visible breadcrumb — nor on the World Map, which
+  // isn't restricted by `filter` in the first place (it always shows every
+  // geotagged item regardless of media type).
+  const searchScopePageLabel =
+    view === 'library' && !activeCollection && !activeFolder && !isAlbumGroupView
+      ? {
+          starred: t('sidebar.starred'),
+          image: t('sidebar.photos'),
+          video: t('sidebar.videos'),
+          audio: t('sidebar.audio'),
+        }[filter]
+      : undefined;
+
+  // Broadens the search back to the whole library without touching the
+  // current search text/filters — unlike handleFilterChange, which also
+  // resets the search box (appropriate for navigating the sidebar, not for
+  // "keep what I typed, just stop narrowing it to this page").
+  const clearSearchScopePage = useCallback(() => setFilter('all'), []);
+
   // macOS menu bar: Workspace > Switch Workspace > <one item per workspace>.
   // The native submenu (rebuilt on the Rust side whenever the registry
   // changes — see `rebuild_workspace_menu` in lib.rs) already shows every
@@ -1952,7 +1975,7 @@ export default function App() {
             )}
             <input
               ref={searchInputRef}
-              className={`search-input${semanticMode ? ' semantic-mode' : ''}${search ? ' has-text' : ''}`}
+              className={`search-input${semanticMode ? ' semantic-mode' : ''}${search ? ' has-text' : ''}${searchScopePageLabel ? ' has-scope' : ''}`}
               placeholder={
                 isAlbumGroupView
                   ? t('search.placeholderAlbums')
@@ -1971,23 +1994,35 @@ export default function App() {
                 }
               }}
             />
-            {search && (
+            <div className="search-trailing">
+              {searchScopePageLabel && (
+                <button
+                  className="lc-breadcrumb search-scope-chip"
+                  onClick={clearSearchScopePage}
+                  title={t('search.scopeClearTitle', { scope: searchScopePageLabel })}
+                >
+                  {searchScopePageLabel}
+                  <X size={11} />
+                </button>
+              )}
+              {search && (
+                <button
+                  className="icon-btn search-clear"
+                  onClick={() => setSearch('')}
+                  title={t('toolbar.clearSearch')}
+                >
+                  <X size={13} />
+                </button>
+              )}
               <button
-                className="icon-btn search-clear"
-                onClick={() => setSearch('')}
-                title={t('toolbar.clearSearch')}
+                className="icon-btn search-submit"
+                onClick={handleSearchGo}
+                title={semanticMode ? t('toolbar.searchAI') : t('search.placeholder')}
+                disabled={!search.trim()}
               >
-                <X size={13} />
+                <CornerDownLeft size={13} />
               </button>
-            )}
-            <button
-              className="icon-btn search-submit"
-              onClick={handleSearchGo}
-              title={semanticMode ? t('toolbar.searchAI') : t('search.placeholder')}
-              disabled={!search.trim()}
-            >
-              <CornerDownLeft size={13} />
-            </button>
+            </div>
             {/* Search history dropdown */}
             {searchFocused && searchHistoryEnabled && searchHistory.length > 0 && (
               <div className="search-history-dropdown">

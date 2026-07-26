@@ -833,6 +833,7 @@
     "aiPlaceholder": "描述你要查找的内容…",
     "placeholder": "按名称、标签或描述搜索…",
     "placeholderAlbums": "搜索相册…",
+    "scopeClearTitle": "正在 {{scope}} 中搜索 — 点击以搜索所有媒体",
     "scope": {
       "title": "搜索范围",
       "name": "文件名",

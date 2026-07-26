@@ -837,6 +837,7 @@
     "aiPlaceholder": "Mô tả điều bạn đang tìm…",
     "placeholder": "Tìm theo tên, thẻ hoặc mô tả…",
     "placeholderAlbums": "Tìm album…",
+    "scopeClearTitle": "Đang tìm trong {{scope}} — nhấp để tìm trong toàn bộ thư viện",
     "scope": {
       "title": "Tìm trong",
       "name": "Tên tệp",

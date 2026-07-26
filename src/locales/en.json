@@ -874,6 +874,7 @@
     "aiPlaceholder": "Describe what you're looking for…",
     "placeholder": "Search by name, tag, or description…",
     "placeholderAlbums": "Search albums…",
+    "scopeClearTitle": "Searching in {{scope}} — click to search all media",
     "scope": {
       "title": "Search in",
       "name": "File name",
