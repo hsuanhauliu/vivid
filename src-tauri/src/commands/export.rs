@@ -37,7 +37,15 @@ fn run_video_helper(
         let _ = fs::remove_file(out_path);
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
         tracing::error!(error = %stderr, status = %out.status, ?args, "video helper failed");
-        return Err(format!("{err_context}: {stderr}"));
+        // A crash (e.g. SIGBUS/SIGSEGV) kills the process before it writes
+        // anything to stderr, so fall back to the exit status — otherwise
+        // the error is just the unhelpful "<context>: " with nothing after.
+        let detail = if stderr.is_empty() {
+            format!("helper exited with {}", out.status)
+        } else {
+            stderr
+        };
+        return Err(format!("{err_context}: {detail}"));
     }
     Ok(())
 }
@@ -701,15 +709,51 @@ pb's writeObjects_({{theImage}})"#
 
 // ── Video trim ────────────────────────────────────────────────────────────────
 
-/// Trim `file_path` to `[start, end]` (seconds) via the Swift helper
-/// (AVFoundation — no ffmpeg). When `max_height` is omitted or the source is
+/// Trims via ffmpeg, as a fallback for when the AVFoundation helper crashes
+/// or errors — this has been observed as a SIGBUS from AVFoundation's custom
+/// Core Image video-composition path (used when downscaling) on 10-bit HDR
+/// HEVC sources, the same class of file that needed an ffmpeg fallback for
+/// playback/thumbnails/embedding elsewhere. `-ss` before `-i` is fast
+/// (keyframe seek) and still frame-accurate in modern ffmpeg.
+fn ffmpeg_trim(
+    file_path: &str,
+    out_path: &Path,
+    start: f64,
+    end: f64,
+    max_height: Option<u32>,
+) -> Result<(), String> {
+    let ffmpeg = resolve("ffmpeg").ok_or(
+        "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
+    )?;
+    let mut cmd = std::process::Command::new(ffmpeg);
+    cmd.args(["-y", "-ss", &start.to_string(), "-i", file_path]);
+    cmd.args(["-t", &(end - start).to_string()]);
+    if let Some(h) = max_height {
+        cmd.args(["-vf", &format!("scale=-2:'min(ih,{h})'")]);
+    }
+    cmd.args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]);
+    cmd.args(["-c:a", "aac", "-b:a", "192k"]);
+    cmd.arg(out_path);
+    let status = cmd
+        .status()
+        .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
+    if !status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!("ffmpeg could not trim {file_path}"));
+    }
+    Ok(())
+}
+
+/// Trim `file_path` to `[start, end]` (seconds), primarily via the Swift
+/// helper (AVFoundation). When `max_height` is omitted or the source is
 /// already at or below it, it tries a passthrough (re-mux only, no re-encode
 /// — fast, lossless, and sample-accurate) export first, falling back to a
 /// re-encoding preset if the source/preset combo can't produce MP4 via
 /// passthrough. When `max_height` requires downscaling, it always re-encodes
-/// (passthrough can't resize). `save_mode`: "copy" writes a new library item;
-/// "overwrite" replaces the original — like `transform_image`'s HEIC path,
-/// this always lands on a new sibling filename and repoints the DB row
+/// (passthrough can't resize). If the helper fails or crashes, `ffmpeg_trim`
+/// is retried before giving up. `save_mode`: "copy" writes a new library
+/// item; "overwrite" replaces the original — like `transform_image`'s HEIC
+/// path, this always lands on a new sibling filename and repoints the DB row
 /// rather than literally overwriting the same path, so the webview never
 /// serves a stale cached copy of a file whose path didn't change.
 // Each parameter maps 1:1 to a value the frontend already tracks as separate
@@ -764,10 +808,18 @@ pub async fn trim_video(
         args.push(h.to_string());
     }
     let tmp_out_c = tmp_out.clone();
+    let file_path_c = file_path.clone();
     // The helper's video re-encode can take real time — run it off the main
     // thread so it doesn't freeze the whole UI while it works.
     tauri::async_runtime::spawn_blocking(move || {
-        run_video_helper(&helper, &args, &tmp_out_c, "could not trim the video")
+        match run_video_helper(&helper, &args, &tmp_out_c, "could not trim the video") {
+            Ok(()) => Ok(()),
+            Err(helper_err) => {
+                tracing::warn!(error = %helper_err, "AVFoundation trim failed, retrying via ffmpeg");
+                ffmpeg_trim(&file_path_c, &tmp_out_c, start, end, max_height)
+                    .map_err(|ffmpeg_err| format!("{helper_err}; ffmpeg also failed: {ffmpeg_err}"))
+            }
+        }
     })
     .await
     .map_err(|e| e.to_string())??;

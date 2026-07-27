@@ -1351,13 +1351,16 @@ export default function App() {
   );
 
   // A search-bar match (see `matchedEntities`) was clicked — jump straight
-  // into that collection/folder via the same handlers the sidebar uses.
+  // into that collection/folder via the same handlers the sidebar uses, then
+  // reset the search/filters that led here (unlike normal sidebar
+  // navigation, which preserves them).
   const handleSelectSearchMatch = useCallback(
     (match) => {
       if (match.kind === 'folder') handleFolderClick(match.id);
       else handleCollectionClick(match.id);
+      clearSearchAndFilters();
     },
-    [handleFolderClick, handleCollectionClick],
+    [handleFolderClick, handleCollectionClick, clearSearchAndFilters],
   );
 
   const handleViewChange = useCallback(
