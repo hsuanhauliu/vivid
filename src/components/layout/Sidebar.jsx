@@ -12,9 +12,6 @@ import {
   Star,
   Trash2,
   Settings,
-  FolderOpen,
-  BookImage,
-  Disc,
   Tags,
   BarChart2,
   Bell,
@@ -25,6 +22,7 @@ import {
   ChevronsRight,
   ChevronDown,
 } from 'lucide-react';
+import { COLLECTION_KIND_ICONS, FOLDER_ICON } from '../../utils/collectionIcons';
 
 // Default/max pinned-section height — 8 rows, same cap as the old hardcoded
 // behavior. User-adjustable (smaller) via the drag handle below the section;
@@ -44,9 +42,9 @@ const LIBRARY_ITEMS = [
 ];
 
 const COLLECTION_ITEMS = [
-  { id: 'albums', labelKey: 'sidebar.albums', icon: BookImage },
-  { id: 'playlists', labelKey: 'sidebar.playlists', icon: Disc },
-  { id: 'folders', labelKey: 'sidebar.folders', icon: FolderOpen },
+  { id: 'albums', labelKey: 'sidebar.albums', icon: COLLECTION_KIND_ICONS.album },
+  { id: 'playlists', labelKey: 'sidebar.playlists', icon: COLLECTION_KIND_ICONS.playlist },
+  { id: 'folders', labelKey: 'sidebar.folders', icon: FOLDER_ICON },
 ];
 const META_ITEMS = [{ id: 'tags', labelKey: 'sidebar.tags', icon: Tags }];
 

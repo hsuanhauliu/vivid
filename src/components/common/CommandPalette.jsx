@@ -12,7 +12,6 @@ import {
   Settings,
   Import,
   Filter,
-  Layers,
   Shuffle,
   ZoomIn,
   ZoomOut,
@@ -21,6 +20,7 @@ import {
   ArrowRight,
   X,
 } from 'lucide-react';
+import { COLLECTION_KIND_ICONS } from '../../utils/collectionIcons';
 
 /**
  * All static commands are defined here. Dynamic commands (per-item actions,
@@ -59,7 +59,7 @@ function buildCommands({
     {
       id: 'nav-albums',
       label: 'Albums',
-      icon: Layers,
+      icon: COLLECTION_KIND_ICONS.album,
       category: 'Navigate',
       action: () => onViewChange('albums'),
     },

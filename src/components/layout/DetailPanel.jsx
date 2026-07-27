@@ -10,7 +10,6 @@ import {
   MapPin,
   MapPinOff,
   Map as MapIcon,
-  FolderInput,
   RefreshCw,
   ExternalLink,
   Palette,
@@ -19,6 +18,7 @@ import {
   Circle,
   ChevronDown,
 } from 'lucide-react';
+import { FOLDER_ICON as FolderIcon } from '../../utils/collectionIcons';
 import { translateTag } from '../../utils/translateTag';
 import { folderIdOf } from '../../utils/folders';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
@@ -538,7 +538,7 @@ export default function DetailPanel({
           <div className="field">
             <label>{t('detail.folder')}</label>
             <div className="collection-badge collection-badge-folder">
-              <FolderInput size={12} className="detail-folder-icon" />
+              <FolderIcon size={12} className="detail-folder-icon" />
               <span className="detail-folder-path">
                 {itemFolder.rel_path.split('/').map((segment, idx, parts) => {
                   const segRelPath = parts.slice(0, idx + 1).join('/');

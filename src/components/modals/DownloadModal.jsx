@@ -16,8 +16,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import Modal from '../common/Modal';
 import { UNCATEGORIZED_ID } from '../../utils/folders';
-
-const KIND_ICONS = { playlist: ListMusic, album: Image };
+import { collectionKindIcon } from '../../utils/collectionIcons';
 
 // Picks an existing playlist/album collection, with optional inline "New playlist" creation.
 // Pass `onNew` to enable the create-new row; it receives the new name string.
@@ -73,7 +72,7 @@ function CollectionPicker({
         {selected ? (
           <>
             {(() => {
-              const Icon = KIND_ICONS[selected.kind] || ListMusic;
+              const Icon = collectionKindIcon(selected.kind);
               return <Icon size={13} />;
             })()}
             <span className="collection-picker-name">{selected.name}</span>
@@ -106,7 +105,7 @@ function CollectionPicker({
             <span className="collection-picker-none">{t('download.none')}</span>
           </button>
           {eligible.map((g) => {
-            const Icon = KIND_ICONS[g.kind] || ListMusic;
+            const Icon = collectionKindIcon(g.kind);
             return (
               <button
                 key={g.id}

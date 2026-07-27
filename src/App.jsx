@@ -30,6 +30,7 @@ import SecondaryPanel from './components/layout/SecondaryPanel';
 import MediaGrid from './components/views/MediaGrid';
 import DetailPanel from './components/layout/DetailPanel';
 import CollectionBanner from './components/layout/CollectionBanner';
+import SearchEntityMatches from './components/common/SearchEntityMatches';
 import AlbumGroupView from './components/views/AlbumGroupView';
 import FileViewer from './components/views/FileViewer';
 import ContextMenu from './components/common/ContextMenu';
@@ -1342,6 +1343,16 @@ export default function App() {
     [guardedNav, navigateToFolder],
   );
 
+  // A search-bar match (see `matchedEntities`) was clicked — jump straight
+  // into that collection/folder via the same handlers the sidebar uses.
+  const handleSelectSearchMatch = useCallback(
+    (match) => {
+      if (match.kind === 'folder') handleFolderClick(match.id);
+      else handleCollectionClick(match.id);
+    },
+    [handleFolderClick, handleCollectionClick],
+  );
+
   const handleViewChange = useCallback(
     (v, { mapFocusId: focusId = null, mapScope = null } = {}) => {
       guardedNav(() => {
@@ -1796,6 +1807,49 @@ export default function App() {
     folderScope,
   ]);
 
+  // Collections/folders whose name matches the current search text — lets the
+  // search bar act as a navigation aid to a whole album/playlist/folder, not
+  // just a filter over individual items' own fields (name/tags/description/
+  // OCR, handled separately by `matchesSearch` above). Deliberately doesn't
+  // feed into `visible`: pulling in every item from a name-matched folder
+  // would conflate "find this folder" with "find photos about this folder's
+  // name", which isn't the same search. Library-only (world map, settings,
+  // etc. don't have their own folder/collection navigation to jump to); the
+  // one currently open is excluded since "here you are" isn't a useful match.
+  const matchedEntities = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (view !== 'library' || !q || semanticMode) return [];
+    const matchedCollections = collections
+      .filter((c) => c.kind !== 'album_group' && c.id !== activeCollection)
+      .filter((c) => c.name.toLowerCase().includes(q))
+      .map((c) => ({
+        id: c.id,
+        kind: c.kind,
+        name: c.name,
+        count: allItems.filter((i) => i.collection_ids?.includes(c.id)).length,
+      }));
+    const matchedFolders = folders
+      .filter((f) => f.id !== activeFolder)
+      .map((f) => ({ folder: f, leaf: f.rel_path.split('/').pop() }))
+      .filter(({ leaf }) => leaf.toLowerCase().includes(q))
+      .map(({ folder, leaf }) => ({
+        id: folder.id,
+        kind: 'folder',
+        name: leaf,
+        count: allItems.filter((i) => folderIdOf(i) === folder.id).length,
+      }));
+    return [...matchedCollections, ...matchedFolders];
+  }, [
+    view,
+    debouncedSearch,
+    semanticMode,
+    collections,
+    folders,
+    allItems,
+    activeCollection,
+    activeFolder,
+  ]);
+
   // World Map's own item pool: shares the top-bar FilterBar/`filters` state
   // and the search box with the library view, but skips the rest of the
   // library-only scoping (sidebar type/folder/collection/tag, AI ranking
@@ -2242,6 +2296,9 @@ export default function App() {
                   }}
                 />
               )}
+
+            {/* Collections/folders whose name matches the current search text */}
+            <SearchEntityMatches matches={matchedEntities} onSelect={handleSelectSearchMatch} />
 
             {/* Results bar — shown when search or filters narrow the visible set */}
             {view === 'library' &&

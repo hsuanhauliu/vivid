@@ -75,6 +75,50 @@
   text-transform: capitalize;
 }
 
+/* ── Search match strip (collections/folders whose name matches the query) ── */
+.search-entity-matches {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.search-entity-match {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-hover);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+}
+.search-entity-match:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.search-entity-match-icon {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.search-entity-match-kind {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.search-entity-match-count {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
 .collection-banner {
   display: flex;
   align-items: center;

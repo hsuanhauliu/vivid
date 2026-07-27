@@ -97,12 +97,12 @@ function MovePicker({ folders, sourceFolderId, sourceRelPath, onConfirm, onCance
       </div>
       <div className="ft-move-picker-list">
         <button className="ft-move-picker-row" onClick={() => onConfirm(null)}>
-          <Folder size={13} />
+          <FolderOpen size={13} />
           <span>{t('panel.rootLevel', 'Root level')}</span>
         </button>
         {filtered.map((f) => (
           <button key={f.id} className="ft-move-picker-row" onClick={() => onConfirm(f.id)}>
-            <Folder size={13} />
+            <FolderOpen size={13} />
             <span>{f.rel_path.replace(/\//g, ' / ')}</span>
           </button>
         ))}
