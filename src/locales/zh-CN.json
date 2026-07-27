@@ -105,7 +105,9 @@
     "slideshow": "幻灯片放映",
     "playAll": "全部播放",
     "shuffle": "随机播放",
-    "more": "更多"
+    "more": "更多",
+    "showMore": "显示更多",
+    "showLess": "收起"
   },
   "collection": {
     "addDescription": "添加描述",

@@ -106,7 +106,9 @@
     "slideshow": "Diashow",
     "playAll": "Alle abspielen",
     "shuffle": "Zufallswiedergabe",
-    "more": "Mehr"
+    "more": "Mehr",
+    "showMore": "Mehr anzeigen",
+    "showLess": "Weniger anzeigen"
   },
   "collection": {
     "addDescription": "Beschreibung hinzufügen",

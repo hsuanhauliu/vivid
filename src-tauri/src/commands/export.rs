@@ -24,16 +24,20 @@ fn run_video_helper(
     out_path: &Path,
     err_context: &str,
 ) -> Result<(), String> {
-    let out = std::process::Command::new(helper)
-        .args(args)
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
+    let out = std::process::Command::new(helper).args(args).output();
+    let out = match out {
+        Ok(o) => o,
+        Err(e) => {
+            let msg = format!("failed to run vivid-helper: {e}");
+            tracing::error!(error = %msg, ?args, "video helper failed to launch");
+            return Err(msg);
+        }
+    };
     if !out.status.success() || !out_path.exists() {
         let _ = fs::remove_file(out_path);
-        return Err(format!(
-            "{err_context}: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        tracing::error!(error = %stderr, status = %out.status, ?args, "video helper failed");
+        return Err(format!("{err_context}: {stderr}"));
     }
     Ok(())
 }

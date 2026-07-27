@@ -105,7 +105,9 @@
     "slideshow": "Trình chiếu",
     "playAll": "Phát tất cả",
     "shuffle": "Phát ngẫu nhiên",
-    "more": "Thêm"
+    "more": "Thêm",
+    "showMore": "Xem thêm",
+    "showLess": "Thu gọn"
   },
   "collection": {
     "addDescription": "Thêm mô tả",

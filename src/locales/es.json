@@ -106,7 +106,9 @@
     "slideshow": "Presentación",
     "playAll": "Reproducir todo",
     "shuffle": "Aleatorio",
-    "more": "Más"
+    "more": "Más",
+    "showMore": "Mostrar más",
+    "showLess": "Mostrar menos"
   },
   "collection": {
     "addDescription": "Añadir descripción",

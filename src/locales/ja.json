@@ -106,7 +106,9 @@
     "slideshow": "スライドショー",
     "playAll": "すべて再生",
     "shuffle": "シャッフル",
-    "more": "その他"
+    "more": "その他",
+    "showMore": "もっと見る",
+    "showLess": "表示を減らす"
   },
   "collection": {
     "addDescription": "説明を追加",

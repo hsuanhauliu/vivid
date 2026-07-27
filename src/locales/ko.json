@@ -105,7 +105,9 @@
     "slideshow": "슬라이드쇼",
     "playAll": "전체 재생",
     "shuffle": "셔플",
-    "more": "더 보기"
+    "more": "더 보기",
+    "showMore": "더 보기",
+    "showLess": "간략히 보기"
   },
   "collection": {
     "addDescription": "설명 추가",

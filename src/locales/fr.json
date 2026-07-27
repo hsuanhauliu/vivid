@@ -106,7 +106,9 @@
     "slideshow": "Diaporama",
     "playAll": "Tout lire",
     "shuffle": "Lecture aléatoire",
-    "more": "Plus"
+    "more": "Plus",
+    "showMore": "Afficher plus",
+    "showLess": "Afficher moins"
   },
   "collection": {
     "addDescription": "Ajouter une description",

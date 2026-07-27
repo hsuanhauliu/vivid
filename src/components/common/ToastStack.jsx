@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, XCircle, Info, ChevronDown } from 'lucide-react';
 import './ToastStack.css';
 
 const TYPE_ICON = {
@@ -10,9 +11,18 @@ const TYPE_ICON = {
   info: Info,
 };
 
+// Above this, the message collapses to one line behind a chevron toggle
+// instead of pushing the toast tall — long messages are mostly backend
+// error detail (e.g. a trim failure's stderr), useful for debugging but not
+// something that should dominate a transient notification by default.
+const COLLAPSE_THRESHOLD = 100;
+
 function Toast({ toast, onDismiss }) {
+  const { t } = useTranslation();
   const Icon = TYPE_ICON[toast.type] ?? Info;
   const [hovered, setHovered] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const collapsible = toast.message.length > COLLAPSE_THRESHOLD;
   const remainingRef = useRef(toast.duration);
   // Real value is always assigned by the mount-time run of the effect below
   // (hovered starts false, so the `else` branch sets it) before anything
@@ -46,7 +56,18 @@ function Toast({ toast, onDismiss }) {
       onMouseLeave={() => setHovered(false)}
     >
       <Icon size={14} className="app-toast-icon" />
-      <span className="app-toast-msg">{toast.message}</span>
+      <span className={`app-toast-msg${collapsible && !expanded ? ' app-toast-msg-clamped' : ''}`}>
+        {toast.message}
+      </span>
+      {collapsible && (
+        <button
+          className="app-toast-expand"
+          onClick={() => setExpanded((v) => !v)}
+          title={expanded ? t('common.showLess') : t('common.showMore')}
+        >
+          <ChevronDown size={13} className={expanded ? 'app-toast-expand-open' : ''} />
+        </button>
+      )}
       <button className="app-toast-close" onClick={() => onDismiss(toast.id)}>
         <X size={12} />
       </button>

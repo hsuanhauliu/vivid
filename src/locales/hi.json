@@ -106,7 +106,9 @@
     "slideshow": "स्लाइडशो",
     "playAll": "सभी चलाएं",
     "shuffle": "शफ़ल",
-    "more": "और"
+    "more": "और",
+    "showMore": "और दिखाएं",
+    "showLess": "कम दिखाएं"
   },
   "collection": {
     "addDescription": "विवरण जोड़ें",
