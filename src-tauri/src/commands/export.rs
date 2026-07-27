@@ -440,12 +440,12 @@ const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 /// container but never produces a frame.
 const PLAYABLE_VIDEO_CODECS: &[&str] = &["h264", "hevc", "mpeg4", "mjpeg", "prores"];
 
-/// Best-effort read of the first video stream's codec via ffprobe. `None` if
-/// ffprobe isn't installed or the probe fails for any reason — callers should
-/// treat that as "unknown, assume playable" rather than an error, since the
-/// probe is purely an optimization to catch bad codecs before playback ever
-/// starts.
-fn probe_video_codec(file_path: &str) -> Option<String> {
+/// Best-effort read of the first video stream's codec and pixel format via
+/// ffprobe. `None` if ffprobe isn't installed or the probe fails for any
+/// reason — callers should treat that as "unknown, assume playable" rather
+/// than an error, since the probe is purely an optimization to catch bad
+/// codecs before playback ever starts.
+fn probe_video_stream(file_path: &str) -> Option<(String, String)> {
     let ffprobe = resolve("ffprobe")?;
     let output = std::process::Command::new(ffprobe)
         .args([
@@ -454,7 +454,7 @@ fn probe_video_codec(file_path: &str) -> Option<String> {
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=codec_name",
+            "stream=codec_name,pix_fmt",
             "-of",
             "csv=p=0",
         ])
@@ -464,8 +464,44 @@ fn probe_video_codec(file_path: &str) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    let codec = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!codec.is_empty()).then_some(codec)
+    parse_codec_and_pix_fmt(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// Parses a `codec_name,pix_fmt` line from `ffprobe -of csv=p=0`.
+///
+/// ffprobe's `csv=p=0` writer appends a trailing comma after the last
+/// requested field on at least some stream shapes (observed on an HDR HEVC
+/// stream carrying `side_data_list` entries) — a plain `split_once` would
+/// fold that into `pix_fmt` as "yuv420p10le," and silently break the
+/// bit-depth check below, so this takes exactly the two fields asked for
+/// and ignores anything (including a trailing empty token) after.
+fn parse_codec_and_pix_fmt(output: &str) -> Option<(String, String)> {
+    let mut fields = output.trim().splitn(3, ',');
+    let codec = fields.next()?.to_string();
+    let pix_fmt = fields.next().unwrap_or("").to_string();
+    (!codec.is_empty()).then_some((codec, pix_fmt))
+}
+
+/// True for a pixel format deeper than 8 bits per channel (ffmpeg always
+/// suffixes these with the bit depth, e.g. `yuv420p10le`, `yuv422p12be` —
+/// `yuv420p` alone, with no suffix, is the plain 8-bit case). Apple's default
+/// "HDR (High Efficiency)" recording mode on iPhone 12 and later shoots
+/// 10-bit HEVC (profile "Main 10") with BT.2020/HLG color metadata — a very
+/// ordinary, common file for a recent iPhone to produce, not an exotic edge
+/// case — and WKWebView's `<video>` element can't play it, even though the
+/// codec family (`hevc`) is otherwise natively supported. Without this
+/// check, `needs_transcode` misses it: the first play attempt fails black-
+/// frame silently, and only the frontend's reactive onError retry recovers
+/// it — this catches it proactively instead, same as any other known-bad
+/// codec, so the UI shows "Converting" up front rather than a brief failure.
+fn is_high_bit_depth(pix_fmt: &str) -> bool {
+    pix_fmt
+        .rsplit_once('p')
+        .map(|(_, suffix)| suffix)
+        .unwrap_or(pix_fmt)
+        .trim_end_matches(['l', 'e', 'b'])
+        .parse::<u32>()
+        .is_ok_and(|bits| bits > 8)
 }
 
 fn needs_transcode(file_path: &str) -> bool {
@@ -475,8 +511,9 @@ fn needs_transcode(file_path: &str) -> bool {
         .unwrap_or("")
         .to_lowercase();
     UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str())
-        || probe_video_codec(file_path)
-            .is_some_and(|codec| !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()))
+        || probe_video_stream(file_path).is_some_and(|(codec, pix_fmt)| {
+            !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()) || is_high_bit_depth(&pix_fmt)
+        })
 }
 
 /// Fast (no ffmpeg run) check the frontend calls before deciding how to render
@@ -485,9 +522,17 @@ fn needs_transcode(file_path: &str) -> bool {
 /// play — and likely fail black-frame-silently on — the raw source first.
 /// Runs the same extension + probed-codec check as `get_playable_video_path`,
 /// just without the (potentially multi-second) transcode step.
+///
+/// Still runs `ffprobe` as a subprocess, which can take a noticeable moment
+/// on a large/remote-mounted file — `async` + `spawn_blocking` so that wait
+/// happens off whatever thread is servicing the IPC call, not blocking the
+/// whole webview UI for it (same reasoning as `trim_video`/
+/// `export_video_gif`'s use of `spawn_blocking` below).
 #[tauri::command]
-pub fn video_needs_transcode(file_path: String) -> bool {
-    needs_transcode(&file_path)
+pub async fn video_needs_transcode(file_path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || needs_transcode(&file_path))
+        .await
+        .unwrap_or(false)
 }
 
 /// Return a path the webview can actually play. Formats WKWebView can't decode
@@ -506,13 +551,24 @@ pub fn video_needs_transcode(file_path: String) -> bool {
 /// written to `/tmp` resolves to a `convertFileSrc` URL the webview silently
 /// refuses to load: no fetch, no decode error, just a permanently black
 /// player with nothing for a `<video>` error handler to even catch.
+///
+/// `async` + `spawn_blocking`, same as `trim_video`/`export_video_gif` below
+/// — the actual transcode is a synchronous `ffmpeg` subprocess wait that can
+/// run for several seconds on a large file; without this, that wait runs on
+/// whatever thread handles the IPC call and freezes the whole webview UI for
+/// its duration (this was exactly that bug — every other spot that shells
+/// out to ffmpeg/the helper for real work already does this, this one didn't).
 #[tauri::command]
-pub fn get_playable_video_path(
+pub async fn get_playable_video_path(
     app: tauri::AppHandle,
     file_path: String,
     force: Option<bool>,
 ) -> Result<String, String> {
-    ensure_playable_video_path(&app, &file_path, force.unwrap_or(false))
+    tauri::async_runtime::spawn_blocking(move || {
+        ensure_playable_video_path(&app, &file_path, force.unwrap_or(false))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// The actual work behind `get_playable_video_path`, callable directly from
@@ -859,4 +915,52 @@ pub async fn export_video_gif(
     let mut item = build_item(&dest, None)?;
     insert_imported(&conn, &mut item, &app)?;
     Ok(item)
+}
+
+#[cfg(test)]
+mod video_transcode_tests {
+    use super::{is_high_bit_depth, parse_codec_and_pix_fmt};
+
+    #[test]
+    fn parses_codec_and_pix_fmt_with_ffprobes_trailing_comma() {
+        // The exact bug this guards: a naive split_once(',') on this real
+        // ffprobe output folds the trailing comma into pix_fmt as
+        // "yuv420p10le,", which is_high_bit_depth then fails to parse as a
+        // number — silently defeating the whole HDR check.
+        assert_eq!(
+            parse_codec_and_pix_fmt("hevc,yuv420p10le,\n"),
+            Some(("hevc".to_string(), "yuv420p10le".to_string())),
+        );
+    }
+
+    #[test]
+    fn parses_codec_and_pix_fmt_without_trailing_comma() {
+        assert_eq!(
+            parse_codec_and_pix_fmt("h264,yuv420p"),
+            Some(("h264".to_string(), "yuv420p".to_string())),
+        );
+    }
+
+    #[test]
+    fn empty_output_has_no_codec() {
+        assert_eq!(parse_codec_and_pix_fmt(""), None);
+    }
+
+    #[test]
+    fn plain_8bit_formats_are_not_high_bit_depth() {
+        assert!(!is_high_bit_depth("yuv420p"));
+        assert!(!is_high_bit_depth("yuvj420p"));
+        assert!(!is_high_bit_depth("nv12"));
+        assert!(!is_high_bit_depth("rgb24"));
+    }
+
+    #[test]
+    fn ten_and_twelve_bit_formats_are_high_bit_depth() {
+        // The exact pix_fmt Apple's "HDR (High Efficiency)" iPhone recording
+        // mode produces (10-bit HEVC, "Main 10" profile) — the real-world
+        // case this check exists for.
+        assert!(is_high_bit_depth("yuv420p10le"));
+        assert!(is_high_bit_depth("yuv422p10le"));
+        assert!(is_high_bit_depth("yuv444p12be"));
+    }
 }
