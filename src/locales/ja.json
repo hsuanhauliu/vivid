@@ -752,6 +752,8 @@
     "placeholder": "名前、タグ、または説明で検索…",
     "placeholderAlbums": "アルバムを検索…",
     "scopeClearTitle": "{{scope}} 内を検索中 — クリックしてすべてのメディアを検索",
+    "moreMatches": "他 {{count}} 件",
+    "showLessMatches": "表示を減らす",
     "scope": {
       "title": "検索対象",
       "name": "ファイル名",

@@ -868,6 +868,8 @@
     "placeholder": "Pesquisar por nome, tag ou descrição…",
     "placeholderAlbums": "Pesquisar álbuns…",
     "scopeClearTitle": "Pesquisando em {{scope}} — clique para pesquisar em toda a mídia",
+    "moreMatches": "+{{count}} mais",
+    "showLessMatches": "Mostrar menos",
     "scope": {
       "title": "Pesquisar em",
       "name": "Nome do arquivo",

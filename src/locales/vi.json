@@ -838,6 +838,8 @@
     "placeholder": "Tìm theo tên, thẻ hoặc mô tả…",
     "placeholderAlbums": "Tìm album…",
     "scopeClearTitle": "Đang tìm trong {{scope}} — nhấp để tìm trong toàn bộ thư viện",
+    "moreMatches": "+{{count}} nữa",
+    "showLessMatches": "Thu gọn",
     "scope": {
       "title": "Tìm trong",
       "name": "Tên tệp",

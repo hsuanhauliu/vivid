@@ -834,6 +834,8 @@
     "placeholder": "按名称、标签或描述搜索…",
     "placeholderAlbums": "搜索相册…",
     "scopeClearTitle": "正在 {{scope}} 中搜索 — 点击以搜索所有媒体",
+    "moreMatches": "还有 {{count}} 个",
+    "showLessMatches": "收起",
     "scope": {
       "title": "搜索范围",
       "name": "文件名",

@@ -834,6 +834,8 @@
     "placeholder": "이름, 태그, 설명으로 검색…",
     "placeholderAlbums": "앨범 검색…",
     "scopeClearTitle": "{{scope}}에서 검색 중 — 클릭하면 전체 미디어에서 검색",
+    "moreMatches": "+{{count}}개 더 보기",
+    "showLessMatches": "간략히 보기",
     "scope": {
       "title": "검색 범위",
       "name": "파일 이름",

@@ -875,6 +875,8 @@
     "placeholder": "Search by name, tag, or description…",
     "placeholderAlbums": "Search albums…",
     "scopeClearTitle": "Searching in {{scope}} — click to search all media",
+    "moreMatches": "+{{count}} more",
+    "showLessMatches": "Show less",
     "scope": {
       "title": "Search in",
       "name": "File name",

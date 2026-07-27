@@ -868,6 +868,8 @@
     "placeholder": "नाम, टैग या विवरण से खोजें…",
     "placeholderAlbums": "एल्बम खोजें…",
     "scopeClearTitle": "{{scope}} में खोज रहे हैं — सभी मीडिया में खोजने के लिए क्लिक करें",
+    "moreMatches": "+{{count}} और",
+    "showLessMatches": "कम दिखाएं",
     "scope": {
       "title": "यहां खोजें",
       "name": "फ़ाइल नाम",
