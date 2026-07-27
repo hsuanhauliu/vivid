@@ -26,12 +26,9 @@ pub use stats::*;
 pub use trash::*;
 
 /// Open a fresh connection (or an existing database file) and bring it up to
-/// the current schema. There is exactly one *base* schema — no upgrade path
-/// from a shape that predates it, so every `CREATE TABLE`/`CREATE INDEX`
-/// statement here is unconditional. The one exception is `add_missing_columns`
-/// below: a handful of columns were added after users already had real
-/// libraries on disk, so those are applied as small, idempotent `ALTER TABLE`
-/// migrations instead of requiring a fresh database.
+/// the current schema. Every `CREATE TABLE`/`CREATE INDEX` here is
+/// unconditional — the one exception is `add_missing_columns` below, which
+/// applies a few post-launch columns as idempotent `ALTER TABLE` migrations.
 pub fn init(conn: &Connection) -> Result<()> {
     // Connection-level tuning + constraint enforcement, issued standalone
     // before any schema statement. `PRAGMA foreign_keys` is a documented
@@ -120,26 +117,15 @@ pub fn init(conn: &Connection) -> Result<()> {
              width               INTEGER,
              height              INTEGER,
              embedding           BLOB,
-             -- Set when the last CLIP/SigLIP embed attempt for this item
-             -- failed (cleared on success) — surfaced in the detail panel so
-             -- a failure like 'could not extract a frame from this video'
-             -- isn't only visible in the backend log. NULL means either
-             -- never attempted or last attempt succeeded; distinguish those
-             -- with `embedding IS NULL`.
+             -- Last CLIP/SigLIP embed failure, cleared on success; surfaced
+             -- in the detail panel instead of only the backend log.
              embed_error         TEXT,
              ocr_text            TEXT,
              ocr_scanned         INTEGER NOT NULL DEFAULT 0,
-             -- Same idea as embed_error, for the OCR pipeline. Cleared on a
-             -- successful scan (`ocr_scanned` flips to 1 at the same time).
              ocr_error           TEXT,
              thumb_path          TEXT,
-             -- Set when the last thumbnail/poster-frame extraction failed
-             -- (cleared on success). Without this, an item whose thumbnail
-             -- can never be generated (e.g. a video codec AVFoundation can't
-             -- decode a frame from) would fail the exact same way on every
-             -- single `generate_thumbnails_all` pass forever — this lets
-             -- `get_items_without_thumb` stop retrying it, since a
-             -- content-independent failure won't fix itself on retry.
+             -- Last thumbnail failure; also stops `get_items_without_thumb`
+             -- from retrying a file that will just fail the same way again.
              thumb_error         TEXT,
              camera_make         TEXT,
              camera_model        TEXT,
@@ -194,21 +180,14 @@ pub fn init(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// Add columns introduced after the base schema shipped, each guarded by a
-/// `PRAGMA table_info` check so it's a no-op on a database that already has
-/// it — safe to run unconditionally on every `init()`, whether that's a
-/// fresh database (created with these columns already, via `CREATE TABLE`
-/// above — never actually missing them) or an existing one from before this
-/// migration was introduced.
+/// Add columns introduced after the base schema shipped. Each is guarded by
+/// a `PRAGMA table_info` check, so it's a no-op if already present.
 fn add_missing_columns(conn: &Connection) -> Result<()> {
     let existing: std::collections::HashSet<String> = conn
         .prepare("PRAGMA table_info(media_items)")?
         .query_map([], |r| r.get::<_, String>(1))?
         .filter_map(|r| r.ok())
         .collect();
-    // (column name, SQL type) — surfaces the last CLIP-embed/OCR failure per
-    // item so the UI can show *why* processing didn't happen instead of it
-    // just silently never finishing (see DetailPanel's processing status).
     for (name, ty) in [
         ("embed_error", "TEXT"),
         ("ocr_error", "TEXT"),

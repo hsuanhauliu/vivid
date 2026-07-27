@@ -69,9 +69,7 @@ pub struct ClipProgress {
     pub file_name: String,
     pub auto_tags: Vec<String>,
     pub done: bool,
-    /// Set when embedding this specific item failed — lets the frontend
-    /// patch that item's processing-status UI live, not just the batch
-    /// current/total counter.
+    /// Set when embedding this specific item failed.
     pub error: Option<String>,
 }
 
@@ -504,9 +502,7 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
 
             // Skip files that no longer exist on disk — still emit progress (with no
             // tags) so a missing file never swallows the final "done" event and
-            // leaves the UI stuck on "indexing…" forever. Recorded as a real
-            // failure (not just a log line) since it's just as much a reason
-            // this item never got indexed as any other embed error.
+            // leaves the UI stuck on "indexing…" forever.
             if !p.exists() {
                 let msg = "File no longer exists on disk";
                 tracing::warn!(id, %path, "File missing, skipping embed");

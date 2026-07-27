@@ -49,12 +49,9 @@ function MetaRow({ label, value, mono }) {
   );
 }
 
-// One row of the "Processing status" section — shows whether a background AI
-// pipeline (CLIP/SigLIP embedding, OCR) has run for this item yet, and why it
-// didn't if it failed. Backend errors used to only ever reach a log line the
-// user never sees (e.g. "could not extract a frame from this video" for a
-// codec ffmpeg/AVFoundation can't read) — this surfaces that directly instead
-// of the item just silently never showing up in AI search or text results.
+// One row of the "Processing status" section — whether a background AI
+// pipeline (CLIP/SigLIP embedding, OCR) has run for this item, and why not
+// if it failed.
 function ProcessingStatusRow({ label, state, error, t }) {
   const [expanded, setExpanded] = useState(false);
   return (

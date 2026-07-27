@@ -129,13 +129,8 @@ export default function App() {
   const [activeTag, setActiveTag] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [search, setSearch] = useState('');
-  // Armed by clicking the search-scope chip's X: hides the chip immediately
-  // (so the click feels acknowledged) but doesn't actually switch the page
-  // to All Media yet — that "navigation" only happens once the user commits
-  // to it, by pressing Enter or typing again (see the search input's
-  // onChange and handleSearchGo below). Otherwise a single stray click on
-  // the X would silently reassign the whole page out from under the user
-  // while they were just trying to broaden their next search.
+  // Set by clicking the search-scope chip's X; the actual page switch to
+  // All Media is deferred until Enter or typing (see handleSearchGo).
   const [scopeClearPending, setScopeClearPending] = useState(false);
   // Which fields keyword search checks (name/tags/description/OCR) — all on
   // by default, narrowed via the toggle menu next to the search bar.
@@ -1160,9 +1155,6 @@ export default function App() {
     if (!search.trim()) return;
     searchInputRef.current?.blur();
     setSearchFocused(false);
-    // Committing a search is one of the two triggers (the other being
-    // typing, in the input's onChange below) that actually applies a
-    // scope-chip clear the user armed but hasn't committed to yet.
     if (scopeClearPending) {
       setFilter('all');
       setScopeClearPending(false);
@@ -1393,16 +1385,9 @@ export default function App() {
     ],
   );
 
-  // Search-bar scope chip: makes it obvious a search only runs against the
-  // current page's subset (Photos/Videos/Audio/Starred) rather than the
-  // whole library — "All Media" needs no chip since that *is* the whole
-  // library. Not shown inside a collection/album-group or folder — those
-  // already have their own visible breadcrumb — nor on the World Map, which
-  // isn't restricted by `filter` in the first place (it always shows every
-  // geotagged item regardless of media type). Also hidden while a clear is
-  // armed-but-not-yet-committed (see `scopeClearPending`) — the click still
-  // needs *some* visible acknowledgment even though nothing else has
-  // actually changed yet.
+  // "All Media" needs no chip since that's already the whole library; not
+  // shown inside a collection/folder (their own breadcrumb covers it) or on
+  // the World Map (not restricted by `filter` at all).
   const searchScopePageLabel =
     view === 'library' &&
     !activeCollection &&
@@ -1417,20 +1402,9 @@ export default function App() {
         }[filter]
       : undefined;
 
-  // Arms the scope clear (hides the chip) without touching `filter` yet —
-  // the actual page switch to All Media is deferred until the user commits
-  // to it via Enter (handleSearchGo) or by typing again (the search input's
-  // onChange below), not fired straight from this click. Navigating the
-  // whole page out from under the user off a single X click, before they've
-  // said what (if anything) they actually want to search for, felt like the
-  // click doing more than it visually promised.
   const clearSearchScopePage = useCallback(() => setScopeClearPending(true), []);
 
-  // A real navigation elsewhere (sidebar filter/view/collection/folder
-  // change) supersedes an armed-but-uncommitted scope clear — it's now
-  // either been fulfilled (`filter` became 'all') or moot (the user went
-  // somewhere else entirely), so the flag shouldn't linger into whatever
-  // page comes next.
+  // A real navigation elsewhere supersedes an uncommitted scope clear.
   useEffect(() => {
     setScopeClearPending(false);
   }, [filter, view, activeCollection, activeFolder]);
@@ -1841,15 +1815,8 @@ export default function App() {
     folderScope,
   ]);
 
-  // Collections/folders whose name matches the current search text — lets the
-  // search bar act as a navigation aid to a whole album/playlist/folder, not
-  // just a filter over individual items' own fields (name/tags/description/
-  // OCR, handled separately by `matchesSearch` above). Deliberately doesn't
-  // feed into `visible`: pulling in every item from a name-matched folder
-  // would conflate "find this folder" with "find photos about this folder's
-  // name", which isn't the same search. Library-only (world map, settings,
-  // etc. don't have their own folder/collection navigation to jump to); the
-  // one currently open is excluded since "here you are" isn't a useful match.
+  // Collections/folders whose name matches the search text — a navigation
+  // aid, separate from `visible`'s item-level matching.
   const matchedEntities = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
     if (view !== 'library' || !q || semanticMode) return [];
@@ -1872,9 +1839,7 @@ export default function App() {
         name: leaf,
         count: allItems.filter((i) => folderIdOf(i) === folder.id).length,
       }));
-    // Most items first (a bigger match is more likely the one being looked
-    // for), ties broken alphabetically so the order isn't arbitrary insertion
-    // order (collections before folders, DB/tree order within each).
+    // Most items first, ties broken alphabetically.
     return [...matchedCollections, ...matchedFolders].sort(
       (a, b) => b.count - a.count || a.name.localeCompare(b.name),
     );
@@ -2078,8 +2043,6 @@ export default function App() {
               }
               value={search}
               onChange={(e) => {
-                // The other trigger (besides Enter, in handleSearchGo) that
-                // commits an armed-but-not-yet-applied scope clear.
                 if (scopeClearPending) {
                   setFilter('all');
                   setScopeClearPending(false);

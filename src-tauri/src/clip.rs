@@ -294,17 +294,10 @@ fn extract_video_frame_once(
     Ok(tmp_path)
 }
 
-/// Extract a poster frame, same as `extract_video_frame_once`, but retries
-/// once through the ffmpeg transcode fallback (the same one video *playback*
-/// uses — see `commands::ensure_playable_video_path`) if AVFoundation can't
-/// decode the source directly. A container whose codec AVFoundation doesn't
-/// support (VP9-in-.mov above all — some Android/social apps produce these)
-/// fails this exact same way for thumbnails and CLIP embedding as it did for
-/// playback, so without this fallback, fixing playback alone left those
-/// pipelines permanently failing on a file the user can now actually watch.
-/// Returns the *original* AVFoundation error if the fallback also fails (or
-/// ffmpeg isn't installed) — that's almost always the more informative one
-/// (e.g. "no video stream" vs. a generic ffmpeg exit-code failure).
+/// Like `extract_video_frame_once`, but retries through the ffmpeg transcode
+/// fallback (`commands::ensure_playable_video_path`) if AVFoundation can't
+/// decode the source directly. Returns the original AVFoundation error if
+/// the fallback also fails, since it's usually more informative.
 pub(crate) fn extract_video_frame(
     app: &tauri::AppHandle,
     video_path: &Path,

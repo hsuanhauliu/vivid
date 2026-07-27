@@ -113,8 +113,7 @@ fn set_thumb_error_stops_retries_and_set_thumb_dims_clears_it() {
         fetched.thumb_path, None,
         "a failed attempt must not fabricate a thumbnail path"
     );
-    // The whole point: a permanently-failing item stops showing up, instead
-    // of failing identically (and logging identically) on every pass.
+    // A permanently-failing item stops showing up as a retry candidate.
     assert!(get_items_without_thumb(&conn).unwrap().is_empty());
 
     // A later successful generation (e.g. after a codec becomes supported)
@@ -130,11 +129,7 @@ fn set_thumb_error_stops_retries_and_set_thumb_dims_clears_it() {
 #[test]
 fn add_missing_columns_backfills_an_old_schema_missing_them() {
     let conn = Connection::open_in_memory().unwrap();
-    // A stand-in for a real pre-migration database: the base table shape
-    // without embed_error/ocr_error, built by hand instead of going through
-    // `init` (which always creates them, since they're now part of the base
-    // CREATE TABLE too) — this is the case the ALTER TABLE path in
-    // `add_missing_columns` exists to handle.
+    // Stand-in for a pre-migration database, missing embed_error/ocr_error.
     conn.execute_batch(
         "CREATE TABLE media_items (
              id TEXT PRIMARY KEY,

@@ -433,18 +433,13 @@ pub fn get_displayable_path(file_path: String) -> Result<String, String> {
 /// cached, same idea as the HEIC path above but heavier, so it's kept separate.
 const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 
-/// Video codecs WKWebView's AVFoundation-backed player is known to decode
-/// natively. A container extension alone doesn't guarantee one of these —
-/// e.g. .mov files re-muxed by some Android/social apps carry a VP9 video
-/// stream (Apple doesn't license VP9 at all), which opens fine as a
-/// container but never produces a frame.
+/// Video codecs WKWebView's AVFoundation-backed player decodes natively.
+/// A container extension alone doesn't guarantee one — e.g. VP9-in-.mov
+/// (some Android/social re-muxes) opens fine but never produces a frame.
 const PLAYABLE_VIDEO_CODECS: &[&str] = &["h264", "hevc", "mpeg4", "mjpeg", "prores"];
 
-/// Best-effort read of the first video stream's codec and pixel format via
-/// ffprobe. `None` if ffprobe isn't installed or the probe fails for any
-/// reason — callers should treat that as "unknown, assume playable" rather
-/// than an error, since the probe is purely an optimization to catch bad
-/// codecs before playback ever starts.
+/// `None` if ffprobe isn't installed or the probe fails — treat as
+/// "unknown, assume playable" rather than an error.
 fn probe_video_stream(file_path: &str) -> Option<(String, String)> {
     let ffprobe = resolve("ffprobe")?;
     let output = std::process::Command::new(ffprobe)
@@ -467,14 +462,9 @@ fn probe_video_stream(file_path: &str) -> Option<(String, String)> {
     parse_codec_and_pix_fmt(&String::from_utf8_lossy(&output.stdout))
 }
 
-/// Parses a `codec_name,pix_fmt` line from `ffprobe -of csv=p=0`.
-///
-/// ffprobe's `csv=p=0` writer appends a trailing comma after the last
-/// requested field on at least some stream shapes (observed on an HDR HEVC
-/// stream carrying `side_data_list` entries) — a plain `split_once` would
-/// fold that into `pix_fmt` as "yuv420p10le," and silently break the
-/// bit-depth check below, so this takes exactly the two fields asked for
-/// and ignores anything (including a trailing empty token) after.
+/// Parses a `codec_name,pix_fmt` line from `ffprobe -of csv=p=0` — ffprobe
+/// appends a trailing comma on some stream shapes, so this takes exactly the
+/// two fields asked for rather than a naive `split_once`.
 fn parse_codec_and_pix_fmt(output: &str) -> Option<(String, String)> {
     let mut fields = output.trim().splitn(3, ',');
     let codec = fields.next()?.to_string();
@@ -482,18 +472,10 @@ fn parse_codec_and_pix_fmt(output: &str) -> Option<(String, String)> {
     (!codec.is_empty()).then_some((codec, pix_fmt))
 }
 
-/// True for a pixel format deeper than 8 bits per channel (ffmpeg always
-/// suffixes these with the bit depth, e.g. `yuv420p10le`, `yuv422p12be` —
-/// `yuv420p` alone, with no suffix, is the plain 8-bit case). Apple's default
-/// "HDR (High Efficiency)" recording mode on iPhone 12 and later shoots
-/// 10-bit HEVC (profile "Main 10") with BT.2020/HLG color metadata — a very
-/// ordinary, common file for a recent iPhone to produce, not an exotic edge
-/// case — and WKWebView's `<video>` element can't play it, even though the
-/// codec family (`hevc`) is otherwise natively supported. Without this
-/// check, `needs_transcode` misses it: the first play attempt fails black-
-/// frame silently, and only the frontend's reactive onError retry recovers
-/// it — this catches it proactively instead, same as any other known-bad
-/// codec, so the UI shows "Converting" up front rather than a brief failure.
+/// True for a pixel format deeper than 8 bits per channel (ffmpeg suffixes
+/// these with the bit depth, e.g. `yuv420p10le`). iPhone's default HDR
+/// recording mode shoots 10-bit HEVC, which WKWebView's `<video>` can't play
+/// even though the `hevc` codec family is otherwise supported.
 fn is_high_bit_depth(pix_fmt: &str) -> bool {
     pix_fmt
         .rsplit_once('p')
@@ -516,18 +498,9 @@ fn needs_transcode(file_path: &str) -> bool {
         })
 }
 
-/// Fast (no ffmpeg run) check the frontend calls before deciding how to render
-/// the player: `true` means playback will need the transcode fallback, so the
-/// UI should show a "converting" state up front rather than attempting to
-/// play — and likely fail black-frame-silently on — the raw source first.
-/// Runs the same extension + probed-codec check as `get_playable_video_path`,
-/// just without the (potentially multi-second) transcode step.
-///
-/// Still runs `ffprobe` as a subprocess, which can take a noticeable moment
-/// on a large/remote-mounted file — `async` + `spawn_blocking` so that wait
-/// happens off whatever thread is servicing the IPC call, not blocking the
-/// whole webview UI for it (same reasoning as `trim_video`/
-/// `export_video_gif`'s use of `spawn_blocking` below).
+/// Fast (no transcode) check the frontend uses to decide whether to show a
+/// "converting" state before attempting playback. `async` + `spawn_blocking`
+/// so the ffprobe subprocess wait doesn't block the webview UI.
 #[tauri::command]
 pub async fn video_needs_transcode(file_path: String) -> bool {
     tauri::async_runtime::spawn_blocking(move || needs_transcode(&file_path))
@@ -535,29 +508,14 @@ pub async fn video_needs_transcode(file_path: String) -> bool {
         .unwrap_or(false)
 }
 
-/// Return a path the webview can actually play. Formats WKWebView can't decode
-/// at all (WMV/VC-1, AVI, FLV, MKV/Matroska) are always transcoded; other
-/// extensions are probed for their actual video codec (when ffprobe is
-/// available) since e.g. .mov can carry a codec — VP9 above all — that has
-/// nothing to do with the container being fine. Either way the source is
-/// transcoded to a cached H.264/AAC MP4 via ffmpeg; anything left passes
-/// through unchanged. `force` skips straight to transcoding regardless of
-/// extension or probed codec, for the frontend's last-resort retry after the
-/// native `<video>` element actually fails to play a file this all assumed
-/// was fine.
+/// Returns a path the webview can actually play, transcoding to a cached
+/// H.264/AAC MP4 via ffmpeg when needed. `force` skips the codec check
+/// entirely, for the frontend's retry after a native `<video>` playback
+/// failure. The cache lives under the app data dir, not `/tmp` — the asset
+/// protocol's scope (tauri.conf.json) only allows `$APPDATA/**`.
 ///
-/// The cache lives under the app's data dir, not system `/tmp` — the asset
-/// protocol's scope (tauri.conf.json) only allows `$APPDATA/**`, so a file
-/// written to `/tmp` resolves to a `convertFileSrc` URL the webview silently
-/// refuses to load: no fetch, no decode error, just a permanently black
-/// player with nothing for a `<video>` error handler to even catch.
-///
-/// `async` + `spawn_blocking`, same as `trim_video`/`export_video_gif` below
-/// — the actual transcode is a synchronous `ffmpeg` subprocess wait that can
-/// run for several seconds on a large file; without this, that wait runs on
-/// whatever thread handles the IPC call and freezes the whole webview UI for
-/// its duration (this was exactly that bug — every other spot that shells
-/// out to ffmpeg/the helper for real work already does this, this one didn't).
+/// `async` + `spawn_blocking` — the ffmpeg subprocess wait can run for
+/// several seconds and must not block the webview UI.
 #[tauri::command]
 pub async fn get_playable_video_path(
     app: tauri::AppHandle,
@@ -571,14 +529,9 @@ pub async fn get_playable_video_path(
     .map_err(|e| e.to_string())?
 }
 
-/// The actual work behind `get_playable_video_path`, callable directly from
-/// other backend pipelines (thumbnail poster-frame extraction, CLIP video
-/// embedding) — not just as a Tauri command reached via `invoke()` from the
-/// frontend. Those pipelines extract frames the same AVFoundation way video
-/// *playback* used to before this fallback existed, so they hit the exact
-/// same "container's fine, codec (VP9 above all) isn't" failure — and
-/// without this, fixing playback alone left thumbnails/AI search/OCR
-/// permanently failing on a file the user can now actually watch.
+/// The work behind `get_playable_video_path`, also called directly by other
+/// backend pipelines (thumbnail extraction, CLIP video embedding) that hit
+/// the same AVFoundation decode failures as playback did.
 pub(crate) fn ensure_playable_video_path(
     app: &tauri::AppHandle,
     file_path: &str,

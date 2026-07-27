@@ -24,8 +24,6 @@ export default function useMediaLibrary() {
   useEffect(() => {
     const uns = [];
     // Single-image auto-OCR (on import): patch just that item — no full refetch.
-    // Also covers the failure case (`payload.error` set) so the detail panel's
-    // processing status reflects it live instead of only via backend logs.
     listen('ocr-item', ({ payload }) => {
       if (!payload?.id) return;
       const patch = payload.error
@@ -34,10 +32,7 @@ export default function useMediaLibrary() {
       setAllItems((prev) => prev.map((it) => (it.id === payload.id ? { ...it, ...patch } : it)));
       setSelected((prev) => (prev?.id === payload.id ? { ...prev, ...patch } : prev));
     }).then((fn) => uns.push(fn));
-    // Per-item CLIP/SigLIP embed result (success or failure), same idea as
-    // ocr-item above — `clip-progress` already fires once per item during
-    // `start_embed_all`, this just also patches the item instead of only
-    // feeding the global progress bar (AiIndexProgress.jsx).
+    // Per-item CLIP/SigLIP embed result, same idea as ocr-item above.
     listen('clip-progress', ({ payload }) => {
       if (!payload?.item_id) return;
       const patch = payload.error

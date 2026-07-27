@@ -82,11 +82,9 @@ pub fn set_embedding(
     Ok(())
 }
 
-/// Record why the last embed attempt for one item failed — surfaced in the
-/// detail panel's processing status. The item is left without an embedding
-/// (so it's still picked up by `get_items_without_embeddings` and retried on
-/// the next pass); this just means the *next* failure or success overwrites
-/// this message rather than the item silently never showing a reason.
+/// Records why the last embed attempt failed, surfaced in the detail panel.
+/// The item stays embedding-less, so it's still retried by
+/// `get_items_without_embeddings`.
 pub fn set_embed_error(conn: &Connection, id: &str, error: &str) -> Result<()> {
     conn.execute(
         "UPDATE media_items SET embed_error=?1 WHERE id=?2",

@@ -166,6 +166,8 @@
   padding: 0 8px 0 0;
   color: inherit;
 }
+/* Symmetric top/bottom padding — was asymmetric, offsetting the text
+   from the chevron's center despite align-items: center on the row. */
 .sidebar-pinned-header-label {
   padding: 6px 0 6px 12px;
 }

@@ -3,24 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { COLLECTION_KIND_ICONS, FOLDER_ICON } from '../../utils/collectionIcons';
 
 const KIND_ICON = { ...COLLECTION_KIND_ICONS, folder: FOLDER_ICON };
-// Fixed group order (not sorted by match count) — Album/Playlist/Folder is
-// the same order the primary sidebar lists them in, so this reads as a
-// familiar, predictable layout rather than one that reshuffles per search.
+// Fixed order, matching the primary sidebar's Album/Playlist/Folder listing.
 const KIND_ORDER = [
   { kind: 'album', labelKey: 'sidebar.albums' },
   { kind: 'playlist', labelKey: 'sidebar.playlists' },
   { kind: 'folder', labelKey: 'sidebar.folders' },
 ];
-// Chips per group before collapsing behind a "+N more" toggle — keeps one
-// huge match (e.g. many same-named yearly folders) from pushing the other
-// groups (or the media grid below) far down the page.
 const MAX_VISIBLE_PER_GROUP = 6;
 
-// A search text that matches a collection/playlist/folder name shows those
-// as clickable rows above the media grid, grouped by kind (in `matches`'
-// existing count-desc/alphabetical order within each group) — clicking one
-// navigates straight into it (App.jsx's handleCollectionClick/
-// navigateToFolder), preserving whatever's still typed in the search box.
 export default function SearchEntityMatches({ matches, onSelect }) {
   const { t } = useTranslation();
   const [expandedKinds, setExpandedKinds] = useState(() => new Set());
