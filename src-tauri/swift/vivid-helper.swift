@@ -4,6 +4,7 @@
 // Subcommands:
 //   ocr <imagePath>                          → {"text": "..."}    (Vision text recognition)
 //   frame <videoPath> <outPath>               → {"ok": true}       (poster frame → JPEG)
+//   duration <videoPath>                      → {"duration": N}    (seconds, no file I/O)
 //   audiocover <audioPath> <outPath>          → {"ok": true}       (embedded picture track → JPEG)
 //   trim <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true} (time-range export → MP4)
 //   gif <srcPath> <destPath> <start> <end> [maxHeight] → {"ok": true, "frames": N} (time-range → animated GIF)
@@ -123,8 +124,23 @@ func scaleDown(_ image: CGImage, maxHeight: CGFloat) -> CGImage {
     return ctx.makeImage() ?? image
 }
 
+// Read just a video's duration — no frame extraction, no file I/O. One-off
+// migration helper (backfilling `duration_secs` for videos that already had
+// a thumbnail before that column existed, so `extractFrame` never ran again
+// for them) that's much cheaper per-file than re-extracting a poster frame
+// just to read a duration that was sitting right there already.
+func readDuration(_ videoPath: String) -> Never {
+    let asset = AVURLAsset(url: URL(fileURLWithPath: videoPath))
+    let seconds = CMTimeGetSeconds(asset.duration)
+    guard seconds.isFinite else { fail("could not read duration for \(videoPath)") }
+    emit(["duration": seconds])
+}
+
 // Extract a poster frame from a video. Tries 5s first (past typical intros/
-// black frames), falls back to 0s for clips shorter than that.
+// black frames), falls back to 0s for clips shorter than that. Also reports
+// the asset's duration in the response — already loaded for this call, so
+// the Rust side can record it (for the grid's duration badge) without a
+// second AVFoundation round-trip.
 func extractFrame(_ videoPath: String, _ outPath: String) -> Never {
     let asset = AVURLAsset(url: URL(fileURLWithPath: videoPath))
     let generator = AVAssetImageGenerator(asset: asset)
@@ -138,7 +154,11 @@ func extractFrame(_ videoPath: String, _ outPath: String) -> Never {
     for t in candidates {
         let time = CMTime(seconds: t, preferredTimescale: 600)
         if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil), writeJPEG(cgImage, to: outPath) {
-            emit(["ok": true])
+            var result: [String: Any] = ["ok": true]
+            if durationSeconds.isFinite {
+                result["duration"] = durationSeconds
+            }
+            emit(result)
         }
     }
     fail("could not extract a frame from \(videoPath)")
@@ -287,6 +307,9 @@ case "ocr":
 case "frame":
     guard args.count >= 4 else { fail("usage: vivid-helper frame <videoPath> <outPath>") }
     extractFrame(args[2], args[3])
+case "duration":
+    guard args.count >= 3 else { fail("usage: vivid-helper duration <videoPath>") }
+    readDuration(args[2])
 case "audiocover":
     guard args.count >= 4 else { fail("usage: vivid-helper audiocover <audioPath> <outPath>") }
     extractAudioCover(args[2], args[3])

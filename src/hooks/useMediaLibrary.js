@@ -65,6 +65,7 @@ export default function useMediaLibrary() {
                 thumb_path: payload.thumb_path,
                 width: payload.width,
                 height: payload.height,
+                duration_secs: payload.duration_secs,
               }
             : it,
         ),

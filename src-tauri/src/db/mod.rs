@@ -116,6 +116,11 @@ pub fn init(conn: &Connection) -> Result<()> {
              date_taken          TEXT,
              width               INTEGER,
              height              INTEGER,
+             -- Video-only duration (seconds), captured from AVFoundation
+             -- alongside the poster frame during thumbnail generation —
+             -- audio has its own `audio_duration_secs` from its own tag
+             -- metadata, extracted at import time, not here.
+             duration_secs       REAL,
              embedding           BLOB,
              -- Last CLIP/SigLIP embed failure, cleared on success; surfaced
              -- in the detail panel instead of only the backend log.
@@ -192,6 +197,7 @@ fn add_missing_columns(conn: &Connection) -> Result<()> {
         ("embed_error", "TEXT"),
         ("ocr_error", "TEXT"),
         ("thumb_error", "TEXT"),
+        ("duration_secs", "REAL"),
     ] {
         if !existing.contains(name) {
             conn.execute_batch(&format!("ALTER TABLE media_items ADD COLUMN {name} {ty}"))?;
@@ -209,7 +215,7 @@ fn add_missing_columns(conn: &Connection) -> Result<()> {
 //   22:audio_duration_secs  23:audio_year  24:date_taken  25:favorited  26:audio_cover
 //   27:width  28:height  29:ocr_text  30:thumb_path  31:folder_id
 //   32:camera_make  33:camera_model  34:ocr_scanned  35:embed_error
-//   36:ocr_error  37:has_embedding
+//   36:ocr_error  37:has_embedding  38:duration_secs
 //
 // `collection_ids` is NOT selected here — it lives in the `collection_items`
 // junction table, not on `media_items`, so it can't be read off a single row.
@@ -261,6 +267,7 @@ pub(crate) fn row_to_item(row: &rusqlite::Row) -> rusqlite::Result<MediaItem> {
         embed_error: row.get(35).ok(),
         ocr_error: row.get(36).ok(),
         has_embedding: row.get::<_, i64>(37).unwrap_or(0) != 0,
+        duration_secs: row.get(38).ok(),
     })
 }
 
@@ -271,7 +278,7 @@ pub(crate) const SELECT_MEDIA: &str =
      audio_title, audio_artist, audio_album, audio_track, audio_duration_secs, audio_year, \
      date_taken, favorited, audio_cover, width, height, ocr_text, thumb_path, folder_id, \
      camera_make, camera_model, ocr_scanned, embed_error, ocr_error, \
-     (embedding IS NOT NULL) AS has_embedding \
+     (embedding IS NOT NULL) AS has_embedding, duration_secs \
      FROM media_items";
 
 /// Build a `(?,?,?)`-shaped placeholder list for a dynamic IN-clause of

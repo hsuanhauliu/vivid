@@ -400,6 +400,7 @@ pub fn run() {
             commands::get_text_completions,
             // Thumbnails
             commands::generate_thumbnails_all,
+            commands::backfill_video_durations,
             commands::regenerate_single_thumbnail,
             commands::get_thumb_status,
             // Workspaces

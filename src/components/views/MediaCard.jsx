@@ -6,7 +6,21 @@ import { Music, Video, Image, Star, Check, Clock } from 'lucide-react';
 import { COLOR_LABELS } from '../common/FilterBar';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
 import { acquireExtractSlot, releaseExtractSlot } from '../../utils/videoExtractQueue';
+import { formatDuration } from '../../utils/format';
 import './MediaCard.css';
+
+// Bottom-right corner badge: duration for video/audio, pixel dimensions for
+// images. `''` (from formatDuration on missing/invalid input) and missing
+// width/height both fall through to no badge at all, rather than a
+// misleading "0:00" or "0×0" before that data exists (e.g. a video whose
+// thumbnail/duration hasn't finished generating yet).
+function cardCornerLabel(item) {
+  if (item.media_type === 'image') {
+    return item.width && item.height ? `${item.width}×${item.height}` : null;
+  }
+  const secs = item.media_type === 'audio' ? item.audio_duration : item.duration_secs;
+  return formatDuration(secs) || null;
+}
 
 const TYPE_ICONS = { image: Image, video: Video, audio: Music };
 
@@ -532,6 +546,7 @@ function MediaCard({
   }
 
   const TypeIcon = TYPE_ICONS[item.media_type] || Image;
+  const cornerLabel = cardCornerLabel(item);
 
   return (
     <div
@@ -566,12 +581,16 @@ function MediaCard({
           )}
         </span>
 
+        {cornerLabel && <span className="card-corner-label">{cornerLabel}</span>}
+
         {item.color_label &&
           (() => {
             const col = COLOR_LABELS.find((c) => c.value === item.color_label);
+            // Shifted up when the corner label is also showing — both
+            // otherwise sit right on top of each other in the same corner.
             return col ? (
               <span
-                className="card-color-label"
+                className={`card-color-label${cornerLabel ? ' card-color-label-raised' : ''}`}
                 style={{ background: col.hex }}
                 title={col.label}
               />

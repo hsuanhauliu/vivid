@@ -357,6 +357,7 @@ pub(crate) fn build_item(path: &Path, source_path: Option<String>) -> Result<Med
         ocr_error: None,
         has_embedding: false,
         embed_error: None,
+        duration_secs: None,
     })
 }
 

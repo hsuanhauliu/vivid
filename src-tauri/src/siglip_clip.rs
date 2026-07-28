@@ -154,7 +154,7 @@ impl SiglipClip {
 
     /// Extract a video keyframe and embed it.
     pub fn embed_video_keyframe(&self, app: &tauri::AppHandle, path: &Path) -> Result<Vec<f32>> {
-        let frame = extract_video_frame(app, path)?;
+        let (frame, _duration) = extract_video_frame(app, path)?;
         let result = self.embed_image(&frame);
         let _ = std::fs::remove_file(&frame);
         result

@@ -124,6 +124,18 @@ fn set_thumb_error_stops_retries_and_set_thumb_dims_clears_it() {
     assert!(get_items_without_thumb(&conn).unwrap().is_empty());
 }
 
+#[test]
+fn set_duration_round_trips() {
+    let conn = open();
+    let mut it = item("a", "/x/a.mov");
+    it.media_type = "video".to_string();
+    insert(&conn, &it).unwrap();
+
+    assert_eq!(fetch_one(&conn, "a").unwrap().duration_secs, None);
+    set_duration(&conn, "a", 89.055).unwrap();
+    assert_eq!(fetch_one(&conn, "a").unwrap().duration_secs, Some(89.055));
+}
+
 // ── Schema migration ────────────────────────────────────────────────────
 
 #[test]

@@ -271,11 +271,12 @@ pub(crate) fn apply_exif_orientation(
 
 /// Extract a single poster frame from a video file to a temp JPEG via the
 /// Swift helper (AVFoundation — no ffmpeg). The helper tries 5s first, falls
-/// back to 0s if the video is shorter.
+/// back to 0s if the video is shorter. Also returns the video's duration
+/// (seconds), when the helper reports one, for the grid's duration badge.
 fn extract_video_frame_once(
     app: &tauri::AppHandle,
     video_path: &Path,
-) -> Result<std::path::PathBuf> {
+) -> Result<(std::path::PathBuf, Option<f64>)> {
     let tmp_path = std::env::temp_dir().join(format!("vivid_frame_{}.jpg", uuid::Uuid::new_v4()));
     let helper = crate::commands::helper_path(app);
     let out = std::process::Command::new(&helper)
@@ -291,7 +292,10 @@ fn extract_video_frame_once(
             String::from_utf8_lossy(&out.stderr).trim()
         ));
     }
-    Ok(tmp_path)
+    let duration = serde_json::from_slice::<serde_json::Value>(&out.stdout)
+        .ok()
+        .and_then(|v| v.get("duration").and_then(|d| d.as_f64()));
+    Ok((tmp_path, duration))
 }
 
 /// Like `extract_video_frame_once`, but retries through the ffmpeg transcode
@@ -301,9 +305,9 @@ fn extract_video_frame_once(
 pub(crate) fn extract_video_frame(
     app: &tauri::AppHandle,
     video_path: &Path,
-) -> Result<std::path::PathBuf> {
+) -> Result<(std::path::PathBuf, Option<f64>)> {
     let original_err = match extract_video_frame_once(app, video_path) {
-        Ok(p) => return Ok(p),
+        Ok(result) => return Ok(result),
         Err(e) => e,
     };
     let Some(path_str) = video_path.to_str() else {

@@ -523,6 +523,13 @@ export default function App() {
     // via bulk import (drag-drop, watched folders) never get scanned unless
     // the user manually clicks "Scan for text" in Settings.
     invoke('run_ocr_all').catch(console.error);
+
+    // ONE-OFF MIGRATION: backfill duration_secs for videos imported before
+    // that column existed. Unlike the two backfills above, this is meant to
+    // run once per device then be removed — remove this call (and the
+    // backend command + duration-backfill-progress listener below) once
+    // confirmed to have run everywhere it needs to.
+    invoke('backfill_video_durations').catch(console.error);
   }, [setAllItems]);
 
   // mood names are static — load them immediately, no model needed
@@ -1411,6 +1418,25 @@ export default function App() {
   useEffect(() => {
     setScopeClearPending(false);
   }, [filter, view, activeCollection, activeFolder]);
+
+  // ONE-OFF MIGRATION: backfill_video_durations' progress (see the invoke
+  // call above). Refetches once so already-rendered cards pick up their new
+  // duration, and toasts a confirmation — specifically so it's visible that
+  // this ran, on machines where you can't just check a database directly.
+  // Remove alongside the rest of the migration once confirmed everywhere.
+  useEffect(() => {
+    let unlisten;
+    listen('duration-backfill-progress', ({ payload }) => {
+      if (!payload?.done || !payload.total) return;
+      reloadMedia().catch(console.error);
+      showToast('success', `Backfilled duration for ${payload.total} video(s)`);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [reloadMedia, showToast]);
 
   // macOS menu bar: Workspace > Switch Workspace > <one item per workspace>.
   // The native submenu (rebuilt on the Rust side whenever the registry

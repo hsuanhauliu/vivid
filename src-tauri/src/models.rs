@@ -68,6 +68,9 @@ pub struct MediaItem {
     pub has_embedding: bool,
     /// Set when the last CLIP/SigLIP embed attempt failed; cleared on success.
     pub embed_error: Option<String>,
+    /// Video-only duration in seconds, captured alongside the poster frame
+    /// during thumbnail generation. Audio uses `audio_duration` instead.
+    pub duration_secs: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

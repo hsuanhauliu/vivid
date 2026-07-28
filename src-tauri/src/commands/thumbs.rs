@@ -11,6 +11,9 @@ const THUMB_QUALITY: u8 = 78;
 
 static THUMB_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
 
+/// (thumb path/URL, width, height, duration — video-only, else `None`).
+type ThumbResult = (String, u32, u32, Option<f64>);
+
 #[derive(Clone, Serialize)]
 pub struct ThumbProgress {
     pub current: usize,
@@ -24,6 +27,7 @@ pub struct ThumbItem {
     pub thumb_path: String,
     pub width: u32,
     pub height: u32,
+    pub duration_secs: Option<f64>,
 }
 
 #[derive(Clone, Serialize)]
@@ -167,24 +171,26 @@ fn write_thumb(
 }
 
 /// Extract a poster frame from a video (via the Swift/AVFoundation helper —
-/// no ffmpeg) and hand it to `write_thumb`. Returns the thumbnail location
-/// and the video's display dimensions. The single extracted frame serves as
-/// both the poster and the dimension source, so videos never need to be
-/// decoded in the webview.
+/// no ffmpeg) and hand it to `write_thumb`. Returns the thumbnail location,
+/// the video's display dimensions, and its duration (seconds, when the
+/// helper reports one — see `extract_video_frame`). The single extracted
+/// frame serves as both the poster and the dimension source, so videos
+/// never need to be decoded in the webview.
 fn generate_video_thumb(
     app: &tauri::AppHandle,
     src: &Path,
     id: &str,
     dir: Option<&Path>,
-) -> Result<(String, u32, u32), String> {
-    let frame = crate::clip::extract_video_frame(app, src).map_err(|e| e.to_string())?;
+) -> Result<ThumbResult, String> {
+    let (frame, duration) =
+        crate::clip::extract_video_frame(app, src).map_err(|e| e.to_string())?;
     let decoded = image::ImageReader::open(&frame)
         .map_err(|e| e.to_string())
         .and_then(|r| r.with_guessed_format().map_err(|e| e.to_string()))
         .and_then(|r| r.decode().map_err(|e| e.to_string()));
     let result = decoded.and_then(|img| write_thumb(&img, id, dir));
     let _ = std::fs::remove_file(&frame);
-    result
+    result.map(|(path, w, h)| (path, w, h, duration))
 }
 
 /// Extract embedded cover art from an audio file and hand it to
@@ -195,7 +201,7 @@ fn generate_audio_thumb(
     src: &Path,
     id: &str,
     dir: Option<&Path>,
-) -> Result<Option<(String, u32, u32)>, String> {
+) -> Result<Option<ThumbResult>, String> {
     let cover = match crate::clip::extract_audio_cover(app, src).map_err(|e| e.to_string())? {
         Some(p) => p,
         None => return Ok(None),
@@ -206,22 +212,24 @@ fn generate_audio_thumb(
         .and_then(|r| r.decode().map_err(|e| e.to_string()));
     let result = decoded.and_then(|img| write_thumb(&img, id, dir));
     let _ = std::fs::remove_file(&cover);
-    result.map(Some)
+    result.map(|(path, w, h)| Some((path, w, h, None)))
 }
 
 /// Build a thumbnail for one item based on its media type. Audio yields `None`
 /// when it carries no embedded cover art; images/videos always attempt one.
+/// The trailing `Option<f64>` is the video-only duration; always `None` for
+/// images/audio.
 fn make_thumb(
     app: &tauri::AppHandle,
     src: &Path,
     id: &str,
     dir: Option<&Path>,
     media_type: &str,
-) -> Result<Option<(String, u32, u32)>, String> {
+) -> Result<Option<ThumbResult>, String> {
     match media_type {
         "video" => generate_video_thumb(app, src, id, dir).map(Some),
         "audio" => generate_audio_thumb(app, src, id, dir),
-        _ => generate_thumbnail(src, id, dir).map(Some),
+        _ => generate_thumbnail(src, id, dir).map(|(path, w, h)| Some((path, w, h, None))),
     }
 }
 
@@ -262,6 +270,7 @@ pub fn regenerate_single_thumbnail(id: String, file_path: String, app: tauri::Ap
                 thumb_path,
                 width: w,
                 height: h,
+                duration_secs: None,
             },
         );
     });
@@ -306,9 +315,12 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
         for (i, (id, path, media_type)) in items.iter().enumerate() {
             if Path::new(path).exists() {
                 match make_thumb(&app, Path::new(path), id, dir.as_deref(), media_type) {
-                    Ok(Some((thumb_str, w, h))) => {
+                    Ok(Some((thumb_str, w, h, duration))) => {
                         let conn = db.0.lock().unwrap();
                         let _ = db::set_thumb_dims(&conn, id, &thumb_str, w, h);
+                        if let Some(d) = duration {
+                            let _ = db::set_duration(&conn, id, d);
+                        }
                     }
                     Ok(None) => {} // audio with no embedded artwork
                     Err(e) => {
@@ -353,11 +365,14 @@ pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, me
             return;
         }
         match make_thumb(&app, Path::new(&path), &id, dir.as_deref(), &media_type) {
-            Ok(Some((thumb_path, w, h))) => {
+            Ok(Some((thumb_path, w, h, duration))) => {
                 {
                     let db = app.state::<DbState>();
                     let conn = db.0.lock().unwrap();
                     let _ = db::set_thumb_dims(&conn, &id, &thumb_path, w, h);
+                    if let Some(d) = duration {
+                        let _ = db::set_duration(&conn, &id, d);
+                    }
                 }
                 let _ = app.emit(
                     "thumb-item",
@@ -366,6 +381,7 @@ pub(crate) fn trigger_thumb(app: &tauri::AppHandle, id: String, path: String, me
                         thumb_path,
                         width: w,
                         height: h,
+                        duration_secs: duration,
                     },
                 );
             }
@@ -384,5 +400,86 @@ struct ScanGuard;
 impl Drop for ScanGuard {
     fn drop(&mut self) {
         THUMB_SCAN_RUNNING.store(false, Ordering::SeqCst);
+    }
+}
+
+// ── One-off migration: backfill video durations ─────────────────────────────
+// `duration_secs` was added after thumbnail generation already existed —
+// `generate_thumbnails_all`/`trigger_thumb` skip anything with a thumbnail
+// already, so a video imported before this column existed would otherwise
+// never get a value. Called once on startup (see App.jsx); remove this
+// command, its App.jsx call site, and `db::get_videos_without_duration` once
+// confirmed to have run on every machine that needs it.
+static DURATION_BACKFILL_RUNNING: AtomicBool = AtomicBool::new(false);
+
+#[derive(Clone, Serialize)]
+pub struct DurationBackfillProgress {
+    pub current: usize,
+    pub total: usize,
+    pub done: bool,
+}
+
+#[tauri::command]
+pub fn backfill_video_durations(app: tauri::AppHandle) -> Result<(), String> {
+    if DURATION_BACKFILL_RUNNING.swap(true, Ordering::SeqCst) {
+        return Ok(());
+    }
+    std::thread::spawn(move || {
+        let _guard = DurationBackfillGuard;
+        let db = app.state::<DbState>();
+        let helper = super::helper_path(&app);
+
+        let items = {
+            let conn = db.0.lock().unwrap();
+            db::get_videos_without_duration(&conn).unwrap_or_default()
+        };
+        let total = items.len();
+        if total == 0 {
+            let _ = app.emit(
+                "duration-backfill-progress",
+                DurationBackfillProgress {
+                    current: 0,
+                    total: 0,
+                    done: true,
+                },
+            );
+            return;
+        }
+
+        for (i, (id, path)) in items.iter().enumerate() {
+            if Path::new(path).exists() {
+                if let Ok(out) = std::process::Command::new(&helper)
+                    .arg("duration")
+                    .arg(path)
+                    .output()
+                {
+                    if out.status.success() {
+                        let duration = serde_json::from_slice::<serde_json::Value>(&out.stdout)
+                            .ok()
+                            .and_then(|v| v.get("duration").and_then(|d| d.as_f64()));
+                        if let Some(d) = duration {
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_duration(&conn, id, d);
+                        }
+                    }
+                }
+            }
+            let _ = app.emit(
+                "duration-backfill-progress",
+                DurationBackfillProgress {
+                    current: i + 1,
+                    total,
+                    done: i + 1 == total,
+                },
+            );
+        }
+    });
+    Ok(())
+}
+
+struct DurationBackfillGuard;
+impl Drop for DurationBackfillGuard {
+    fn drop(&mut self) {
+        DURATION_BACKFILL_RUNNING.store(false, Ordering::SeqCst);
     }
 }
