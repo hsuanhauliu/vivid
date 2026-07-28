@@ -1057,6 +1057,7 @@
     "scrubFine": "精細",
     "convertingVideo": "正在轉換影片以供播放…",
     "transcodeFailed": "無法轉換此影片以供播放",
+    "playbackFailed": "此影片無法播放",
     "fullScreen": "全螢幕 (F)",
     "removeFromLibrary": "從媒體庫移除",
     "viewDetails": "查看詳細資訊",

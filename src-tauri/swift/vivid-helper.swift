@@ -211,6 +211,10 @@ func trimVideo(_ srcPath: String, _ destPath: String, _ start: Double, _ end: Do
         session.outputURL = destURL
         session.outputFileType = .mp4
         session.timeRange = timeRange
+        // Moves the moov atom (metadata index) to the front of the file.
+        // Without this, QuickTime/VLC/AVFoundation frame-grab still read it
+        // fine, but WKWebView's <video> element won't play it at all.
+        session.shouldOptimizeForNetworkUse = true
         if let videoComposition = videoComposition {
             session.videoComposition = videoComposition
         }

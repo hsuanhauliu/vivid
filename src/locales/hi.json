@@ -1078,6 +1078,7 @@
     "scrubFine": "बारीक",
     "convertingVideo": "प्ले करने के लिए वीडियो को कन्वर्ट किया जा रहा है…",
     "transcodeFailed": "इस वीडियो को प्ले करने लायक कन्वर्ट नहीं किया जा सका",
+    "playbackFailed": "यह वीडियो चलाया नहीं जा सका",
     "fullScreen": "फ़ुलस्क्रीन (F)",
     "removeFromLibrary": "लाइब्रेरी से हटाएं",
     "viewDetails": "विवरण देखें",

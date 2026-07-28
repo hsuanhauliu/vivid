@@ -1043,6 +1043,7 @@
     "scrubFine": "정밀",
     "convertingVideo": "재생을 위해 동영상을 변환하는 중…",
     "transcodeFailed": "이 동영상을 재생용으로 변환하지 못했습니다",
+    "playbackFailed": "이 동영상을 재생할 수 없습니다",
     "fullScreen": "전체 화면 (F)",
     "removeFromLibrary": "라이브러리에서 제거",
     "viewDetails": "세부 정보 보기",

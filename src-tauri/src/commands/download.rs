@@ -335,6 +335,10 @@ pub async fn start_ytdlp_bg(
                 find_stem_file(&mdir, &dest_stem)
                     .ok_or("yt-dlp completed but output file not found.")?
             };
+            if is_video {
+                let path_c = path.clone();
+                let _ = tokio::task::spawn_blocking(move || ensure_faststart_mp4(&path_c)).await;
+            }
 
             let db = app2.state::<DbState>();
             let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -482,6 +486,16 @@ pub async fn start_playlist_bg(
                 .collect();
             new_files.sort();
 
+            // Before the DB is touched below (the connection guard can't be
+            // held across an `.await`) — video-only, one per file.
+            if format2 != "audio" {
+                for path in &new_files {
+                    let path_c = path.clone();
+                    let _ =
+                        tokio::task::spawn_blocking(move || ensure_faststart_mp4(&path_c)).await;
+                }
+            }
+
             let total = new_files.len();
             let db = app2.state::<DbState>();
             let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -572,6 +586,47 @@ pub async fn start_playlist_bg(
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Re-mux a downloaded `.mp4` in place so the moov atom (metadata index)
+/// lands at the front of the file. yt-dlp's `--merge-output-format mp4`
+/// (needed whenever a format string like `bestvideo+bestaudio` pulls
+/// separately-hosted video/audio streams — the common case above 720p)
+/// merges via its own internal ffmpeg call, which doesn't set this — so a
+/// merged download plays fine in QuickTime/VLC but silently never starts
+/// in Vivid's own WKWebView-based player (see the matching fix for trimmed
+/// videos in commands/export.rs for the full story). `-c copy` is a
+/// lossless remux, not a re-encode, so this costs well under a second even
+/// for a large file. Best-effort: any failure leaves the original (still
+/// valid, just non-faststart) file in place rather than losing the download.
+fn ensure_faststart_mp4(path: &Path) {
+    if path.extension().and_then(|e| e.to_str()) != Some("mp4") {
+        return;
+    }
+    let Some(ffmpeg) = crate::commands::resolve("ffmpeg") else {
+        return;
+    };
+    let tmp = path.with_file_name(format!(
+        "{}.faststart.tmp",
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("out.mp4")
+    ));
+    let status = std::process::Command::new(ffmpeg)
+        .arg("-y")
+        .arg("-i")
+        .arg(path)
+        .args(["-c", "copy", "-movflags", "+faststart"])
+        .arg(&tmp)
+        .status();
+    match status {
+        Ok(s) if s.success() && tmp.exists() => {
+            let _ = fs::rename(&tmp, path);
+        }
+        _ => {
+            let _ = fs::remove_file(&tmp);
+        }
+    }
+}
 
 fn find_stem_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
     fs::read_dir(dir)

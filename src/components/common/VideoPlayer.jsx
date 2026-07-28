@@ -961,6 +961,16 @@ export default function VideoPlayer({
         </div>
       )}
 
+      {/* Transcode succeeded but the webview still couldn't play the
+          result — nothing left to retry with. Without this, a second
+          playback failure left a blank, seemingly-frozen player. */}
+      {videoSrcStatus === 'unplayable' && (
+        <div className="vp-converting vp-convert-error">
+          <AlertTriangle size={22} />
+          <span>{t('viewer.playbackFailed')}</span>
+        </div>
+      )}
+
       {/* Center play affordance while paused (hidden while playing backward) */}
       {videoSrc && !playing && !reverse && (
         <button

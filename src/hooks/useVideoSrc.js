@@ -7,12 +7,17 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core';
  * H.264/AAC MP4 via ffmpeg; everything else passes through `convertFileSrc`.
  *
  * Returns `{ src, status, error, retryWithTranscode }`. `status` is
- * `'checking'`, `'converting'`, `'ready'`, or `'error'`. Callers should wait
- * for `'ready'` rather than playing `src` early — an unconverted source
- * fails silently (permanently black, no catchable `<video>` error).
+ * `'checking'`, `'converting'`, `'ready'`, `'error'` (the transcode itself
+ * failed, e.g. ffmpeg isn't installed — see `error`), or `'unplayable'`
+ * (transcoded fine, but the webview still couldn't play the result — nothing
+ * left to fall back to). Callers should wait for `'ready'` rather than
+ * playing `src` early — an unconverted source fails silently (permanently
+ * black, no catchable `<video>` error).
  *
  * `retryWithTranscode` forces the fallback for when the backend probe
- * missed a bad codec — call it on a native `<video>` playback error.
+ * missed a bad codec — call it on a native `<video>` playback error. Safe
+ * to call again after it's already run once; that second call is what
+ * produces `'unplayable'` rather than silently doing nothing.
  */
 export function useVideoSrc(filePath) {
   const [src, setSrc] = useState(null);
@@ -55,7 +60,14 @@ export function useVideoSrc(filePath) {
   }, [filePath]);
 
   const retryWithTranscode = useCallback(() => {
-    if (!filePath || triedForceRef.current) return;
+    if (!filePath) return;
+    if (triedForceRef.current) {
+      // Already forced a transcode once and playback still failed —
+      // nothing left to try. Surface that instead of leaving a blank,
+      // seemingly-frozen player with no explanation.
+      setStatus('unplayable');
+      return;
+    }
     triedForceRef.current = true;
     setSrc(null);
     setError(null);

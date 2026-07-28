@@ -1057,6 +1057,7 @@
     "scrubFine": "微調整",
     "convertingVideo": "再生用に動画を変換しています…",
     "transcodeFailed": "この動画を再生用に変換できませんでした",
+    "playbackFailed": "この動画を再生できませんでした",
     "fullScreen": "フルスクリーン (F)",
     "removeFromLibrary": "ライブラリから削除",
     "viewDetails": "詳細を表示",

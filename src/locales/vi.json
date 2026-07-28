@@ -1048,6 +1048,7 @@
     "scrubFine": "Chi tiết",
     "convertingVideo": "Đang chuyển đổi video để phát…",
     "transcodeFailed": "Không thể chuyển đổi video này để phát",
+    "playbackFailed": "Không thể phát video này",
     "fullScreen": "Toàn màn hình (F)",
     "removeFromLibrary": "Xóa khỏi thư viện",
     "viewDetails": "Xem chi tiết",

@@ -1085,6 +1085,7 @@
     "scrubFine": "Fine",
     "convertingVideo": "Converting video for playback…",
     "transcodeFailed": "Couldn't convert this video for playback",
+    "playbackFailed": "This video couldn't be played",
     "fullScreen": "Full screen (F)",
     "removeFromLibrary": "Remove from library",
     "viewDetails": "View Details",

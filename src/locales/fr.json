@@ -1078,6 +1078,7 @@
     "scrubFine": "Précis",
     "convertingVideo": "Conversion de la vidéo pour la lecture…",
     "transcodeFailed": "Impossible de convertir cette vidéo pour la lecture",
+    "playbackFailed": "Cette vidéo n'a pas pu être lue",
     "fullScreen": "Plein écran (F)",
     "removeFromLibrary": "Retirer de la bibliothèque",
     "viewDetails": "Voir les détails",

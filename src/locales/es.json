@@ -1078,6 +1078,7 @@
     "scrubFine": "Precisión",
     "convertingVideo": "Convirtiendo video para reproducción…",
     "transcodeFailed": "No se pudo convertir este video para reproducirlo",
+    "playbackFailed": "No se pudo reproducir este video",
     "fullScreen": "Pantalla completa (F)",
     "removeFromLibrary": "Quitar de la biblioteca",
     "viewDetails": "Ver detalles",

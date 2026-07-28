@@ -1078,6 +1078,7 @@
     "scrubFine": "Fein",
     "convertingVideo": "Video wird für die Wiedergabe konvertiert…",
     "transcodeFailed": "Dieses Video konnte nicht für die Wiedergabe konvertiert werden",
+    "playbackFailed": "Dieses Video konnte nicht wiedergegeben werden",
     "fullScreen": "Vollbild (F)",
     "removeFromLibrary": "Aus Mediathek entfernen",
     "viewDetails": "Details anzeigen",

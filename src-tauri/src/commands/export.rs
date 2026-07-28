@@ -573,6 +573,12 @@ pub(crate) fn ensure_playable_video_path(
             .args(["-y", "-i", file_path])
             .args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"])
             .args(["-c:a", "aac", "-b:a", "192k"])
+            // Without this, ffmpeg writes the moov atom (metadata index)
+            // after the video data — fine for players that read the whole
+            // file, but WKWebView's <video> needs it up front to play at
+            // all, so the output looked "silently unplayable" despite being
+            // a perfectly ordinary H.264/AAC MP4.
+            .args(["-movflags", "+faststart"])
             .arg(&out_path)
             .status()
             .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
@@ -733,6 +739,10 @@ fn ffmpeg_trim(
     }
     cmd.args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]);
     cmd.args(["-c:a", "aac", "-b:a", "192k"]);
+    // See the matching comment in ensure_playable_video_path — without this
+    // the moov atom lands at the end of the file and WKWebView's <video>
+    // won't play it, even though every other player will.
+    cmd.args(["-movflags", "+faststart"]);
     cmd.arg(out_path);
     let status = cmd
         .status()
@@ -740,6 +750,34 @@ fn ffmpeg_trim(
     if !status.success() || !out_path.exists() {
         let _ = fs::remove_file(out_path);
         return Err(format!("ffmpeg could not trim {file_path}"));
+    }
+    Ok(())
+}
+
+/// GIF export via ffmpeg, as a fallback for when the AVFoundation helper's
+/// frame-by-frame sampling (`AVAssetImageGenerator.copyCGImage`, the same
+/// mechanism `ffmpeg_trim`'s doc comment describes crashing on for 10-bit
+/// HDR HEVC sources) crashes or errors.
+fn ffmpeg_gif(
+    file_path: &str,
+    out_path: &Path,
+    start: f64,
+    end: f64,
+    max_height: u32,
+) -> Result<(), String> {
+    let ffmpeg = resolve("ffmpeg").ok_or(
+        "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
+    )?;
+    let status = std::process::Command::new(ffmpeg)
+        .args(["-y", "-ss", &start.to_string(), "-i", file_path])
+        .args(["-t", &(end - start).to_string()])
+        .args(["-vf", &format!("fps=12,scale=-2:'min(ih,{max_height})'")])
+        .arg(out_path)
+        .status()
+        .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
+    if !status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!("ffmpeg could not export a GIF from {file_path}"));
     }
     Ok(())
 }
@@ -903,19 +941,28 @@ pub async fn export_video_gif(
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
     let helper = super::helper_path(&app);
+    let resolved_max_height = max_height.unwrap_or(720);
     let args = vec![
         "gif".to_string(),
         file_path.clone(),
         dest.to_string_lossy().into_owned(),
         start.to_string(),
         end.to_string(),
-        max_height.unwrap_or(720).to_string(),
+        resolved_max_height.to_string(),
     ];
     let dest_c = dest.clone();
+    let file_path_c = file_path.clone();
     // GIF sampling/encoding can take real time — run it off the main thread
     // so it doesn't freeze the whole UI while it works.
     tauri::async_runtime::spawn_blocking(move || {
-        run_video_helper(&helper, &args, &dest_c, "could not export the GIF")
+        match run_video_helper(&helper, &args, &dest_c, "could not export the GIF") {
+            Ok(()) => Ok(()),
+            Err(helper_err) => {
+                tracing::warn!(error = %helper_err, "AVFoundation GIF export failed, retrying via ffmpeg");
+                ffmpeg_gif(&file_path_c, &dest_c, start, end, resolved_max_height)
+                    .map_err(|ffmpeg_err| format!("{helper_err}; ffmpeg also failed: {ffmpeg_err}"))
+            }
+        }
     })
     .await
     .map_err(|e| e.to_string())??;

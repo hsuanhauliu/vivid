@@ -1043,6 +1043,7 @@
     "scrubFine": "精细",
     "convertingVideo": "正在转换视频以便播放…",
     "transcodeFailed": "无法转换此视频以便播放",
+    "playbackFailed": "此视频无法播放",
     "fullScreen": "全屏 (F)",
     "removeFromLibrary": "从媒体库中移除",
     "viewDetails": "查看详情",

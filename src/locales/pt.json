@@ -1078,6 +1078,7 @@
     "scrubFine": "Preciso",
     "convertingVideo": "Convertendo vídeo para reprodução…",
     "transcodeFailed": "Não foi possível converter este vídeo para reprodução",
+    "playbackFailed": "Não foi possível reproduzir este vídeo",
     "fullScreen": "Tela cheia (F)",
     "removeFromLibrary": "Remover da biblioteca",
     "viewDetails": "Ver detalhes",
