@@ -2756,6 +2756,22 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                    {filter !== 'audio' && viewMode !== 'list' && (
+                      <button
+                        className={`timeline-toggle-btn ${timelineGrouping ? 'active' : ''}`}
+                        onClick={() => setTimelineOn((v) => !v)}
+                        disabled={!isDateSort}
+                        title={
+                          !isDateSort
+                            ? t('viewMode.timelineNeedsDateSort')
+                            : timelineGrouping === 'asc'
+                              ? t('viewMode.timelineAscTitle')
+                              : t('viewMode.timelineTitle')
+                        }
+                      >
+                        <CalendarDays size={13} />
+                      </button>
+                    )}
                     <div className="view-mode-toggle">
                       <button
                         className={`view-mode-btn ${viewMode === 'masonry' ? 'active' : ''}`}
@@ -2782,23 +2798,6 @@ export default function App() {
                         <span>{t('viewMode.list')}</span>
                       </button>
                     </div>
-                    {filter !== 'audio' && viewMode !== 'list' && (
-                      <button
-                        className={`timeline-toggle-btn ${timelineGrouping ? 'active' : ''}`}
-                        onClick={() => setTimelineOn((v) => !v)}
-                        disabled={!isDateSort}
-                        title={
-                          !isDateSort
-                            ? t('viewMode.timelineNeedsDateSort')
-                            : timelineGrouping === 'asc'
-                              ? t('viewMode.timelineAscTitle')
-                              : t('viewMode.timelineTitle')
-                        }
-                      >
-                        <CalendarDays size={13} />
-                        <span>{t('viewMode.timeline')}</span>
-                      </button>
-                    )}
                   </div>
                   <MediaGrid
                     items={visible}
