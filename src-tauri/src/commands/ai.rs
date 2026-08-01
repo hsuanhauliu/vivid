@@ -17,6 +17,11 @@ use tauri::{Emitter, Manager, State};
 /// then interleave their `clip-progress` emissions, which is what made the
 /// progress bar's percentage jump around instead of climbing steadily.
 static EMBED_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
+// Same "coalesce instead of drop" reasoning as thumbs.rs's
+// THUMB_RERUN_PENDING — a call that lands while a pass is already running
+// sets this instead of relying on "a later trigger will catch it", which
+// doesn't actually hold if no such trigger ever comes.
+static EMBED_RERUN_PENDING: AtomicBool = AtomicBool::new(false);
 
 /// Clears the scan-running flag on drop (covers early returns / panics).
 struct EmbedScanGuard;
@@ -460,14 +465,14 @@ pub(crate) fn trigger_embed_if_ready(app: &tauri::AppHandle) {
 /// Fire-and-forget: embed all unindexed images/videos; emits "clip-progress" events.
 /// Items are already sorted by file_size ASC in the DB query (small files first).
 /// Missing files are skipped rather than erroring. The in-memory embedding index
-/// is refreshed in one shot at the end of the run.
+/// is refreshed in one shot at the end of the run. Guarded so only one full
+/// pass runs at a time — a call that arrives mid-pass sets
+/// `EMBED_RERUN_PENDING` rather than dropping, so the running pass loops
+/// once more after finishing (see `THUMB_RERUN_PENDING` in thumbs.rs).
 #[tauri::command]
 pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
-    // Only one full pass at a time — see EMBED_SCAN_RUNNING's doc comment.
-    // A no-op return here is safe: whatever triggered this call (an import,
-    // the model finishing load, etc.) added items that the currently-running
-    // pass will either already include or that a later trigger will catch.
     if EMBED_SCAN_RUNNING.swap(true, Ordering::SeqCst) {
+        EMBED_RERUN_PENDING.store(true, Ordering::SeqCst);
         return Ok(());
     }
     std::thread::spawn(move || {
@@ -475,72 +480,19 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
         let db = app.state::<DbState>();
         let clip = app.state::<ClipState>();
 
-        let items = {
-            let conn = db.0.lock().unwrap();
-            db::get_items_without_embeddings(&conn).unwrap_or_default()
-        };
-        let total = items.len();
-        if total == 0 {
-            let _ = app.emit(
-                "clip-progress",
-                ClipProgress {
-                    current: 0,
-                    total: 0,
-                    item_id: String::new(),
-                    file_name: String::new(),
-                    auto_tags: vec![],
-                    done: true,
-                    error: None,
-                },
-            );
-            return;
-        }
-
-        for (i, (id, path, media_type, _size)) in items.iter().enumerate() {
-            let p = std::path::Path::new(path);
-            let done = i + 1 == total;
-
-            // Skip files that no longer exist on disk — still emit progress (with no
-            // tags) so a missing file never swallows the final "done" event and
-            // leaves the UI stuck on "indexing…" forever.
-            if !p.exists() {
-                let msg = "File no longer exists on disk";
-                tracing::warn!(id, %path, "File missing, skipping embed");
-                {
-                    let conn = db.0.lock().unwrap();
-                    let _ = db::set_embed_error(&conn, id, msg);
-                }
+        'outer: loop {
+            EMBED_RERUN_PENDING.store(false, Ordering::SeqCst);
+            let items = {
+                let conn = db.0.lock().unwrap();
+                db::get_items_without_embeddings(&conn).unwrap_or_default()
+            };
+            let total = items.len();
+            if total == 0 {
                 let _ = app.emit(
                     "clip-progress",
                     ClipProgress {
-                        current: i + 1,
-                        total,
-                        item_id: id.clone(),
-                        file_name: String::new(),
-                        auto_tags: vec![],
-                        done,
-                        error: Some(msg.to_string()),
-                    },
-                );
-                continue;
-            }
-
-            let file_name = p
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
-
-            // If the model became unavailable mid-run (e.g. unloaded from Settings),
-            // stop but still emit a "done" event — an indefinite silent stop is worse
-            // than reporting an early, partial finish.
-            let Some(ml) = multilingual_model(&clip) else {
-                tracing::warn!("Multilingual model unavailable, stopping embed-all early");
-                let _ = app.emit(
-                    "clip-progress",
-                    ClipProgress {
-                        current: i,
-                        total,
+                        current: 0,
+                        total: 0,
                         item_id: String::new(),
                         file_name: String::new(),
                         auto_tags: vec![],
@@ -548,49 +500,109 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                         error: None,
                     },
                 );
+            } else {
+                for (i, (id, path, media_type, _size)) in items.iter().enumerate() {
+                    let p = std::path::Path::new(path);
+                    let done = i + 1 == total;
+
+                    // Skip files that no longer exist on disk — still emit progress (with no
+                    // tags) so a missing file never swallows the final "done" event and
+                    // leaves the UI stuck on "indexing…" forever.
+                    if !p.exists() {
+                        let msg = "File no longer exists on disk";
+                        tracing::warn!(id, %path, "File missing, skipping embed");
+                        {
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embed_error(&conn, id, msg);
+                        }
+                        let _ = app.emit(
+                            "clip-progress",
+                            ClipProgress {
+                                current: i + 1,
+                                total,
+                                item_id: id.clone(),
+                                file_name: String::new(),
+                                auto_tags: vec![],
+                                done,
+                                error: Some(msg.to_string()),
+                            },
+                        );
+                        continue;
+                    }
+
+                    let file_name = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    // If the model became unavailable mid-run (e.g. unloaded from
+                    // Settings), stop entirely (not just this inner pass — retrying
+                    // immediately would just fail the same way) but still emit a
+                    // "done" event, since an indefinite silent stop is worse than
+                    // reporting an early, partial finish.
+                    let Some(ml) = multilingual_model(&clip) else {
+                        tracing::warn!("Multilingual model unavailable, stopping embed-all early");
+                        let _ = app.emit(
+                            "clip-progress",
+                            ClipProgress {
+                                current: i,
+                                total,
+                                item_id: String::new(),
+                                file_name: String::new(),
+                                auto_tags: vec![],
+                                done: true,
+                                error: None,
+                            },
+                        );
+                        break 'outer;
+                    };
+
+                    let result = {
+                        let emb_result = if media_type == "video" {
+                            ml.embed_video_keyframe(&app, p)
+                        } else {
+                            ml.embed_image(p)
+                        };
+                        emb_result.map(|emb| {
+                            let tags = ml.auto_tag(&emb);
+                            let bytes = embedding_to_bytes(&emb);
+                            (bytes, tags)
+                        })
+                    };
+
+                    let (auto_tags, error) = match result {
+                        Ok((bytes, tags)) => {
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embedding(&conn, id, &bytes, &tags);
+                            (tags, None)
+                        }
+                        Err(e) => {
+                            tracing::error!(id, error = %e, "SigLIP embed failed");
+                            let msg = e.to_string();
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embed_error(&conn, id, &msg);
+                            (vec![], Some(msg))
+                        }
+                    };
+
+                    let _ = app.emit(
+                        "clip-progress",
+                        ClipProgress {
+                            current: i + 1,
+                            total,
+                            item_id: id.clone(),
+                            file_name,
+                            auto_tags,
+                            done,
+                            error,
+                        },
+                    );
+                }
+            }
+            if !EMBED_RERUN_PENDING.load(Ordering::SeqCst) {
                 break;
-            };
-
-            let result = {
-                let emb_result = if media_type == "video" {
-                    ml.embed_video_keyframe(&app, p)
-                } else {
-                    ml.embed_image(p)
-                };
-                emb_result.map(|emb| {
-                    let tags = ml.auto_tag(&emb);
-                    let bytes = embedding_to_bytes(&emb);
-                    (bytes, tags)
-                })
-            };
-
-            let (auto_tags, error) = match result {
-                Ok((bytes, tags)) => {
-                    let conn = db.0.lock().unwrap();
-                    let _ = db::set_embedding(&conn, id, &bytes, &tags);
-                    (tags, None)
-                }
-                Err(e) => {
-                    tracing::error!(id, error = %e, "SigLIP embed failed");
-                    let msg = e.to_string();
-                    let conn = db.0.lock().unwrap();
-                    let _ = db::set_embed_error(&conn, id, &msg);
-                    (vec![], Some(msg))
-                }
-            };
-
-            let _ = app.emit(
-                "clip-progress",
-                ClipProgress {
-                    current: i + 1,
-                    total,
-                    item_id: id.clone(),
-                    file_name,
-                    auto_tags,
-                    done,
-                    error,
-                },
-            );
+            }
         }
 
         // Reload the full embedding index from DB once at the end so searches

@@ -170,23 +170,6 @@ pub fn set_duration(conn: &Connection, id: &str, duration_secs: f64) -> Result<(
     Ok(())
 }
 
-/// Videos with no recorded duration yet, smallest files first — includes
-/// ones that already have a thumbnail (unlike `get_items_without_thumb`),
-/// since `duration_secs` was added after thumbnail generation already ran
-/// for existing libraries. Returns `(id, file_path)`.
-pub fn get_videos_without_duration(conn: &Connection) -> Result<Vec<(String, String)>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, file_path FROM media_items \
-         WHERE deleted_at IS NULL AND media_type='video' AND duration_secs IS NULL \
-         ORDER BY file_size ASC",
-    )?;
-    let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .filter_map(|r| r.ok())
-        .collect();
-    Ok(rows)
-}
-
 /// Records why the last thumbnail attempt failed — unlike the embed/OCR
 /// equivalents, this is the only thing that stops the item being retried
 /// forever, since there's no separate "attempted" flag for thumbnails.

@@ -193,12 +193,12 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
   // Kick off a background import under an optional group/folder. Returns as soon
   // as the backend thread is spawned — imported items stream back via the
   // `import-batch` event and `loading` is cleared by the `import-done` listener.
-  const doImport = useCallback(async (paths, collectionId, folderId, filename) => {
+  const doImport = useCallback(async (paths, collectionIds, folderId, filename) => {
     setLoading(true);
     setImportProgress(null);
     invoke('import_paths', {
       paths,
-      collectionId: collectionId ?? null,
+      collectionIds: collectionIds ?? null,
       folderId: folderId ?? null,
       filename: filename ?? null,
     }).catch((e) => {

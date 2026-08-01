@@ -325,7 +325,7 @@ export default function VideoPlayer({
   }, []);
 
   // Hands the frame to the backend, which drops it straight into the library
-  // (Uncategorized) — no import dialog.
+  // alongside the source video (same folder/collections) — no import dialog.
   const handleSaveFrame = useCallback(async () => {
     const dataUrl = grabFrameDataUrl();
     if (!dataUrl) return;
@@ -333,7 +333,7 @@ export default function VideoPlayer({
     try {
       const stem = item.display_name || 'frame';
       const fileName = `${stem} frame @ ${Math.floor(videoRef.current.currentTime)}s.jpg`;
-      const saved = await invoke('save_video_frame', { dataUrl, fileName });
+      const saved = await invoke('save_video_frame', { dataUrl, fileName, sourceId: item.id });
       onFrameSaved?.(saved);
     } catch (e) {
       onError?.(`Save frame failed: ${e}`);
@@ -432,6 +432,7 @@ export default function VideoPlayer({
         if (mode === 'gif') {
           const saved = await invoke('export_video_gif', {
             filePath: item.file_path,
+            id: item.id,
             start: trimStart,
             end: trimEnd,
             maxHeight: trimMaxHeight,

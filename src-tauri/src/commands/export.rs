@@ -265,6 +265,7 @@ pub fn transform_image(
         saved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let mut item = build_item(&dest, None)?;
+        super::inherit_placement(&conn, &mut item, &id);
         insert_imported(&conn, &mut item, &app)?;
         Ok(Some(item))
     } else if is_heic {
@@ -874,6 +875,7 @@ pub async fn trim_video(
         moved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let mut item = build_item(&dest, None)?;
+        super::inherit_placement(&conn, &mut item, &id);
         insert_imported(&conn, &mut item, &app)?;
         Ok(Some(item))
     } else {
@@ -916,6 +918,7 @@ pub async fn export_video_gif(
     app: tauri::AppHandle,
     state: State<'_, DbState>,
     file_path: String,
+    id: String,
     start: f64,
     end: f64,
     max_height: Option<u32>,
@@ -969,6 +972,7 @@ pub async fn export_video_gif(
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest, None)?;
+    super::inherit_placement(&conn, &mut item, &id);
     insert_imported(&conn, &mut item, &app)?;
     Ok(item)
 }

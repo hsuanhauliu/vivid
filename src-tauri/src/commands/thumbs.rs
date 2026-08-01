@@ -10,6 +10,15 @@ const THUMB_MAX: u32 = 400;
 const THUMB_QUALITY: u8 = 78;
 
 static THUMB_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
+// Set when `generate_thumbnails_all` is called while a pass is already in
+// flight. That in-flight pass took its "without a thumbnail" snapshot
+// *before* whatever just triggered the new call (e.g. an import landing
+// mid-scan) existed — without this, the new call would just no-op via the
+// running-guard above, and those new items would sit without a thumbnail
+// (or duration, or width/height) until some unrelated future trigger
+// happened to run again. The in-flight pass checks this after finishing and
+// loops once more instead.
+static THUMB_RERUN_PENDING: AtomicBool = AtomicBool::new(false);
 
 /// (thumb path/URL, width, height, duration — video-only, else `None`).
 type ThumbResult = (String, u32, u32, Option<f64>);
@@ -277,11 +286,17 @@ pub fn regenerate_single_thumbnail(id: String, file_path: String, app: tauri::Ap
 }
 
 /// Background pass: generate a thumbnail for every image and video that lacks
-/// one (videos get a poster frame via AVFoundation), recording dimensions at the same
-/// time. Emits `thumb-progress`. Guarded so only one full pass runs at a time.
+/// one (videos get a poster frame via AVFoundation), recording dimensions
+/// (and, for video, duration) at the same time. Emits `thumb-progress`.
+/// Guarded so only one full pass runs at a time — but a call that arrives
+/// while a pass is already running doesn't just no-op: it sets
+/// `THUMB_RERUN_PENDING`, so the running pass loops once more after it
+/// finishes, picking up whatever landed mid-scan instead of leaving it
+/// without a thumbnail until some unrelated future trigger fires.
 #[tauri::command]
 pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
     if THUMB_SCAN_RUNNING.swap(true, Ordering::SeqCst) {
+        THUMB_RERUN_PENDING.store(true, Ordering::SeqCst);
         return Ok(());
     }
     std::thread::spawn(move || {
@@ -295,49 +310,54 @@ pub fn generate_thumbnails_all(app: tauri::AppHandle) -> Result<(), String> {
             }
         };
 
-        let items = {
-            let conn = db.0.lock().unwrap();
-            db::get_items_without_thumb(&conn).unwrap_or_default()
-        };
-        let total = items.len();
-        if total == 0 {
-            let _ = app.emit(
-                "thumb-progress",
-                ThumbProgress {
-                    current: 0,
-                    total: 0,
-                    done: true,
-                },
-            );
-            return;
-        }
-
-        for (i, (id, path, media_type)) in items.iter().enumerate() {
-            if Path::new(path).exists() {
-                match make_thumb(&app, Path::new(path), id, dir.as_deref(), media_type) {
-                    Ok(Some((thumb_str, w, h, duration))) => {
-                        let conn = db.0.lock().unwrap();
-                        let _ = db::set_thumb_dims(&conn, id, &thumb_str, w, h);
-                        if let Some(d) = duration {
-                            let _ = db::set_duration(&conn, id, d);
+        loop {
+            THUMB_RERUN_PENDING.store(false, Ordering::SeqCst);
+            let items = {
+                let conn = db.0.lock().unwrap();
+                db::get_items_without_thumb(&conn).unwrap_or_default()
+            };
+            let total = items.len();
+            if total == 0 {
+                let _ = app.emit(
+                    "thumb-progress",
+                    ThumbProgress {
+                        current: 0,
+                        total: 0,
+                        done: true,
+                    },
+                );
+            } else {
+                for (i, (id, path, media_type)) in items.iter().enumerate() {
+                    if Path::new(path).exists() {
+                        match make_thumb(&app, Path::new(path), id, dir.as_deref(), media_type) {
+                            Ok(Some((thumb_str, w, h, duration))) => {
+                                let conn = db.0.lock().unwrap();
+                                let _ = db::set_thumb_dims(&conn, id, &thumb_str, w, h);
+                                if let Some(d) = duration {
+                                    let _ = db::set_duration(&conn, id, d);
+                                }
+                            }
+                            Ok(None) => {} // audio with no embedded artwork
+                            Err(e) => {
+                                tracing::warn!(id, %path, error = %e, "thumbnail failed");
+                                let conn = db.0.lock().unwrap();
+                                let _ = db::set_thumb_error(&conn, id, &e);
+                            }
                         }
                     }
-                    Ok(None) => {} // audio with no embedded artwork
-                    Err(e) => {
-                        tracing::warn!(id, %path, error = %e, "thumbnail failed");
-                        let conn = db.0.lock().unwrap();
-                        let _ = db::set_thumb_error(&conn, id, &e);
-                    }
+                    let _ = app.emit(
+                        "thumb-progress",
+                        ThumbProgress {
+                            current: i + 1,
+                            total,
+                            done: i + 1 == total,
+                        },
+                    );
                 }
             }
-            let _ = app.emit(
-                "thumb-progress",
-                ThumbProgress {
-                    current: i + 1,
-                    total,
-                    done: i + 1 == total,
-                },
-            );
+            if !THUMB_RERUN_PENDING.load(Ordering::SeqCst) {
+                break;
+            }
         }
     });
     Ok(())
@@ -400,86 +420,5 @@ struct ScanGuard;
 impl Drop for ScanGuard {
     fn drop(&mut self) {
         THUMB_SCAN_RUNNING.store(false, Ordering::SeqCst);
-    }
-}
-
-// ── One-off migration: backfill video durations ─────────────────────────────
-// `duration_secs` was added after thumbnail generation already existed —
-// `generate_thumbnails_all`/`trigger_thumb` skip anything with a thumbnail
-// already, so a video imported before this column existed would otherwise
-// never get a value. Called once on startup (see App.jsx); remove this
-// command, its App.jsx call site, and `db::get_videos_without_duration` once
-// confirmed to have run on every machine that needs it.
-static DURATION_BACKFILL_RUNNING: AtomicBool = AtomicBool::new(false);
-
-#[derive(Clone, Serialize)]
-pub struct DurationBackfillProgress {
-    pub current: usize,
-    pub total: usize,
-    pub done: bool,
-}
-
-#[tauri::command]
-pub fn backfill_video_durations(app: tauri::AppHandle) -> Result<(), String> {
-    if DURATION_BACKFILL_RUNNING.swap(true, Ordering::SeqCst) {
-        return Ok(());
-    }
-    std::thread::spawn(move || {
-        let _guard = DurationBackfillGuard;
-        let db = app.state::<DbState>();
-        let helper = super::helper_path(&app);
-
-        let items = {
-            let conn = db.0.lock().unwrap();
-            db::get_videos_without_duration(&conn).unwrap_or_default()
-        };
-        let total = items.len();
-        if total == 0 {
-            let _ = app.emit(
-                "duration-backfill-progress",
-                DurationBackfillProgress {
-                    current: 0,
-                    total: 0,
-                    done: true,
-                },
-            );
-            return;
-        }
-
-        for (i, (id, path)) in items.iter().enumerate() {
-            if Path::new(path).exists() {
-                if let Ok(out) = std::process::Command::new(&helper)
-                    .arg("duration")
-                    .arg(path)
-                    .output()
-                {
-                    if out.status.success() {
-                        let duration = serde_json::from_slice::<serde_json::Value>(&out.stdout)
-                            .ok()
-                            .and_then(|v| v.get("duration").and_then(|d| d.as_f64()));
-                        if let Some(d) = duration {
-                            let conn = db.0.lock().unwrap();
-                            let _ = db::set_duration(&conn, id, d);
-                        }
-                    }
-                }
-            }
-            let _ = app.emit(
-                "duration-backfill-progress",
-                DurationBackfillProgress {
-                    current: i + 1,
-                    total,
-                    done: i + 1 == total,
-                },
-            );
-        }
-    });
-    Ok(())
-}
-
-struct DurationBackfillGuard;
-impl Drop for DurationBackfillGuard {
-    fn drop(&mut self) {
-        DURATION_BACKFILL_RUNNING.store(false, Ordering::SeqCst);
     }
 }

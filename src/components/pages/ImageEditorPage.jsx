@@ -1011,6 +1011,8 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
           collections={collections}
           folders={folders}
           allItems={allItems}
+          defaultFolderId={item.folder_id}
+          defaultCollectionIds={item.collection_ids ?? []}
           onConfirm={(dest) => applyAllTransforms('copy', dest)}
           onClose={() => setShowSaveCopyModal(false)}
         />

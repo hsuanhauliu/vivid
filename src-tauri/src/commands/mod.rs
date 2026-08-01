@@ -23,6 +23,27 @@ pub(crate) fn helper_path(app: &tauri::AppHandle) -> PathBuf {
     PathBuf::from(env!("VIVID_HELPER_PATH"))
 }
 
+/// Copies `source_id`'s folder and collection membership onto `item` — used
+/// right before `insert_imported` by every command that creates a new
+/// library item *derived from* an existing one (trim "save as new copy",
+/// GIF export, edited-image "save as copy", a saved video frame, …), so the
+/// result lands alongside its source instead of unfiled at the library root.
+/// `normalize_folder` (called inside `insert_imported`) does the actual
+/// on-disk move once `folder_id` is set here; `db::insert` handles the
+/// collection membership rows from `collection_ids`. Best-effort: if the
+/// source item can't be found (e.g. deleted in the meantime), `item` is left
+/// with its already-unfiled defaults rather than failing the whole save.
+pub(crate) fn inherit_placement(
+    conn: &rusqlite::Connection,
+    item: &mut MediaItem,
+    source_id: &str,
+) {
+    if let Ok(source) = db::fetch_one(conn, source_id) {
+        item.folder_id = source.folder_id;
+        item.collection_ids = source.collection_ids;
+    }
+}
+
 /// Insert a media item and kick off AI indexing if the model is already loaded.
 /// Every import path (file, URL, yt-dlp, screenshot) goes through this so the
 /// trigger is never missed and never duplicated in individual commands.
@@ -775,7 +796,7 @@ pub fn preview_import(
 #[tauri::command]
 pub fn import_paths(
     paths: Vec<String>,
-    collection_id: Option<String>,
+    collection_ids: Option<Vec<String>>,
     folder_id: Option<String>,
     filename: Option<String>,
     silent: Option<bool>,
@@ -787,7 +808,7 @@ pub fn import_paths(
     // item chunks), and import-done (final summary).
     let silent = silent.unwrap_or(false);
     std::thread::spawn(move || {
-        if let Err(e) = run_import(&app, paths, collection_id, folder_id, filename, silent) {
+        if let Err(e) = run_import(&app, paths, collection_ids, folder_id, filename, silent) {
             tracing::error!(error = %e, "import failed");
             if !silent {
                 let _ = app.emit(
@@ -811,7 +832,7 @@ pub fn import_paths(
 pub(crate) fn run_import(
     app: &tauri::AppHandle,
     paths: Vec<String>,
-    collection_id: Option<String>,
+    collection_ids: Option<Vec<String>>,
     folder_id: Option<String>,
     filename: Option<String>,
     silent: bool,
@@ -986,18 +1007,19 @@ pub(crate) fn run_import(
         };
 
         enrich_item_metadata(&mut item, &dest);
-        if let Some(ref gid) = collection_id {
-            // Only assign if the collection kind is compatible with the item's media type.
+        if let Some(ref gids) = collection_ids {
+            // Only assign each collection if its kind is compatible with the item's media type.
             let conn = state.0.lock().map_err(|e| e.to_string())?;
-            let kind = db::collection_kind(&conn, gid).unwrap_or_default();
-            let compatible = match kind.as_str() {
-                "album" => item.media_type == "image" || item.media_type == "video",
-                "playlist" => item.media_type == "audio" || item.media_type == "video",
-                _ => true,
-            };
-            drop(conn);
-            if compatible {
-                item.collection_ids.push(gid.clone());
+            for gid in gids {
+                let kind = db::collection_kind(&conn, gid).unwrap_or_default();
+                let compatible = match kind.as_str() {
+                    "album" => item.media_type == "image" || item.media_type == "video",
+                    "playlist" => item.media_type == "audio" || item.media_type == "video",
+                    _ => true,
+                };
+                if compatible {
+                    item.collection_ids.push(gid.clone());
+                }
             }
         }
         item.folder_id = leaf_id.clone();
@@ -2179,14 +2201,15 @@ pub fn capture_screenshot(
 
 /// Save a still frame grabbed from the video player as a new library image.
 /// The frontend draws the current frame onto a canvas and hands over the JPEG
-/// as a data URL; this just decodes it and drops it straight into the library
-/// (Other, like the screenshot path above) — no import dialog.
+/// as a data URL; this just decodes it and drops it straight into the library,
+/// alongside the source video (`source_id`) — no import dialog.
 #[tauri::command]
 pub fn save_video_frame(
     app: tauri::AppHandle,
     state: State<DbState>,
     data_url: String,
     file_name: String,
+    source_id: String,
 ) -> Result<MediaItem, String> {
     let bytes = decode_data_url(&data_url)?;
 
@@ -2196,6 +2219,7 @@ pub fn save_video_frame(
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest, None)?;
+    inherit_placement(&conn, &mut item, &source_id);
     insert_imported(&conn, &mut item, &app)?;
     Ok(item)
 }

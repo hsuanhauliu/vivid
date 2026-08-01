@@ -63,7 +63,7 @@ export default function ImportCollectionModal({
   folders,
   allItems,
   defaultFolderId,
-  defaultCollectionId,
+  defaultCollectionIds,
   onConfirm,
   onClose,
 }) {
@@ -85,10 +85,7 @@ export default function ImportCollectionModal({
   const [newFolderMode, setNewFolderMode] = useState(false); // input visible
   const [newFolderConfirmed, setNewFolderConfirmed] = useState(false); // confirmed, show as row
   const [folderSearch, setFolderSearch] = useState('');
-  const [collectionId, setCollectionId] = useState(() => {
-    const defaultColl = collections?.find((g) => g.id === defaultCollectionId);
-    if (!defaultColl) return 'none';
-    const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
+  const [collectionIds, setCollectionIds] = useState(() => {
     const audio = new Set([
       'mp3',
       'wav',
@@ -118,15 +115,21 @@ export default function ImportCollectionModal({
     const hasAudio = paths.some((p) => audio.has(pathExt(p)));
     const hasVideo = paths.some((p) => video.has(pathExt(p)));
     const hasImage = paths.some((p) => image.has(pathExt(p)));
-    const fits =
-      defaultColl.kind === 'album'
+    return (defaultCollectionIds ?? []).filter((id) => {
+      const defaultColl = collections?.find((g) => g.id === id);
+      if (!defaultColl) return false;
+      return defaultColl.kind === 'album'
         ? hasImage || hasVideo
         : defaultColl.kind === 'playlist'
           ? hasAudio || hasVideo
           : true;
-    return fits ? defaultColl.id : 'none';
+    });
   });
   const [collSearch, setCollSearch] = useState('');
+
+  function toggleCollection(id) {
+    setCollectionIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
   const [filename, setFilename] = useState(origStem);
   const nameInputRef = useRef(null);
 
@@ -171,7 +174,7 @@ export default function ImportCollectionModal({
       folderId: newFolderMode || newFolderConfirmed ? null : folderId,
       newFolderName:
         (newFolderMode || newFolderConfirmed) && newFolderName.trim() ? newFolderName.trim() : null,
-      collectionId: collectionId !== 'none' ? collectionId : null,
+      collectionIds,
       filename: finalFilename,
     });
   }
@@ -257,7 +260,7 @@ export default function ImportCollectionModal({
   const selectedFolder = newFolderConfirmed
     ? { name: newFolderName.trim(), rel_path: newFolderName.trim() }
     : folderList.find((f) => f.id === folderId);
-  const selectedColl = collections.find((g) => g.id === collectionId);
+  const selectedColls = collections.filter((g) => collectionIds.includes(g.id));
   const canImport = newFolderMode
     ? newFolderName.trim().length > 0
     : newFolderConfirmed || !!folderId;
@@ -274,7 +277,7 @@ export default function ImportCollectionModal({
             <span className="igm-title">{t('importModal.title', { count: paths.length })}</span>
             <span className="igm-subtitle">
               {selectedFolder ? `→ ${selectedFolder.rel_path}` : ''}
-              {selectedColl ? ` · ${selectedColl.name}` : ''}
+              {selectedColls.length > 0 ? ` · ${selectedColls.map((g) => g.name).join(', ')}` : ''}
             </span>
           </div>
           <button className="icon-btn" onClick={onClose}>
@@ -411,25 +414,25 @@ export default function ImportCollectionModal({
               )}
               <ScrollArea className="igm-list" innerClassName="igm-list-inner">
                 <button
-                  className={`igm-row ${collectionId === 'none' ? 'igm-row-active' : ''}`}
-                  onClick={() => setCollectionId('none')}
+                  className={`igm-row ${collectionIds.length === 0 ? 'igm-row-active' : ''}`}
+                  onClick={() => setCollectionIds([])}
                 >
                   <div className="igm-row-icon igm-row-icon-folder">
                     <Library size={14} />
                   </div>
                   <span className="igm-row-name">{t('importModal.none')}</span>
-                  {collectionId === 'none' && <Check size={13} className="igm-row-check" />}
+                  {collectionIds.length === 0 && <Check size={13} className="igm-row-check" />}
                 </button>
                 {collSections.map(({ key, label, showType, items }) => (
                   <div key={key}>
                     <div className="igm-section-label">{label}</div>
                     {items.map((g) => {
-                      const active = collectionId === g.id;
+                      const active = collectionIds.includes(g.id);
                       return (
                         <button
                           key={g.id}
                           className={`igm-row ${active ? 'igm-row-active' : ''}`}
-                          onClick={() => setCollectionId(g.id)}
+                          onClick={() => toggleCollection(g.id)}
                         >
                           <CollectionRowAvatar group={g} allItems={allItems} />
                           <span className="igm-row-name">{g.name}</span>

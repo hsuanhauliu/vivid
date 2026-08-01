@@ -8,6 +8,12 @@ use tauri::{Emitter, Manager, State};
 /// Guards against overlapping full-library scans. A single image auto-OCR on
 /// import does NOT take this lock (it's O(1)); only `run_ocr_all` does.
 static OCR_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
+// Same "coalesce instead of drop" reasoning as thumbs.rs's
+// THUMB_RERUN_PENDING — a call that arrives while a scan is already running
+// sets this instead of no-op'ing, so images imported mid-scan (invisible to
+// that scan's already-taken snapshot) get picked up by one more pass right
+// after, instead of waiting for some unrelated future trigger.
+static OCR_RERUN_PENDING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Serialize)]
 pub struct OcrProgress {
@@ -56,12 +62,15 @@ fn ocr_image(helper: &Path, image_path: &str) -> Result<String, String> {
 }
 
 /// Background pass: OCR every image that hasn't been scanned yet, emitting
-/// `ocr-progress` events. Mirrors `start_embed_all`. Missing files are skipped.
+/// `ocr-progress` events. Mirrors `start_embed_all`. Missing files are
+/// skipped. Guarded so only one full scan runs at a time — a call that
+/// arrives mid-scan sets `OCR_RERUN_PENDING` rather than dropping, so the
+/// running scan loops once more after finishing (see `THUMB_RERUN_PENDING`
+/// in thumbs.rs for the full reasoning).
 #[tauri::command]
 pub fn run_ocr_all(app: tauri::AppHandle) -> Result<(), String> {
-    // Only one full scan at a time — prevents stacked passes from pegging the
-    // CPU and contending on the DB mutex with the UI.
     if OCR_SCAN_RUNNING.swap(true, Ordering::SeqCst) {
+        OCR_RERUN_PENDING.store(true, Ordering::SeqCst);
         return Ok(());
     }
     std::thread::spawn(move || {
@@ -69,50 +78,55 @@ pub fn run_ocr_all(app: tauri::AppHandle) -> Result<(), String> {
         let db = app.state::<DbState>();
         let helper = super::helper_path(&app);
 
-        let items = {
-            let conn = db.0.lock().unwrap();
-            db::get_images_without_ocr(&conn).unwrap_or_default()
-        };
-        let total = items.len();
-        if total == 0 {
-            let _ = app.emit(
-                "ocr-progress",
-                OcrProgress {
-                    current: 0,
-                    total: 0,
-                    done: true,
-                },
-            );
-            return;
-        }
-
-        for (i, (id, path)) in items.iter().enumerate() {
-            if Path::new(path).exists() {
-                match ocr_image(&helper, path) {
-                    Ok(text) => {
-                        let conn = db.0.lock().unwrap();
-                        let _ = db::set_ocr(&conn, id, &text);
-                    }
-                    Err(e) => {
-                        tracing::warn!(id, %path, error = %e, "OCR failed, skipping");
-                        let conn = db.0.lock().unwrap();
-                        let _ = db::set_ocr_error(&conn, id, &e);
-                    }
-                }
-            } else {
-                tracing::warn!(id, %path, "File missing, skipping OCR");
+        loop {
+            OCR_RERUN_PENDING.store(false, Ordering::SeqCst);
+            let items = {
                 let conn = db.0.lock().unwrap();
-                let _ = db::set_ocr_error(&conn, id, "File no longer exists on disk");
-            }
+                db::get_images_without_ocr(&conn).unwrap_or_default()
+            };
+            let total = items.len();
+            if total == 0 {
+                let _ = app.emit(
+                    "ocr-progress",
+                    OcrProgress {
+                        current: 0,
+                        total: 0,
+                        done: true,
+                    },
+                );
+            } else {
+                for (i, (id, path)) in items.iter().enumerate() {
+                    if Path::new(path).exists() {
+                        match ocr_image(&helper, path) {
+                            Ok(text) => {
+                                let conn = db.0.lock().unwrap();
+                                let _ = db::set_ocr(&conn, id, &text);
+                            }
+                            Err(e) => {
+                                tracing::warn!(id, %path, error = %e, "OCR failed, skipping");
+                                let conn = db.0.lock().unwrap();
+                                let _ = db::set_ocr_error(&conn, id, &e);
+                            }
+                        }
+                    } else {
+                        tracing::warn!(id, %path, "File missing, skipping OCR");
+                        let conn = db.0.lock().unwrap();
+                        let _ = db::set_ocr_error(&conn, id, "File no longer exists on disk");
+                    }
 
-            let _ = app.emit(
-                "ocr-progress",
-                OcrProgress {
-                    current: i + 1,
-                    total,
-                    done: i + 1 == total,
-                },
-            );
+                    let _ = app.emit(
+                        "ocr-progress",
+                        OcrProgress {
+                            current: i + 1,
+                            total,
+                            done: i + 1 == total,
+                        },
+                    );
+                }
+            }
+            if !OCR_RERUN_PENDING.load(Ordering::SeqCst) {
+                break;
+            }
         }
     });
     Ok(())
