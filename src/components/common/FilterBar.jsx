@@ -20,6 +20,7 @@ import {
   Layers,
   Camera,
   ChevronsRight,
+  Maximize2,
 } from 'lucide-react';
 import { translateTag } from '../../utils/translateTag';
 import { captureDate } from '../../utils/sort';
@@ -69,6 +70,17 @@ const FILE_SIZES = [
   { value: 'small', labelKey: 'filterBar.fileSize.small' },
   { value: 'medium', labelKey: 'filterBar.fileSize.medium' },
   { value: 'large', labelKey: 'filterBar.fileSize.large' },
+];
+
+// Classified by long edge (max of width/height) rather than orientation-
+// specific width or height, so a portrait 1080×1920 photo/video and a
+// landscape 1920×1080 one both land in the same "Full HD" bucket — matches
+// how these terms are used colloquially, independent of orientation.
+const RESOLUTIONS = [
+  { value: 'sd', labelKey: 'filterBar.resolution.sd' }, // < 1280px long edge
+  { value: 'hd', labelKey: 'filterBar.resolution.hd' }, // 1280–1919 (720p)
+  { value: 'fhd', labelKey: 'filterBar.resolution.fhd' }, // 1920–3839 (1080p)
+  { value: 'uhd', labelKey: 'filterBar.resolution.uhd' }, // 3840+ (4K and up)
 ];
 
 // ── Dropdown helper ───────────────────────────────────────────────────────────
@@ -143,7 +155,36 @@ function MenuItem({
   );
 }
 
-// Collapsed popover holding the binary (on/off) quick filters — starred,
+// Quick filters cycle through three states instead of just on/off: unset →
+// include (must match) → exclude (must NOT match) → back to unset. `true` is
+// accepted alongside 'include' so filter objects saved before this existed
+// (plain booleans) still cycle and match sensibly.
+function cycleTri(value) {
+  if (value === 'include' || value === true) return 'exclude';
+  if (value === 'exclude') return null;
+  return 'include';
+}
+
+function matchesTri(value, isTrue) {
+  if (value === 'include' || value === true) return isTrue;
+  if (value === 'exclude') return !isTrue;
+  return true;
+}
+
+// A quick-filter toggle button reflecting cycleTri's three states — plain
+// `active` styling for "include", a distinct "exclude" styling (dimmed +
+// strikethrough) so the two are never confused at a glance.
+function TriToggle({ value, onClick, icon: Icon, children }) {
+  const state =
+    value === 'exclude' ? 'exclude' : value === 'include' || value === true ? 'include' : 'off';
+  return (
+    <button className={`fb-toggle fb-toggle-${state}`} onClick={onClick}>
+      {Icon && <Icon size={12} />} {children}
+    </button>
+  );
+}
+
+// Collapsed popover holding the tri-state quick filters — starred,
 // in-collection, has-GPS, has-text — so they don't take up permanent space
 // in the controls row. Unlike `Dropdown`'s menu, clicking a toggle inside
 // doesn't close the popover, so several can be flipped in one visit.
@@ -190,9 +231,11 @@ export default function FilterBar({
     hasText,
     orientation,
     fileSize,
+    resolution,
     collection,
     cameras = [],
   } = filters;
+  const activeResolutions = Array.isArray(resolution) ? resolution : resolution ? [resolution] : [];
   const [tagSearch, setTagSearch] = useState('');
 
   const allTags = useMemo(() => {
@@ -253,6 +296,7 @@ export default function FilterBar({
     hasText ||
     orientation ||
     fileSize ||
+    activeResolutions.length > 0 ||
     collection ||
     activeCameras.length > 0 ||
     !!moodFilter;
@@ -294,6 +338,13 @@ export default function FilterBar({
     set({ colorLabel: next });
   }
 
+  function toggleResolution(value) {
+    const next = activeResolutions.includes(value)
+      ? activeResolutions.filter((x) => x !== value)
+      : [...activeResolutions, value];
+    set({ resolution: next });
+  }
+
   function clearAll() {
     onChange({
       colorLabel: [],
@@ -304,12 +355,13 @@ export default function FilterBar({
       tags: [],
       mediaType: [],
       extension: [],
-      starred: false,
-      hasGps: false,
-      hasText: false,
+      starred: null,
+      hasGps: null,
+      hasText: null,
       orientation: null,
       fileSize: null,
-      collection: false,
+      resolution: [],
+      collection: null,
       cameras: [],
     });
     onMoodFilter?.(null);
@@ -342,6 +394,13 @@ export default function FilterBar({
       : activeCameras.length === 1
         ? (allCameras.find((c) => c.key === activeCameras[0])?.label ?? t('filterBar.camera'))
         : t('filterBar.camerasCount', { count: activeCameras.length });
+
+  const resolutionLabel =
+    activeResolutions.length === 0
+      ? t('filterBar.resolution.label')
+      : activeResolutions.length === 1
+        ? t(RESOLUTIONS.find((r) => r.value === activeResolutions[0])?.labelKey ?? '')
+        : t('filterBar.resolutionsCount', { count: activeResolutions.length });
 
   const activeDateRange = DATE_RANGES.find((d) => d.value === dateRange);
   const customRangeLabel =
@@ -551,6 +610,27 @@ export default function FilterBar({
             </MenuList>
           </Dropdown>
 
+          {/* Resolution (long edge) — multi-select */}
+          <Dropdown
+            label={resolutionLabel}
+            active={activeResolutions.length > 0}
+            onClear={() => set({ resolution: [] })}
+          >
+            <MenuList>
+              {RESOLUTIONS.map(({ value, labelKey }) => (
+                <MenuItem
+                  key={value}
+                  active={activeResolutions.includes(value)}
+                  icon={Maximize2}
+                  multi
+                  onClick={() => toggleResolution(value)}
+                >
+                  {t(labelKey)}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Dropdown>
+
           {/* Camera device — multi-select */}
           <Dropdown
             label={cameraLabel}
@@ -619,7 +699,7 @@ export default function FilterBar({
           )}
         </div>
 
-        {/* ── Right: clear-all + collapsed quick (binary) filters, kept
+        {/* ── Right: clear-all + collapsed quick (tri-state) filters, kept
             together so Clear never needs a row of its own ── */}
         <div className="fb-controls-right">
           {hasAny && (
@@ -631,30 +711,34 @@ export default function FilterBar({
             active={!!(starred || collection || hasGps || hasText)}
             title={t('filterBar.quickFilters')}
           >
-            <button
-              className={`fb-toggle ${starred ? 'active' : ''}`}
-              onClick={() => set({ starred: !starred })}
+            <TriToggle
+              value={starred}
+              onClick={() => set({ starred: cycleTri(starred) })}
+              icon={Star}
             >
-              <Star size={12} /> {t('filterBar.starred')}
-            </button>
-            <button
-              className={`fb-toggle ${collection ? 'active' : ''}`}
-              onClick={() => set({ collection: !collection })}
+              {t('filterBar.starred')}
+            </TriToggle>
+            <TriToggle
+              value={collection}
+              onClick={() => set({ collection: cycleTri(collection) })}
+              icon={Layers}
             >
-              <Layers size={12} /> {t('filterBar.inCollection')}
-            </button>
-            <button
-              className={`fb-toggle ${hasGps ? 'active' : ''}`}
-              onClick={() => set({ hasGps: !hasGps })}
+              {t('filterBar.inCollection')}
+            </TriToggle>
+            <TriToggle
+              value={hasGps}
+              onClick={() => set({ hasGps: cycleTri(hasGps) })}
+              icon={MapPin}
             >
-              <MapPin size={12} /> {t('filterBar.hasGps')}
-            </button>
-            <button
-              className={`fb-toggle ${hasText ? 'active' : ''}`}
-              onClick={() => set({ hasText: !hasText })}
+              {t('filterBar.hasGps')}
+            </TriToggle>
+            <TriToggle
+              value={hasText}
+              onClick={() => set({ hasText: cycleTri(hasText) })}
+              icon={ScanText}
             >
-              <ScanText size={12} /> {t('filterBar.hasText')}
-            </button>
+              {t('filterBar.hasText')}
+            </TriToggle>
           </TogglesMenu>
         </div>
       </div>
@@ -742,5 +826,92 @@ export function applyFilters(items, filters) {
       return true;
     });
   }
+  const resolutions = Array.isArray(filters.resolution)
+    ? filters.resolution
+    : filters.resolution
+      ? [filters.resolution]
+      : [];
+  if (resolutions.length > 0) {
+    out = out.filter((i) => resolutions.includes(resolutionBucket(i.width, i.height)));
+  }
   return out;
+}
+
+/**
+ * Classify a media item's resolution by its long edge (max of width/height),
+ * independent of orientation — a portrait 1080×1920 and a landscape
+ * 1920×1080 both land in "fhd". Returns `null` for missing/invalid
+ * dimensions (audio, or an image/video whose size was never recorded),
+ * which the filter then excludes rather than guessing.
+ */
+export function resolutionBucket(width, height) {
+  if (!width || !height) return null;
+  const longEdge = Math.max(width, height);
+  if (longEdge < 1280) return 'sd';
+  if (longEdge < 1920) return 'hd';
+  if (longEdge < 3840) return 'fhd';
+  return 'uhd';
+}
+
+/**
+ * Apply every FilterBar predicate to an array of MediaItem — the
+ * exactDay/tags/mediaType/extension/starred/hasGps/hasText/collection/cameras
+ * checks that live outside `applyFilters` (they're plain equality/membership
+ * checks with no shared setup, unlike color/date/orientation/size), plus
+ * `applyFilters` itself. One entry point so callers (the library view, the
+ * world map view) don't each re-implement the same predicate list.
+ */
+export function applyAllFilters(items, filters) {
+  const exts = (filters.extension || []).map((e) => '.' + e.toLowerCase());
+  let out = items.filter((i) => {
+    if (filters.exactDay && (i.date_taken || i.created_at)?.slice(0, 10) !== filters.exactDay)
+      return false;
+    if (
+      filters.tags?.length &&
+      !filters.tags.every((t) => i.tags?.includes(t) || i.auto_tags?.includes(t))
+    )
+      return false;
+    if (filters.mediaType?.length && !filters.mediaType.includes(i.media_type)) return false;
+    if (exts.length && !exts.some((e) => i.file_name.toLowerCase().endsWith(e))) return false;
+    if (!matchesTri(filters.starred, !!i.starred)) return false;
+    if (!matchesTri(filters.hasGps, i.gps_lat != null && i.gps_lng != null)) return false;
+    if (!matchesTri(filters.hasText, !!(i.ocr_text && i.ocr_text.trim()))) return false;
+    if (!matchesTri(filters.collection, i.collection_ids?.length > 0)) return false;
+    if (
+      filters.cameras?.length &&
+      !filters.cameras.includes(`${i.camera_make || ''}|${i.camera_model || ''}`)
+    )
+      return false;
+    return true;
+  });
+  return applyFilters(out, filters);
+}
+
+/**
+ * Whether any filter field (or the mood filter, which lives outside the
+ * `filters` object) is currently set — the same field list `applyAllFilters`
+ * checks, kept as one function so the "is anything active" question is
+ * answered in exactly one place rather than three call sites in App.jsx that
+ * previously had to be kept in sync by hand whenever a field was added.
+ */
+export function hasActiveFilterFields(filters, moodFilter) {
+  return !!(
+    filters.colorLabel?.length > 0 ||
+    filters.dateRange ||
+    filters.exactDay ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.tags?.length > 0 ||
+    filters.mediaType?.length > 0 ||
+    filters.extension?.length > 0 ||
+    filters.starred ||
+    filters.hasGps ||
+    filters.hasText ||
+    filters.orientation ||
+    filters.fileSize ||
+    filters.resolution?.length > 0 ||
+    filters.collection ||
+    filters.cameras?.length > 0 ||
+    moodFilter
+  );
 }

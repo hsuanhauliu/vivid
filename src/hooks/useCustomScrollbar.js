@@ -17,13 +17,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * @param {React.Ref} [externalRef] - an existing ref to the scroll element to
  *        reuse instead of creating a new one (e.g. a caller that already
  *        tracks scroll position via its own ref). Merged so both keep working.
+ * @param {'y'|'x'} [axis] - which scroll axis to track ('y' = vertical,
+ *        default; 'x' = horizontal). The returned `thumb` is always
+ *        `{ size, offset, visible }` regardless of axis — ScrollArea maps
+ *        `size`/`offset` onto width/translateX or height/translateY.
  */
 const AUTO_HIDE_MS = 900;
 
-export default function useCustomScrollbar(externalRef) {
+export default function useCustomScrollbar(externalRef, axis = 'y') {
   const ownRef = useRef(null);
   const contentRef = externalRef ?? ownRef;
-  const [thumb, setThumb] = useState({ height: 0, top: 0, visible: false });
+  const [thumb, setThumb] = useState({ size: 0, offset: 0, visible: false });
   const [dragging, setDragging] = useState(false);
   // Driven by JS (not just CSS :hover) so it auto-hides reliably regardless
   // of hover/pointer quirks on a given device — shown briefly on scroll or
@@ -31,6 +35,7 @@ export default function useCustomScrollbar(externalRef) {
   const [active, setActive] = useState(false);
   const dragState = useRef(null);
   const hideTimer = useRef(null);
+  const isX = axis === 'x';
 
   const wake = useCallback(() => {
     setActive(true);
@@ -43,17 +48,19 @@ export default function useCustomScrollbar(externalRef) {
   const measure = useCallback(() => {
     const el = contentRef.current;
     if (!el) return;
-    const { scrollHeight, clientHeight, scrollTop } = el;
-    if (scrollHeight <= clientHeight + 1) {
-      setThumb((t) => (t.visible ? { height: 0, top: 0, visible: false } : t));
+    const scrollSize = isX ? el.scrollWidth : el.scrollHeight;
+    const clientSize = isX ? el.clientWidth : el.clientHeight;
+    const scrollPos = isX ? el.scrollLeft : el.scrollTop;
+    if (scrollSize <= clientSize + 1) {
+      setThumb((t) => (t.visible ? { size: 0, offset: 0, visible: false } : t));
       return;
     }
-    const height = Math.max((clientHeight / scrollHeight) * clientHeight, 24);
-    const maxTop = clientHeight - height;
-    const maxScroll = scrollHeight - clientHeight;
-    const top = maxTop <= 0 || maxScroll <= 0 ? 0 : (scrollTop / maxScroll) * maxTop;
-    setThumb({ height, top, visible: true });
-  }, []);
+    const size = Math.max((clientSize / scrollSize) * clientSize, 24);
+    const maxOffset = clientSize - size;
+    const maxScroll = scrollSize - clientSize;
+    const offset = maxOffset <= 0 || maxScroll <= 0 ? 0 : (scrollPos / maxScroll) * maxOffset;
+    setThumb({ size, offset, visible: true });
+  }, [contentRef, isX]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -79,15 +86,15 @@ export default function useCustomScrollbar(externalRef) {
       e.preventDefault();
       e.stopPropagation();
       dragState.current = {
-        startY: e.clientY,
-        startScrollTop: el.scrollTop,
-        clientHeight: el.clientHeight,
-        scrollHeight: el.scrollHeight,
+        start: isX ? e.clientX : e.clientY,
+        startScroll: isX ? el.scrollLeft : el.scrollTop,
+        clientSize: isX ? el.clientWidth : el.clientHeight,
+        scrollSize: isX ? el.scrollWidth : el.scrollHeight,
       };
       setDragging(true);
       wake();
     },
-    [wake],
+    [wake, contentRef, isX],
   );
 
   useEffect(() => {
@@ -96,12 +103,14 @@ export default function useCustomScrollbar(externalRef) {
       const el = contentRef.current;
       const s = dragState.current;
       if (!el || !s) return;
-      const thumbHeight = Math.max((s.clientHeight / s.scrollHeight) * s.clientHeight, 24);
-      const maxTop = s.clientHeight - thumbHeight;
-      const maxScroll = s.scrollHeight - s.clientHeight;
-      if (maxTop <= 0 || maxScroll <= 0) return;
-      const ratio = (e.clientY - s.startY) / maxTop;
-      el.scrollTop = s.startScrollTop + ratio * maxScroll;
+      const thumbSize = Math.max((s.clientSize / s.scrollSize) * s.clientSize, 24);
+      const maxOffset = s.clientSize - thumbSize;
+      const maxScroll = s.scrollSize - s.clientSize;
+      if (maxOffset <= 0 || maxScroll <= 0) return;
+      const pos = isX ? e.clientX : e.clientY;
+      const ratio = (pos - s.start) / maxOffset;
+      if (isX) el.scrollLeft = s.startScroll + ratio * maxScroll;
+      else el.scrollTop = s.startScroll + ratio * maxScroll;
     };
     const onUp = () => {
       setDragging(false);
@@ -113,7 +122,7 @@ export default function useCustomScrollbar(externalRef) {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragging, contentRef, wake]);
+  }, [dragging, contentRef, wake, isX]);
 
   return { contentRef, thumb, dragging, active, onThumbMouseDown };
 }

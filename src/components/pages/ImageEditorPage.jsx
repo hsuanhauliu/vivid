@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
@@ -238,6 +238,29 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
     onSaved?.(blobUrl, itemId);
   }
 
+  // ── Actions (defined here, before the keyboard effect below, since that
+  // effect's dependency array references them — a `const`/useCallback
+  // binding is in the temporal dead zone until its declaration runs, and
+  // the deps array is evaluated synchronously during render). ────────────
+
+  const handleBack = useCallback(() => {
+    afterNavRef.current = null;
+    if (pendingOps.length > 0) setShowDiscardConfirm(true);
+    else onExit(item);
+  }, [pendingOps, onExit, item]);
+  const handleUndo = useCallback(() => {
+    if (!pendingOps.length) return;
+    const op = pendingOps[pendingOps.length - 1];
+    setPendingOps((p) => p.slice(0, -1));
+    setUndoneOps((p) => [...p, op]);
+  }, [pendingOps]);
+  const handleRedo = useCallback(() => {
+    if (!undoneOps.length) return;
+    const op = undoneOps[undoneOps.length - 1];
+    setUndoneOps((p) => p.slice(0, -1));
+    setPendingOps((p) => [...p, op]);
+  }, [undoneOps]);
+
   // ── Keyboard ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -300,7 +323,17 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [showSaveConfirm, showSaveCopyModal, showDiscardConfirm, showResize, pendingOps, cropMode]);
+  }, [
+    showSaveConfirm,
+    showSaveCopyModal,
+    showDiscardConfirm,
+    showResize,
+    pendingOps,
+    cropMode,
+    handleBack,
+    handleUndo,
+    handleRedo,
+  ]);
 
   // Safety net for zoom paths that don't compute pan themselves (keyboard
   // +/-, toolbar buttons): whenever scale changes, pull pan back in bounds
@@ -317,23 +350,6 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
-  function handleBack() {
-    afterNavRef.current = null;
-    if (pendingOps.length > 0) setShowDiscardConfirm(true);
-    else onExit(item);
-  }
-  function handleUndo() {
-    if (!pendingOps.length) return;
-    const op = pendingOps[pendingOps.length - 1];
-    setPendingOps((p) => p.slice(0, -1));
-    setUndoneOps((p) => [...p, op]);
-  }
-  function handleRedo() {
-    if (!undoneOps.length) return;
-    const op = undoneOps[undoneOps.length - 1];
-    setUndoneOps((p) => p.slice(0, -1));
-    setPendingOps((p) => [...p, op]);
-  }
   function queueTransform(op) {
     setPendingOps((p) => [...p, op]);
     setUndoneOps([]);
@@ -995,6 +1011,8 @@ const ImageEditorPage = forwardRef(function ImageEditorPage(
           collections={collections}
           folders={folders}
           allItems={allItems}
+          defaultFolderId={item.folder_id}
+          defaultCollectionIds={item.collection_ids ?? []}
           onConfirm={(dest) => applyAllTransforms('copy', dest)}
           onClose={() => setShowSaveCopyModal(false)}
         />

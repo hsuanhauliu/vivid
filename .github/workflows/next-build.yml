@@ -1,0 +1,67 @@
+name: Next Branch Build
+
+# Builds a downloadable .dmg on every push to `next` and publishes it as a
+# single rolling pre-release (tag `nightly`) — always overwritten in place
+# rather than accumulating a new tagged release like release.yml does for
+# v* tags. Meant for testing the latest `next` state, not for distribution.
+on:
+  push:
+    branches:
+      - next
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+permissions:
+  contents: write # needed to create/replace the GitHub Release
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Cache cargo build artifacts to speed up subsequent builds.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci --legacy-peer-deps
+
+      # Releases can't be re-tagged onto a new commit in place, so drop the
+      # previous nightly release + tag first — this run then recreates both
+      # fresh, which is what makes the release "always overwrite" instead of
+      # failing on a duplicate tag or piling up old .dmg assets.
+      - name: Delete previous nightly release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete nightly --yes --cleanup-tag || true
+
+      # Builds the app (runs `npm run build` via beforeBuildCommand + compiles the
+      # Swift helper + Rust), then publishes it straight to the `nightly` release.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # See release.yml for optional code signing / notarization secrets.
+        with:
+          tagName: nightly
+          releaseName: 'Vivid (next branch build)'
+          releaseDraft: false
+          prerelease: true
+          releaseBody: |
+            Automated build from the `next` branch at ${{ github.sha }}. Not a
+            stable release — for testing only, and always overwritten by the
+            next push to `next`.
+
+            ### Install
+            1. Download the `.dmg` below and drag **Vivid** to Applications.
+            2. First launch: right-click **Vivid** → **Open** (it's an unsigned build), or run
+               `xattr -dr com.apple.quarantine /Applications/Vivid.app`.
+
+            Requires macOS 12+ (Apple Silicon). AI features download their model on first use.
+          # Apple Silicon build. To also cover Intel Macs, install both Rust targets
+          # in a prior step and use:  args: --target universal-apple-darwin

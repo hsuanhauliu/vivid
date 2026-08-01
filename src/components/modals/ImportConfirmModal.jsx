@@ -5,9 +5,11 @@ import './ImportConfirmModal.css';
 
 /**
  * Final confirmation shown before an import copies anything, but only when the
- * preview turned up something noteworthy: files that will be skipped
- * (unsupported type or already-in-library duplicates) or new folders that will
- * be created from the imported directory structure.
+ * preview turned up something noteworthy: unsupported-type skips, sources
+ * already inside the library's own media dir, or new folders that will be
+ * created from the imported directory structure. Deliberate duplicate
+ * sources (same file imported twice) are no longer filtered — see
+ * ImportPreview's doc comment on the Rust side.
  *
  * @param {object} preview - { to_import, skipped_type, skipped_dupe, new_folders }
  */

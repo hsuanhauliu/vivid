@@ -13,7 +13,7 @@ export default function usePersistentState(key, initial, parse = (v) => v, seria
   });
   useEffect(() => {
     localStorage.setItem(key, serialize(value));
-  }, [key, value]);
+  }, [key, value, serialize]);
   return [value, setValue];
 }
 

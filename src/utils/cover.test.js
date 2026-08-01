@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { resolveCoverItem } from './cover';
 
-const img1 = { id: 'i1', collection_id: 'g1', media_type: 'image' };
-const img2 = { id: 'i2', collection_id: 'g1', media_type: 'image' };
-const vid1 = { id: 'v1', collection_id: 'g1', media_type: 'video' };
-const otherGroupImg = { id: 'i9', collection_id: 'g2', media_type: 'image' };
+const img1 = { id: 'i1', collection_ids: ['g1'], media_type: 'image' };
+const img2 = { id: 'i2', collection_ids: ['g1'], media_type: 'image' };
+const vid1 = { id: 'v1', collection_ids: ['g1'], media_type: 'video' };
+const otherGroupImg = { id: 'i9', collection_ids: ['g2'], media_type: 'image' };
 
 describe('resolveCoverItem', () => {
   it('returns null for missing group or items', () => {

@@ -87,6 +87,18 @@
       .stagger .reveal:nth-child(4) {
         transition-delay: 0.24s;
       }
+      .stagger .reveal:nth-child(5) {
+        transition-delay: 0.32s;
+      }
+      .stagger .reveal:nth-child(6) {
+        transition-delay: 0.4s;
+      }
+      .stagger .reveal:nth-child(7) {
+        transition-delay: 0.48s;
+      }
+      .stagger .reveal:nth-child(8) {
+        transition-delay: 0.56s;
+      }
 
       nav {
         position: sticky;
@@ -418,7 +430,7 @@
         font-weight: 700;
         margin-bottom: 6px;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
       }
       .feature .chip {
@@ -426,6 +438,7 @@
         height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
+        margin-top: 7px;
       }
       .feature p {
         font-size: 13px;
@@ -615,23 +628,23 @@
             </div>
             <h3>Organize and view it your way</h3>
             <p>
-              Collections and folders keep your library tidy, and you can browse it however suits
-              you — masonry, card, or list view, or the world map, plotting every geotagged photo
-              and video on a map you can explore.
+              Albums, album groups, playlists, and folders keep your library tidy, and you can
+              browse it however suits you — masonry, card, or list view, or the world map,
+              plotting every geotagged photo and video on a map you can explore and multi-select.
             </p>
           </div>
           <div class="spotlight reveal">
             <div class="spotlight-icon" style="background: var(--teal-grad)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2.5" y="5" width="14" height="14" rx="2.5" />
-                <path d="m21 8-4.5 3.5L21 15z" stroke-linejoin="round" />
+                <rect x="3" y="3" width="13" height="13" rx="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M21 8v11a2 2 0 0 1-2 2H8" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </div>
-            <h3>Video &amp; audio players, done right</h3>
+            <h3>Multiple workspaces</h3>
             <p>
-              Drag-to-trim with sample-accurate playback of just the trimmed range, frame-by-frame
-              scrubbing, GIF export, frame capture, variable speed, and looping for video — plus a
-              real built-in music player with albums, playlists, and cover art.
+              Manage more than one library side by side. Let Vivid organize your files on disk, or
+              link an existing folder in place with zero copying — add, switch, and unlink
+              workspaces anytime.
             </p>
           </div>
           <div class="spotlight reveal">
@@ -656,24 +669,45 @@
         <p class="divider-label">…and plenty more built in</p>
         <div class="features stagger">
           <div class="feature reveal">
-            <h3><span class="chip" style="background: var(--teal)"></span>Built for real workflows</h3>
-            <p>
-              Screenshots save straight to Vivid, basic image and video editing tools handle quick
-              touch-ups without another app, similar-file search finds near-duplicates and burst
-              shots, and side-by-side comparison helps you pick the keeper.
-            </p>
-          </div>
-          <div class="feature reveal">
-            <h3><span class="chip" style="background: var(--coral)"></span>Wide format support</h3>
-            <p>RAW, HEIC, video, and audio formats all work out of the box, no plugins needed.</p>
-          </div>
-          <div class="feature reveal">
             <h3><span class="chip" style="background: var(--accent)"></span>Fast, native performance</h3>
             <p>A Rust core keeps browsing and searching snappy even on huge libraries.</p>
           </div>
           <div class="feature reveal">
-            <h3><span class="chip" style="background: var(--teal)"></span>Trash &amp; recovery</h3>
-            <p>Deleted items go to a trash you can restore from, not straight to gone.</p>
+            <h3><span class="chip" style="background: var(--accent)"></span>Saved searches</h3>
+            <p>Bookmark a keyword, filter, and scope combination and get back to it in one click.</p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--teal)"></span>Built-in video &amp; audio players</h3>
+            <p>
+              A feature-rich native video player with frame-accurate scrubbing and variable speed,
+              plus a full music player with queue control and gorgeous cover art.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--coral)"></span>Album groups</h3>
+            <p>Nest related albums together so big libraries stay organized, not just flat lists.</p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--accent)"></span>Find duplicates &amp; similar shots</h3>
+            <p>
+              Spot near-duplicates and burst shots automatically, then compare side by side to pick
+              the keeper.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--accent)"></span>Quick video editing</h3>
+            <p>
+              Drag-to-trim, frame-by-frame scrubbing, GIF export, and instant frame capture — all
+              without leaving your library.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--coral)"></span>World map multi-select</h3>
+            <p>Marquee-drag or Ctrl+click to select pins in bulk, then hide or isolate them.</p>
+          </div>
+          <div class="feature reveal">
+            <h3><span class="chip" style="background: var(--accent)"></span>Localized in 11 languages</h3>
+            <p>A fully native UI in English, Spanish, French, German, 繁體中文, 日本語, and more.</p>
           </div>
         </div>
       </div>

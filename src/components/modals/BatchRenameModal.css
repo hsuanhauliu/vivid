@@ -58,3 +58,28 @@
   color: var(--text-muted);
   padding-top: 4px;
 }
+
+/* Filename-conflict row highlight (RenameFileModal) */
+.rename-preview-row.rename-conflict .rename-new {
+  color: var(--danger);
+}
+.rename-conflict-hint {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 6px;
+}
+
+.rename-single-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rename-single-input .input {
+  flex: 1;
+  min-width: 0;
+}
+.rename-single-ext {
+  color: var(--text-muted);
+  font-size: 13px;
+  flex-shrink: 0;
+}

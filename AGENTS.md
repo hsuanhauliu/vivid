@@ -20,7 +20,8 @@ src/                       React frontend
                            (useFolders = folder tree state/CRUD,
                             useImport = pick/download/screenshot/drag-drop)
   utils/                   Pure helpers (format, sort, cover, translateTag)
-  locales/                 i18n: en.json, zh-TW.json, ja.json (keep all three in sync)
+  locales/                 i18n: 11 locales — en, es, fr, de, pt, vi, zh-TW, zh-CN,
+                           ja, ko, hi (keep all in sync)
   stores/                  Lightweight shared stores (e.g. downloadStore)
   i18n.js                  i18next setup
 src-tauri/src/             Rust backend
@@ -59,7 +60,9 @@ remove unused imports when you delete their last use. React hook rules
 ## Frontend conventions
 
 - **i18n everywhere.** User-facing strings go through `t('namespace.key')`.
-  When adding a key, add it to **all three** locale files (en, zh-TW, ja).
+  When adding a key, add it to **all 11** locale files (en, es, fr, de, pt, vi,
+  zh-TW, zh-CN, ja, ko, hi). ja/ko/vi/zh-CN/zh-TW use a single unsuffixed key
+  for count-style strings; other locales follow i18next's `_one`/`_other` plurals.
 - **Shared code — reuse, don't re-implement.** Before writing a helper, check:
   - `utils/format.js` — `formatBytes`, `formatDate`, `formatDateShort`,
     `formatDateTime`, `formatDuration` (clock "3:05"), `formatClock` (0:00 floor).
@@ -84,8 +87,14 @@ remove unused imports when you delete their last use. React hook rules
 ## Backend conventions
 
 - **Logging:** use `tracing` (`tracing::info!/warn!/error!`), never `println!`.
-- **No data duplication in the DB** — derive, don't copy. New columns are added
-  idempotently via the `column_exists` guard in `db/mod.rs`.
+- **No data duplication in the DB** — derive, don't copy.
+- **Schema lives entirely in `db::init()`'s `CREATE TABLE` statements** — one
+  schema, no upgrade path from an older shape. Pre-1.0, there's no installed
+  base to stay compatible with: add a column directly to the relevant
+  `CREATE TABLE`, don't write an `ALTER TABLE`/`column_exists`-guarded
+  migration. Foreign keys are enforced (`PRAGMA foreign_keys = ON`) and relied
+  on for referential integrity — prefer an `ON DELETE CASCADE`/`SET NULL`
+  clause over hand-rolled cleanup code where the constraint can express it.
 - **Commands** are thin: validate, call a `db::` function and/or a `commands::`
   helper, map errors to `String`. Register every new command in `lib.rs`'s
   `invoke_handler` (and it's re-exported via `commands::*`).
@@ -105,14 +114,32 @@ remove unused imports when you delete their last use. React hook rules
 
 `MediaItem` (models.rs) is the central record. Notable fields:
 
-- **`folder_id` vs `collection_id`** — two _independent_ organizing axes:
+- **`folder_id` vs `collection_ids`** — two _independent_ organizing axes:
   - **Folder** = a real on-disk directory under the managed library root
     (`app_data_dir/media/<rel_path>/`). Files physically live in exactly one
     folder. Tree stored in the `folders` table (`parent_id` + unique `rel_path`).
-    Default root folder is **`Uncategorized`**. Moving a folder/file does
-    `fs::rename` + rewrites `file_path`/`rel_path`. UI: `FolderTree`/`SecondaryPanel`.
-  - **Collection** = a metadata-only album (image/video) or playlist
-    (audio). An item has at most one. No files move.
+    A file with no folder (`folder_id: null`) shows up under the virtual
+    **"Other"** bucket (`db::UNCATEGORIZED_ID` — never a real row or directory).
+    Moving a folder/file does `fs::rename` + rewrites `file_path`/`rel_path`.
+    UI: `FolderTree`/`SecondaryPanel`.
+  - **Collection** = a metadata-only album (image/video) or playlist (audio).
+    Membership is **many-to-many** via the `collection_items` junction table
+    (`collection_id, item_id, added_at`) — an item can belong to any number of
+    collections. `db::attach_collections()` batch-fills `MediaItem.collection_ids`
+    after every media `SELECT`; call it whenever you add a new query path.
+    Mutate membership via the `add_to_collection`/`remove_from_collection`
+    commands (additive/subtractive, not the old replace-semantics `set_collection`).
+    No files move.
+  - **Album groups** — a `Collection` can have `kind == "album_group"`, whose
+    only purpose is to organize other albums (never media items directly —
+    `add_to_collection` rejects media adds to an album_group). A regular album
+    points at its group via `Collection.parent_id`; nesting is one level only.
+    `set_collection_parent(id, parentId)` validates target kind, source kind,
+    and `id != parentId`. Deleting a group ungroups its children rather than
+    orphaning them. UI: `AlbumGroupView.jsx` renders a group's child albums;
+    the tree in `SecondaryPanel`'s `CollectionList` shows groups as collapsible
+    parents. Right-click menus for both live in the shared
+    `components/common/CollectionContextMenu.jsx`.
 - **`thumb_path` vs `audio_cover`** — both can supply an audio tile image:
   - `thumb_path` = auto-generated thumbnail. For audio, the backend extracts
     **embedded** cover art here (lofty first, Swift-helper/AVFoundation
@@ -128,9 +155,30 @@ remove unused imports when you delete their last use. React hook rules
 `App.jsx` switches on a `view` string. Valid values: `library`, `worldmap`,
 `settings`, `music`, `trash`, `tags`, `stats`, `system-messages`, `log-viewer`.
 Albums/playlists are **not** a separate view — they're a filter within
-`library`. The secondary panel (`SecondaryPanel`) is a different piece of state
-(`null | 'folders' | 'albums' | 'playlists' | 'tags' | 'stats'`) shown
-alongside the main view; don't confuse the two.
+`library`. Album groups are a special case: `view` still stays `'library'`,
+but `isAlbumGroupView` (derived from `activeCollectionObj?.kind === 'album_group'`)
+gates rendering `AlbumGroupView` instead of the normal media grid, and hides
+grid-only controls (search scope, semantic toggle, filter, saved searches)
+that don't apply to a page of albums. The secondary panel (`SecondaryPanel`)
+is a different piece of state (`null | 'folders' | 'albums' | 'playlists' |
+'tags' | 'stats'`) shown alongside the main view; don't confuse the two.
+
+## Workspaces
+
+A workspace is a library root: either Vivid's own managed folder or an
+existing folder you link in-place (no file copying). Vivid supports multiple
+workspaces registered at once — the landing page lets you add a managed
+library or link a folder, switch between registered workspaces, and unlink
+one (removing it from the registry without touching its files). The workspace
+registry and active-workspace pointer live outside any single workspace's own
+database so switching doesn't require re-launching.
+
+## Saved searches
+
+A saved search bookmarks a keyword + filter + scope combination for one-click
+recall later, surfaced via `SavedSearchesMenu`. Deleting one goes through the
+app's shared `ConfirmModal` (`setConfirm(...)` in `App.jsx`), not an immediate
+delete.
 
 ## Sync & transfer features
 

@@ -372,13 +372,13 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 26px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 7px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -557,12 +557,13 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -571,10 +572,20 @@
   border-color: var(--accent);
   color: var(--text);
 }
+/* Tri-state: off (default, above) → include → exclude → off. "active" kept
+   as an alias of "include" for any other code still checking that class. */
+.fb-toggle-include,
 .fb-toggle.active {
   border-color: var(--accent);
   background: var(--accent-dim);
   color: var(--accent);
+}
+.fb-toggle-exclude {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 /* Active tag pills */
@@ -625,13 +636,13 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  height: 26px;
-  padding: 0 10px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 10.5px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
@@ -653,8 +664,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 6px;

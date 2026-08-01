@@ -27,7 +27,11 @@ const TYPE_COLORS = {
   video: '#3b82f6',
   audio: '#f59e0b',
 };
-const TYPE_LABEL_KEYS = { image: 'trash.typeImage', video: 'trash.typeVideo', audio: 'trash.typeAudio' };
+const TYPE_LABEL_KEYS = {
+  image: 'trash.typeImage',
+  video: 'trash.typeVideo',
+  audio: 'trash.typeAudio',
+};
 
 function TrashThumb({ item }) {
   const [failed, setFailed] = useState(false);

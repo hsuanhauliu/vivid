@@ -181,7 +181,17 @@
         <strong>Tap to choose photos &amp; videos</strong>
         <span>or drag them here on desktop</span>
       </label>
-      <input type="file" id="file" multiple accept="image/*,video/*,audio/*" />
+      <!-- Explicit HEIC/HEIF extensions alongside the generic image/* wildcard:
+           iOS Safari's Photos picker transcodes HEIC to JPEG for web uploads
+           when it thinks the site only wants "web-safe" formats — spelling out
+           HEIC/HEIF as accepted is the documented way to get it to hand over
+           the original file instead. -->
+      <input
+        type="file"
+        id="file"
+        multiple
+        accept="image/*,video/*,audio/*,.heic,.heif,.mov"
+      />
       <input type="file" id="file-any" multiple />
       <button class="btn ghost" id="browse" style="margin-top: 10px">
         Browse Files (audio &amp; more)

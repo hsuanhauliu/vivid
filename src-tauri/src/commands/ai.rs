@@ -1,13 +1,13 @@
-use crate::{db, models::MediaItem, DbState};
 use crate::clip::{bytes_to_embedding, cosine_sim, embedding_to_bytes, MOOD_VOCAB};
 use crate::config::{FIND_SIMILAR_THRESHOLD, MOOD_FILTER_THRESHOLD, SEMANTIC_SEARCH_THRESHOLD};
 use crate::emb_index::EmbIndex;
 use crate::siglip_clip::SiglipClip;
+use crate::{db, models::MediaItem, DbState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::{Emitter, Manager, State};
 
 /// Guards against overlapping embed-all passes. Without this, every single
@@ -17,6 +17,11 @@ use tauri::{Emitter, Manager, State};
 /// then interleave their `clip-progress` emissions, which is what made the
 /// progress bar's percentage jump around instead of climbing steadily.
 static EMBED_SCAN_RUNNING: AtomicBool = AtomicBool::new(false);
+// Same "coalesce instead of drop" reasoning as thumbs.rs's
+// THUMB_RERUN_PENDING — a call that lands while a pass is already running
+// sets this instead of relying on "a later trigger will catch it", which
+// doesn't actually hold if no such trigger ever comes.
+static EMBED_RERUN_PENDING: AtomicBool = AtomicBool::new(false);
 
 /// Clears the scan-running flag on drop (covers early returns / panics).
 struct EmbedScanGuard;
@@ -30,10 +35,14 @@ impl Drop for EmbedScanGuard {
 
 pub struct ClipInner {
     /// In-memory embedding index. Updated incrementally after each embed.
-    /// Wrapped in Arc so callers can cheaply clone and release the lock before
-    /// running the compute-heavy cosine similarity loop.
-    pub emb_index:           Arc<EmbIndex>,
-    pub multilingual:        Option<Arc<SiglipClip>>,
+    /// Wrapped in `Arc<RwLock<_>>` (not just `Arc`) so callers can cheaply
+    /// clone the `Arc` and release the outer `ClipState` lock before running
+    /// the compute-heavy cosine similarity loop, while single-item upserts
+    /// (`embed_and_tag_image`) mutate in place under the `RwLock` instead of
+    /// deep-cloning the whole index — which a bare `Arc::make_mut` would do
+    /// whenever a concurrent search is holding its own clone of the `Arc`.
+    pub emb_index: Arc<RwLock<EmbIndex>>,
+    pub multilingual: Option<Arc<SiglipClip>>,
     pub multilingual_loading: bool,
 }
 pub struct ClipState(pub Arc<Mutex<ClipInner>>);
@@ -47,8 +56,8 @@ pub struct ClipStatus {
 #[derive(Clone, Serialize)]
 pub struct MultilingualStatus {
     pub installed: bool,
-    pub loaded:    bool,
-    pub loading:   bool,
+    pub loaded: bool,
+    pub loading: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -59,12 +68,14 @@ pub struct SemanticResult {
 
 #[derive(Clone, Serialize)]
 pub struct ClipProgress {
-    pub current:   usize,
-    pub total:     usize,
-    pub item_id:   String,
+    pub current: usize,
+    pub total: usize,
+    pub item_id: String,
     pub file_name: String,
     pub auto_tags: Vec<String>,
-    pub done:      bool,
+    pub done: bool,
+    /// Set when embedding this specific item failed.
+    pub error: Option<String>,
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
@@ -74,13 +85,22 @@ fn multilingual_model(clip: &ClipState) -> Option<Arc<SiglipClip>> {
 }
 
 fn find_multilingual_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
-    let src_dir: Option<std::path::PathBuf> = option_env!("CARGO_MANIFEST_DIR")
-        .map(|d| std::path::Path::new(d).join("models").join("clip-multilingual"));
-    let data = app.path().app_data_dir().ok()
+    let src_dir: Option<std::path::PathBuf> = option_env!("CARGO_MANIFEST_DIR").map(|d| {
+        std::path::Path::new(d)
+            .join("models")
+            .join("clip-multilingual")
+    });
+    let data = app
+        .path()
+        .app_data_dir()
+        .ok()
         .map(|d| d.join("models").join("clip-multilingual"));
     [data, src_dir].into_iter().flatten().find(|p| {
         let ok = |name: &str, min_bytes: u64| {
-            p.join(name).metadata().map(|m| m.len() >= min_bytes).unwrap_or(false)
+            p.join(name)
+                .metadata()
+                .map(|m| m.len() >= min_bytes)
+                .unwrap_or(false)
         };
         // tokenizer.json's min size matters more than it looks: this directory reused
         // the same filename as the old M-CLIP setup, whose tokenizer.json was ~1-2 MB —
@@ -97,17 +117,25 @@ fn fetch_items_batch(
     conn: &rusqlite::Connection,
     scored: Vec<(f32, String)>,
 ) -> Vec<SemanticResult> {
-    if scored.is_empty() { return vec![]; }
-    let score_map: HashMap<String, f32> = scored.iter()
-        .map(|(s, id)| (id.clone(), *s))
-        .collect();
+    if scored.is_empty() {
+        return vec![];
+    }
+    let score_map: HashMap<String, f32> = scored.iter().map(|(s, id)| (id.clone(), *s)).collect();
     let ids: Vec<String> = scored.into_iter().map(|(_, id)| id).collect();
     let items = db::fetch_items_by_ids(conn, &ids).unwrap_or_default();
     let mut results: Vec<SemanticResult> = items
         .into_iter()
-        .filter_map(|item| score_map.get(&item.id).map(|&score| SemanticResult { item, score }))
+        .filter_map(|item| {
+            score_map
+                .get(&item.id)
+                .map(|&score| SemanticResult { item, score })
+        })
         .collect();
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     results
 }
 
@@ -124,22 +152,30 @@ pub fn get_clip_status(
     };
     let unindexed = if available {
         let conn = db.0.lock().unwrap();
-        db::get_items_without_embeddings(&conn).unwrap_or_default().len()
+        db::get_items_without_embeddings(&conn)
+            .unwrap_or_default()
+            .len()
     } else {
         0
     };
-    ClipStatus { available, unindexed }
+    ClipStatus {
+        available,
+        unindexed,
+    }
 }
 
 // ── Multilingual CLIP commands ─────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn get_multilingual_status(clip: State<'_, ClipState>, app: tauri::AppHandle) -> MultilingualStatus {
+pub fn get_multilingual_status(
+    clip: State<'_, ClipState>,
+    app: tauri::AppHandle,
+) -> MultilingualStatus {
     let g = clip.0.lock().unwrap();
     MultilingualStatus {
         installed: g.multilingual.is_some() || find_multilingual_dir(&app).is_some(),
-        loaded:    g.multilingual.is_some(),
-        loading:   g.multilingual_loading,
+        loaded: g.multilingual.is_some(),
+        loading: g.multilingual_loading,
     }
 }
 
@@ -174,16 +210,18 @@ pub fn load_multilingual(app: tauri::AppHandle) -> Result<(), String> {
                     tracing::info!(count = emb_index.len(), "Embedding index loaded from DB");
 
                     let mut g = state.0.lock().unwrap();
-                    g.multilingual         = Some(Arc::new(enc));
+                    g.multilingual = Some(Arc::new(enc));
                     g.multilingual_loading = false;
-                    g.emb_index            = Arc::new(emb_index);
+                    g.emb_index = Arc::new(RwLock::new(emb_index));
                     drop(g);
 
                     // Auto-index any items added before the model was available.
                     let db_state2 = app.state::<DbState>();
                     let unindexed = {
                         let conn = db_state2.0.lock().unwrap();
-                        db::get_items_without_embeddings(&conn).unwrap_or_default().len()
+                        db::get_items_without_embeddings(&conn)
+                            .unwrap_or_default()
+                            .len()
                     };
                     if unindexed > 0 {
                         tracing::info!(unindexed, "Auto-starting embed-all for unindexed items");
@@ -214,7 +252,7 @@ pub fn load_multilingual(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn unload_multilingual(clip: State<'_, ClipState>) {
     let mut g = clip.0.lock().unwrap();
-    g.multilingual         = None;
+    g.multilingual = None;
     g.multilingual_loading = false;
     tracing::info!("Multilingual CLIP text encoder unloaded");
 }
@@ -227,7 +265,9 @@ pub fn unload_multilingual(clip: State<'_, ClipState>) {
 /// Emits "model-download-progress" events.
 #[tauri::command]
 pub async fn download_multilingual_model(app: tauri::AppHandle) -> Result<(), String> {
-    let dest_dir = app.path().app_data_dir()
+    let dest_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|e| e.to_string())?
         .join("models")
         .join("clip-multilingual");
@@ -237,7 +277,11 @@ pub async fn download_multilingual_model(app: tauri::AppHandle) -> Result<(), St
     // large now-unused files behind under different names (each ~1.5-2 GB,
     // wasted disk space) — clean those up before downloading the current
     // model's files so an old install never lingers alongside a new one.
-    for stale in &["text_model.bin", "clip_vision.bin", "dense_projection.safetensors"] {
+    for stale in &[
+        "text_model.bin",
+        "clip_vision.bin",
+        "dense_projection.safetensors",
+    ] {
         let p = dest_dir.join(stale);
         if p.exists() {
             tracing::info!(file = stale, "Removing stale file from previous model");
@@ -251,9 +295,17 @@ pub async fn download_multilingual_model(app: tauri::AppHandle) -> Result<(), St
     // well above the old M-CLIP tokenizer.json's size (that setup used this same
     // filename), or a stale wrong-vocabulary file would pass as "already downloaded".
     let files: &[(&str, &str, u64)] = &[
-        ("config.json",        &format!("{base}/config.json"),        10),
-        ("tokenizer.json",     &format!("{base}/tokenizer.json"),      10_000_000),
-        ("model.safetensors",  &format!("{base}/model.safetensors"),   1_000_000_000),
+        ("config.json", &format!("{base}/config.json"), 10),
+        (
+            "tokenizer.json",
+            &format!("{base}/tokenizer.json"),
+            10_000_000,
+        ),
+        (
+            "model.safetensors",
+            &format!("{base}/model.safetensors"),
+            1_000_000_000,
+        ),
     ];
 
     let client = reqwest::Client::builder()
@@ -263,7 +315,11 @@ pub async fn download_multilingual_model(app: tauri::AppHandle) -> Result<(), St
 
     for (filename, url, min_size) in files {
         let dest = dest_dir.join(filename);
-        if dest.metadata().map(|m| m.len() >= *min_size).unwrap_or(false) {
+        if dest
+            .metadata()
+            .map(|m| m.len() >= *min_size)
+            .unwrap_or(false)
+        {
             tracing::info!(file = filename, "Already downloaded, skipping");
             continue;
         }
@@ -271,39 +327,53 @@ pub async fn download_multilingual_model(app: tauri::AppHandle) -> Result<(), St
 
         let mut resp = client.get(*url).send().await.map_err(|e| {
             let msg = format!("Network error downloading {filename}: {e}");
-            let _ = app.emit("model-download-progress", serde_json::json!({
-                "model": "multilingual", "error": msg
-            }));
+            let _ = app.emit(
+                "model-download-progress",
+                serde_json::json!({
+                    "model": "multilingual", "error": msg
+                }),
+            );
             msg
         })?;
         if !resp.status().is_success() {
             let msg = format!("HTTP {} downloading {filename}", resp.status());
-            let _ = app.emit("model-download-progress", serde_json::json!({
-                "model": "multilingual", "error": msg
-            }));
+            let _ = app.emit(
+                "model-download-progress",
+                serde_json::json!({
+                    "model": "multilingual", "error": msg
+                }),
+            );
             return Err(msg);
         }
         let total = resp.content_length().unwrap_or(0);
         let mut downloaded: u64 = 0;
-        let mut file = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+        let mut file = tokio::fs::File::create(&tmp)
+            .await
+            .map_err(|e| e.to_string())?;
 
         while let Some(chunk) = resp.chunk().await.map_err(|e| e.to_string())? {
             use tokio::io::AsyncWriteExt;
             file.write_all(&chunk).await.map_err(|e| e.to_string())?;
             downloaded += chunk.len() as u64;
-            let _ = app.emit("model-download-progress", serde_json::json!({
-                "model": "multilingual", "file": filename,
-                "downloaded": downloaded, "total": total, "done": false
-            }));
+            let _ = app.emit(
+                "model-download-progress",
+                serde_json::json!({
+                    "model": "multilingual", "file": filename,
+                    "downloaded": downloaded, "total": total, "done": false
+                }),
+            );
         }
         drop(file);
         std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
         tracing::info!(file = filename, "Downloaded multilingual model file");
     }
 
-    let _ = app.emit("model-download-progress", serde_json::json!({
-        "model": "multilingual", "done": true
-    }));
+    let _ = app.emit(
+        "model-download-progress",
+        serde_json::json!({
+            "model": "multilingual", "done": true
+        }),
+    );
     Ok(())
 }
 
@@ -319,18 +389,16 @@ pub async fn embed_and_tag_image(
 ) -> Result<MediaItem, String> {
     let file_path: String = {
         let conn = db.0.lock().unwrap();
-        conn.query_row(
-            "SELECT file_path FROM media_items WHERE id=?1",
-            rusqlite::params![id],
-            |r| r.get(0),
-        ).map_err(|e| e.to_string())?
+        db::file_path(&conn, &id).map_err(|e| e.to_string())?
     };
 
     let ml = multilingual_model(&clip).ok_or("No AI model loaded")?;
 
     let (embedding_bytes, auto_tags, emb_f32) =
         tauri::async_runtime::spawn_blocking(move || -> Result<_, String> {
-            let emb = ml.embed_image(Path::new(&file_path)).map_err(|e| e.to_string())?;
+            let emb = ml
+                .embed_image(Path::new(&file_path))
+                .map_err(|e| e.to_string())?;
             let tags = ml.auto_tag(&emb);
             let bytes = embedding_to_bytes(&emb);
             Ok((bytes, tags, emb))
@@ -349,15 +417,18 @@ pub async fn embed_and_tag_image(
             db::set_embedding(&conn, &id, &embedding_bytes, &existing.auto_tags)
                 .map_err(|e| e.to_string())?;
         } else {
-            db::set_embedding(&conn, &id, &embedding_bytes, &auto_tags).map_err(|e| e.to_string())?;
+            db::set_embedding(&conn, &id, &embedding_bytes, &auto_tags)
+                .map_err(|e| e.to_string())?;
         }
         db::fetch_one(&conn, &id).map_err(|e| e.to_string())?
     };
 
-    // Keep the in-memory index current so searches immediately reflect this item.
+    // Keep the in-memory index current so searches immediately reflect this
+    // item. Mutates in place under the RwLock — never clones the index, even
+    // if a concurrent search is holding its own `Arc` clone of it.
     {
-        let mut g = clip.0.lock().unwrap();
-        Arc::make_mut(&mut g.emb_index).upsert(id.clone(), &emb_f32);
+        let g = clip.0.lock().unwrap();
+        g.emb_index.write().unwrap().upsert(id.clone(), &emb_f32);
     }
 
     Ok(updated)
@@ -385,101 +456,153 @@ pub(crate) fn trigger_embed_if_ready(app: &tauri::AppHandle) {
     let ready = clip.0.lock().unwrap().multilingual.is_some();
     if ready {
         let app2 = app.clone();
-        std::thread::spawn(move || { let _ = start_embed_all(app2); });
+        std::thread::spawn(move || {
+            let _ = start_embed_all(app2);
+        });
     }
 }
 
 /// Fire-and-forget: embed all unindexed images/videos; emits "clip-progress" events.
 /// Items are already sorted by file_size ASC in the DB query (small files first).
 /// Missing files are skipped rather than erroring. The in-memory embedding index
-/// is refreshed in one shot at the end of the run.
+/// is refreshed in one shot at the end of the run. Guarded so only one full
+/// pass runs at a time — a call that arrives mid-pass sets
+/// `EMBED_RERUN_PENDING` rather than dropping, so the running pass loops
+/// once more after finishing (see `THUMB_RERUN_PENDING` in thumbs.rs).
 #[tauri::command]
 pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
-    // Only one full pass at a time — see EMBED_SCAN_RUNNING's doc comment.
-    // A no-op return here is safe: whatever triggered this call (an import,
-    // the model finishing load, etc.) added items that the currently-running
-    // pass will either already include or that a later trigger will catch.
     if EMBED_SCAN_RUNNING.swap(true, Ordering::SeqCst) {
+        EMBED_RERUN_PENDING.store(true, Ordering::SeqCst);
         return Ok(());
     }
     std::thread::spawn(move || {
         let _guard = EmbedScanGuard;
-        let db   = app.state::<DbState>();
+        let db = app.state::<DbState>();
         let clip = app.state::<ClipState>();
 
-        let items = {
-            let conn = db.0.lock().unwrap();
-            db::get_items_without_embeddings(&conn).unwrap_or_default()
-        };
-        let total = items.len();
-        if total == 0 {
-            let _ = app.emit("clip-progress", ClipProgress {
-                current: 0, total: 0, item_id: String::new(),
-                file_name: String::new(), auto_tags: vec![], done: true,
-            });
-            return;
-        }
+        'outer: loop {
+            EMBED_RERUN_PENDING.store(false, Ordering::SeqCst);
+            let items = {
+                let conn = db.0.lock().unwrap();
+                db::get_items_without_embeddings(&conn).unwrap_or_default()
+            };
+            let total = items.len();
+            if total == 0 {
+                let _ = app.emit(
+                    "clip-progress",
+                    ClipProgress {
+                        current: 0,
+                        total: 0,
+                        item_id: String::new(),
+                        file_name: String::new(),
+                        auto_tags: vec![],
+                        done: true,
+                        error: None,
+                    },
+                );
+            } else {
+                for (i, (id, path, media_type, _size)) in items.iter().enumerate() {
+                    let p = std::path::Path::new(path);
+                    let done = i + 1 == total;
 
-        for (i, (id, path, media_type, _size)) in items.iter().enumerate() {
-            let p = std::path::Path::new(path);
-            let done = i + 1 == total;
+                    // Skip files that no longer exist on disk — still emit progress (with no
+                    // tags) so a missing file never swallows the final "done" event and
+                    // leaves the UI stuck on "indexing…" forever.
+                    if !p.exists() {
+                        let msg = "File no longer exists on disk";
+                        tracing::warn!(id, %path, "File missing, skipping embed");
+                        {
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embed_error(&conn, id, msg);
+                        }
+                        let _ = app.emit(
+                            "clip-progress",
+                            ClipProgress {
+                                current: i + 1,
+                                total,
+                                item_id: id.clone(),
+                                file_name: String::new(),
+                                auto_tags: vec![],
+                                done,
+                                error: Some(msg.to_string()),
+                            },
+                        );
+                        continue;
+                    }
 
-            // Skip files that no longer exist on disk — still emit progress (with no
-            // tags) so a missing file never swallows the final "done" event and
-            // leaves the UI stuck on "indexing…" forever.
-            if !p.exists() {
-                tracing::warn!(id, %path, "File missing, skipping embed");
-                let _ = app.emit("clip-progress", ClipProgress {
-                    current: i + 1, total, item_id: id.clone(),
-                    file_name: String::new(), auto_tags: vec![], done,
-                });
-                continue;
+                    let file_name = p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    // If the model became unavailable mid-run (e.g. unloaded from
+                    // Settings), stop entirely (not just this inner pass — retrying
+                    // immediately would just fail the same way) but still emit a
+                    // "done" event, since an indefinite silent stop is worse than
+                    // reporting an early, partial finish.
+                    let Some(ml) = multilingual_model(&clip) else {
+                        tracing::warn!("Multilingual model unavailable, stopping embed-all early");
+                        let _ = app.emit(
+                            "clip-progress",
+                            ClipProgress {
+                                current: i,
+                                total,
+                                item_id: String::new(),
+                                file_name: String::new(),
+                                auto_tags: vec![],
+                                done: true,
+                                error: None,
+                            },
+                        );
+                        break 'outer;
+                    };
+
+                    let result = {
+                        let emb_result = if media_type == "video" {
+                            ml.embed_video_keyframe(&app, p)
+                        } else {
+                            ml.embed_image(p)
+                        };
+                        emb_result.map(|emb| {
+                            let tags = ml.auto_tag(&emb);
+                            let bytes = embedding_to_bytes(&emb);
+                            (bytes, tags)
+                        })
+                    };
+
+                    let (auto_tags, error) = match result {
+                        Ok((bytes, tags)) => {
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embedding(&conn, id, &bytes, &tags);
+                            (tags, None)
+                        }
+                        Err(e) => {
+                            tracing::error!(id, error = %e, "SigLIP embed failed");
+                            let msg = e.to_string();
+                            let conn = db.0.lock().unwrap();
+                            let _ = db::set_embed_error(&conn, id, &msg);
+                            (vec![], Some(msg))
+                        }
+                    };
+
+                    let _ = app.emit(
+                        "clip-progress",
+                        ClipProgress {
+                            current: i + 1,
+                            total,
+                            item_id: id.clone(),
+                            file_name,
+                            auto_tags,
+                            done,
+                            error,
+                        },
+                    );
+                }
             }
-
-            let file_name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-
-            // If the model became unavailable mid-run (e.g. unloaded from Settings),
-            // stop but still emit a "done" event — an indefinite silent stop is worse
-            // than reporting an early, partial finish.
-            let Some(ml) = multilingual_model(&clip) else {
-                tracing::warn!("Multilingual model unavailable, stopping embed-all early");
-                let _ = app.emit("clip-progress", ClipProgress {
-                    current: i, total, item_id: String::new(),
-                    file_name: String::new(), auto_tags: vec![], done: true,
-                });
+            if !EMBED_RERUN_PENDING.load(Ordering::SeqCst) {
                 break;
-            };
-
-            let result = {
-                let emb_result = if media_type == "video" { ml.embed_video_keyframe(&app, p) }
-                                 else { ml.embed_image(p) };
-                emb_result.map(|emb| {
-                    let tags  = ml.auto_tag(&emb);
-                    let bytes = embedding_to_bytes(&emb);
-                    (bytes, tags)
-                })
-            };
-
-            let auto_tags = match result {
-                Ok((bytes, tags)) => {
-                    let conn = db.0.lock().unwrap();
-                    let _ = db::set_embedding(&conn, id, &bytes, &tags);
-                    tags
-                }
-                Err(e) => {
-                    tracing::error!(id, error = %e, "CLIP embed failed");
-                    vec![]
-                }
-            };
-
-            let _ = app.emit("clip-progress", ClipProgress {
-                current: i + 1,
-                total,
-                item_id: id.clone(),
-                file_name,
-                auto_tags,
-                done,
-            });
+            }
         }
 
         // Reload the full embedding index from DB once at the end so searches
@@ -493,9 +616,12 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
                 .map(|(id, bytes)| (id, bytes_to_embedding(&bytes)))
                 .collect(),
         );
-        tracing::info!(count = new_index.len(), "Embedding index refreshed after embed-all");
+        tracing::info!(
+            count = new_index.len(),
+            "Embedding index refreshed after embed-all"
+        );
         let mut g = clip.0.lock().unwrap();
-        g.emb_index = Arc::new(new_index);
+        g.emb_index = Arc::new(RwLock::new(new_index));
     });
     Ok(())
 }
@@ -506,30 +632,35 @@ pub fn start_embed_all(app: tauri::AppHandle) -> Result<(), String> {
 pub async fn semantic_search(
     query: String,
     limit: usize,
-    db:   State<'_, DbState>,
+    db: State<'_, DbState>,
     clip: State<'_, ClipState>,
 ) -> Result<Vec<SemanticResult>, String> {
     let (multilingual, emb_index) = {
         let g = clip.0.lock().unwrap();
-        let ml = g.multilingual.clone().ok_or_else(|| "No AI model loaded".to_string())?;
+        let ml = g
+            .multilingual
+            .clone()
+            .ok_or_else(|| "No AI model loaded".to_string())?;
         (ml, Arc::clone(&g.emb_index))
     };
 
-    let scored = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<(f32, String)>, String> {
-        let query_emb = multilingual.embed_text(&query).map_err(|e| e.to_string())?;
-        let mut scored: Vec<(f32, String)> = emb_index
-            .iter()
-            .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
-            .collect();
-        // Drop weak matches before truncating — better to return fewer,
-        // genuinely relevant results than to pad out to `limit`.
-        scored.retain(|(score, _)| *score > SEMANTIC_SEARCH_THRESHOLD);
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        scored.truncate(limit);
-        Ok(scored)
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    let scored =
+        tauri::async_runtime::spawn_blocking(move || -> Result<Vec<(f32, String)>, String> {
+            let query_emb = multilingual.embed_text(&query).map_err(|e| e.to_string())?;
+            let idx = emb_index.read().unwrap();
+            let mut scored: Vec<(f32, String)> = idx
+                .iter()
+                .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
+                .collect();
+            // Drop weak matches before truncating — better to return fewer,
+            // genuinely relevant results than to pad out to `limit`.
+            scored.retain(|(score, _)| *score > SEMANTIC_SEARCH_THRESHOLD);
+            scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            scored.truncate(limit);
+            Ok(scored)
+        })
+        .await
+        .map_err(|e| e.to_string())??;
 
     let conn = db.0.lock().unwrap();
     Ok(fetch_items_batch(&conn, scored))
@@ -538,17 +669,20 @@ pub async fn semantic_search(
 /// Return the names of all available mood filters.
 #[tauri::command]
 pub fn get_mood_names() -> Vec<String> {
-    MOOD_VOCAB.iter().map(|(name, _)| name.to_string()).collect()
+    MOOD_VOCAB
+        .iter()
+        .map(|(name, _)| name.to_string())
+        .collect()
 }
 
 /// Score every indexed item against a mood and return sorted results.
 /// Async to keep the UI responsive; uses the in-memory embedding index.
 #[tauri::command]
 pub async fn mood_filter(
-    mood:  String,
+    mood: String,
     limit: usize,
-    db:    State<'_, DbState>,
-    clip:  State<'_, ClipState>,
+    db: State<'_, DbState>,
+    clip: State<'_, ClipState>,
 ) -> Result<Vec<SemanticResult>, String> {
     let mood_idx = MOOD_VOCAB
         .iter()
@@ -557,12 +691,16 @@ pub async fn mood_filter(
 
     let (multilingual, emb_index) = {
         let g = clip.0.lock().unwrap();
-        let ml = g.multilingual.clone().ok_or_else(|| "No AI model loaded".to_string())?;
+        let ml = g
+            .multilingual
+            .clone()
+            .ok_or_else(|| "No AI model loaded".to_string())?;
         (ml, Arc::clone(&g.emb_index))
     };
 
     let scored = tauri::async_runtime::spawn_blocking(move || {
-        let mut scored: Vec<(f32, String)> = emb_index
+        let idx = emb_index.read().unwrap();
+        let mut scored: Vec<(f32, String)> = idx
             .iter()
             .map(|(id, emb)| (multilingual.score_moods(emb)[mood_idx].1, id.to_string()))
             .collect();
@@ -585,14 +723,15 @@ pub async fn mood_filter(
 #[tauri::command]
 pub fn find_similar(
     item_id: String,
-    limit:   usize,
-    db:      State<'_, DbState>,
-    clip:    State<'_, ClipState>,
+    limit: usize,
+    db: State<'_, DbState>,
+    clip: State<'_, ClipState>,
 ) -> Result<Vec<SemanticResult>, String> {
     let emb_index = Arc::clone(&clip.0.lock().unwrap().emb_index);
+    let idx = emb_index.read().unwrap();
 
     // Look up the query embedding in the cache first; fall back to DB.
-    let query_emb: Vec<f32> = if let Some(emb) = emb_index.get(&item_id) {
+    let query_emb: Vec<f32> = if let Some(emb) = idx.get(&item_id) {
         emb.to_vec()
     } else {
         let conn = db.0.lock().unwrap();
@@ -602,19 +741,21 @@ pub fn find_similar(
         bytes_to_embedding(&bytes)
     };
 
-    let mut scored: Vec<(f32, String)> = if !emb_index.is_empty() {
-        emb_index.iter()
+    let mut scored: Vec<(f32, String)> = if !idx.is_empty() {
+        idx.iter()
             .filter(|(id, _)| *id != item_id)
             .map(|(id, emb)| (cosine_sim(&query_emb, emb), id.to_string()))
             .collect()
     } else {
         let conn = db.0.lock().unwrap();
-        db::get_all_embeddings(&conn).map_err(|e| e.to_string())?
+        db::get_all_embeddings(&conn)
+            .map_err(|e| e.to_string())?
             .into_iter()
             .filter(|(id, _)| id != &item_id)
             .map(|(id, bytes)| (cosine_sim(&query_emb, &bytes_to_embedding(&bytes)), id))
             .collect()
     };
+    drop(idx);
 
     // Drop weak matches before truncating — better to return fewer, genuinely
     // similar items than to pad out to `limit` with unrelated ones.
@@ -625,5 +766,3 @@ pub fn find_similar(
     let conn = db.0.lock().unwrap();
     Ok(fetch_items_batch(&conn, scored))
 }
-
-

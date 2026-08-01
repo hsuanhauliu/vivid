@@ -1,9 +1,26 @@
 import { useState, useRef, useCallback, useEffect, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Music, Video, Image, Star, Check } from 'lucide-react';
+import { thumbSrcOf } from '../../utils/path';
+import { Music, Video, Image, Star, Check, Clock } from 'lucide-react';
 import { COLOR_LABELS } from '../common/FilterBar';
 import { useDisplayableSrc } from '../../hooks/useDisplayableSrc';
+import { acquireExtractSlot, releaseExtractSlot } from '../../utils/videoExtractQueue';
+import { formatDuration } from '../../utils/format';
 import './MediaCard.css';
+
+// Bottom-right corner badge: duration for video/audio, pixel dimensions for
+// images. `''` (from formatDuration on missing/invalid input) and missing
+// width/height both fall through to no badge at all, rather than a
+// misleading "0:00" or "0×0" before that data exists (e.g. a video whose
+// thumbnail/duration hasn't finished generating yet).
+function cardCornerLabel(item) {
+  if (item.media_type === 'image') {
+    return item.width && item.height ? `${item.width}×${item.height}` : null;
+  }
+  const secs = item.media_type === 'audio' ? item.audio_duration : item.duration_secs;
+  return formatDuration(secs) || null;
+}
 
 const TYPE_ICONS = { image: Image, video: Video, audio: Music };
 
@@ -23,9 +40,16 @@ export function VideoThumb({
   const [dataUrl, setDataUrl] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [canExtract, setCanExtract] = useState(false);
+  // Explicit cover-fit size (px) for the hover-play <video>, computed once its
+  // real dimensions are known — see the sizing comment below for why this
+  // can't just be a CSS min-width/min-height trick.
+  const [videoSize, setVideoSize] = useState(null);
   const extractRef = useRef(null);
+  const rootRef = useRef(null);
   const hoverTimer = useRef(null);
   const doneRef = useRef(!!poster);
+  const hasSlotRef = useRef(false);
 
   // The shown still: prefer the cached poster, fall back to a client-extracted
   // frame for videos that don't have one yet.
@@ -65,6 +89,11 @@ export function VideoThumb({
         }
       } catch {
         /* drawing on detached video is benign */
+      } finally {
+        if (hasSlotRef.current) {
+          hasSlotRef.current = false;
+          releaseExtractSlot();
+        }
       }
     });
   }, []);
@@ -82,6 +111,55 @@ export function VideoThumb({
 
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
+  // Only pull an extraction slot (and thus start buffering the full source
+  // file) once this card is actually near the viewport — with no grid
+  // virtualization, every off-screen card would otherwise queue up too,
+  // just delaying the pile-up instead of preventing it. IntersectionObserver
+  // is cheap to keep running since it only flips a boolean once.
+  useEffect(() => {
+    if (poster || doneRef.current || !rootRef.current) return undefined;
+    const el = rootRef.current;
+    let cancelled = false;
+    let requested = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || requested) return;
+        requested = true;
+        acquireExtractSlot().then(() => {
+          if (cancelled) {
+            releaseExtractSlot();
+            return;
+          }
+          hasSlotRef.current = true;
+          setCanExtract(true);
+        });
+      },
+      { rootMargin: '200px' },
+    );
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      if (hasSlotRef.current) {
+        hasSlotRef.current = false;
+        releaseExtractSlot();
+      }
+    };
+  }, [poster]);
+
+  // Safety net: if extraction never fires (corrupt/unreadable file), release
+  // the slot anyway so it doesn't stay stuck forever for other cards.
+  useEffect(() => {
+    if (!canExtract) return undefined;
+    const timer = setTimeout(() => {
+      if (hasSlotRef.current) {
+        hasSlotRef.current = false;
+        releaseExtractSlot();
+      }
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [canExtract]);
+
   // ── Hover-to-play (1.5 s delay) — disabled when disableHoverPlay ───────
   function onMouseEnter() {
     if (disableHoverPlay) return;
@@ -92,10 +170,34 @@ export function VideoThumb({
     clearTimeout(hoverTimer.current);
     setIsPlaying(false);
     setVideoReady(false);
+    setVideoSize(null);
+  }
+
+  // Real "cover" scaling for the hover-play video: a video's native
+  // resolution (often 1920×1080+) is almost always far bigger than a grid
+  // thumbnail cell, so the old `min-width/min-height: 100%; width/height:
+  // auto` trick never actually applied — min-* is a floor, not a fit, and
+  // the intrinsic size already exceeded it, so the video rendered at full
+  // native pixel size inside a tiny cropped box (the "zoomed in" look).
+  // Compute the true cover scale from the wrap's real box once metadata is
+  // available and set explicit pixel dimensions instead.
+  function handlePlayLoadedMetadata(e) {
+    const v = e.target;
+    const wrap = v.parentElement;
+    if (!wrap || !v.videoWidth || !v.videoHeight) return;
+    const rect = wrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const scale = Math.max(rect.width / v.videoWidth, rect.height / v.videoHeight);
+    setVideoSize({ width: v.videoWidth * scale, height: v.videoHeight * scale });
   }
 
   return (
-    <div className="media-thumb-root" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div
+      className="media-thumb-root"
+      ref={rootRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {/* Thumbnail — always rendered, fades out once video is ready */}
       {still ? (
         <img
@@ -130,31 +232,53 @@ export function VideoThumb({
         </div>
       )}
 
-      {/* Playing video — always mounted when playing, fades in once ready */}
+      {/* Playing video — always mounted when playing, fades in once ready.
+          Deliberately NOT sized with `object-fit: cover` (unlike the poster
+          image): WebKit has a known bug where a hardware-decoded <video>
+          layer that needs real cropping via object-fit: cover renders
+          upside-down for portrait-shot clips with a rotation matrix (common
+          for phone-recorded .mov files). Instead, `handlePlayLoadedMetadata`
+          computes the true cover scale from the video's real dimensions and
+          sets explicit pixel width/height — see its comment for why a plain
+          CSS min-width/min-height trick doesn't work here. Falls back to
+          that same CSS trick for the brief window before metadata loads
+          (invisible anyway, since opacity stays 0 until videoReady). */}
       {isPlaying && (
-        <video
-          key="play"
-          src={src}
-          className={imgClassName}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: videoReady ? 1 : 0,
-            transition: 'opacity 0.25s ease',
-            zIndex: 2,
-          }}
-          muted
-          playsInline
-          loop
-          autoPlay
-          onCanPlay={() => setVideoReady(true)}
-        />
+        <div
+          className="card-video-cover-wrap"
+          style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 2 }}
+        >
+          <video
+            key="play"
+            src={src}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              ...(videoSize
+                ? { width: `${videoSize.width}px`, height: `${videoSize.height}px` }
+                : { width: 'auto', height: 'auto', minWidth: '100%', minHeight: '100%' }),
+              opacity: videoReady ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+            }}
+            muted
+            playsInline
+            loop
+            autoPlay
+            onLoadedMetadata={handlePlayLoadedMetadata}
+            onCanPlay={() => setVideoReady(true)}
+          />
+        </div>
       )}
 
       {/* Hidden extraction video — fallback only, for videos with no cached
           poster yet. Skipped entirely when a poster exists so the webview never
-          decodes videos just to render the grid. */}
-      {!poster && !doneRef.current && (
+          decodes videos just to render the grid. Gated on `canExtract`
+          (in-viewport + a free slot from the global concurrency queue) so
+          scrolling a library full of not-yet-thumbnailed videos doesn't
+          start buffering dozens of full source files at once. */}
+      {!poster && !doneRef.current && canExtract && (
         <video
           ref={extractRef}
           src={src}
@@ -306,7 +430,7 @@ function ImageThumb({ item, freshThumbSrc, disableHoverPlay }) {
   // like every other image — the full animated original only plays on hover
   // (via GifThumb) or in the single-item detail/viewer.
   const isGif = (item.file_path || '').toLowerCase().endsWith('.gif');
-  const thumbSrc = freshThumbSrc || (item.thumb_path ? convertFileSrc(item.thumb_path) : null);
+  const thumbSrc = freshThumbSrc || (item.thumb_path ? thumbSrcOf(item.thumb_path) : null);
 
   if (isGif && thumbSrc) {
     return (
@@ -334,7 +458,7 @@ function MediaThumbnail({ item, disableHoverPlay, freshThumbSrc }) {
     return (
       <VideoThumb
         src={convertFileSrc(item.file_path)}
-        poster={item.thumb_path ? convertFileSrc(item.thumb_path) : null}
+        poster={item.thumb_path ? thumbSrcOf(item.thumb_path) : null}
         alt={item.display_name}
         imgClassName="card-thumb-img"
         disableHoverPlay={disableHoverPlay}
@@ -347,7 +471,7 @@ function MediaThumbnail({ item, disableHoverPlay, freshThumbSrc }) {
   if (audioCover) {
     return (
       <img
-        src={convertFileSrc(audioCover)}
+        src={thumbSrcOf(audioCover)}
         alt={item.display_name}
         className="card-thumb-img"
         loading="lazy"
@@ -382,6 +506,7 @@ function MediaCard({
   onCardDragStart,
   freshThumbSrc = null,
 }) {
+  const { t } = useTranslation();
   const hoverTimer = useRef(null);
   const clickTimer = useRef(null);
   const dblFired = useRef(false);
@@ -421,6 +546,7 @@ function MediaCard({
   }
 
   const TypeIcon = TYPE_ICONS[item.media_type] || Image;
+  const cornerLabel = cardCornerLabel(item);
 
   return (
     <div
@@ -448,14 +574,23 @@ function MediaCard({
 
         <span className={`card-type-badge badge-${item.media_type}`}>
           <TypeIcon size={11} strokeWidth={2.5} />
+          {item.media_type !== 'audio' && !item.date_taken && (
+            <span className="card-no-capture-date" title={t('mediaGrid.noCaptureDate')}>
+              <Clock size={10} />
+            </span>
+          )}
         </span>
+
+        {cornerLabel && <span className="card-corner-label">{cornerLabel}</span>}
 
         {item.color_label &&
           (() => {
             const col = COLOR_LABELS.find((c) => c.value === item.color_label);
+            // Shifted up when the corner label is also showing — both
+            // otherwise sit right on top of each other in the same corner.
             return col ? (
               <span
-                className="card-color-label"
+                className={`card-color-label${cornerLabel ? ' card-color-label-raised' : ''}`}
                 style={{ background: col.hex }}
                 title={col.label}
               />

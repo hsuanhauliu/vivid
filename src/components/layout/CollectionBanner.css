@@ -75,6 +75,81 @@
   text-transform: capitalize;
 }
 
+/* ── Search match strip (collections/folders whose name matches the query),
+   grouped into one row per kind (Album/Playlist/Folder) so a mixed result
+   set reads as three scannable lists instead of one shuffled row. ── */
+.search-entity-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.search-entity-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.search-entity-group-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 64px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.search-entity-group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.search-entity-match {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface-hover);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+}
+.search-entity-match:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+.search-entity-match-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-entity-match-count {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.search-entity-match-toggle {
+  background: none;
+  border-style: dashed;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.search-entity-match-toggle:hover {
+  color: var(--accent);
+}
+
 .collection-banner {
   display: flex;
   align-items: center;
@@ -151,6 +226,22 @@
 .collection-banner-back {
   margin-left: 4px;
   color: var(--text-dim);
+}
+
+/* Inline "New Album" form (album-group page only) */
+.collection-banner-new-album-form {
+  margin: 0;
+}
+.collection-banner-new-album-input {
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 5px 10px;
+  height: 30px;
+  width: 160px;
+  outline: none;
 }
 
 /* Inline name editor (rename from the ⋮ menu) */

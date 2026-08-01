@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import Modal from '../common/Modal';
-
-const KIND_ICONS = { playlist: ListMusic, album: Image };
+import { UNCATEGORIZED_ID } from '../../utils/folders';
+import { collectionKindIcon } from '../../utils/collectionIcons';
 
 // Picks an existing playlist/album collection, with optional inline "New playlist" creation.
 // Pass `onNew` to enable the create-new row; it receives the new name string.
@@ -72,7 +72,7 @@ function CollectionPicker({
         {selected ? (
           <>
             {(() => {
-              const Icon = KIND_ICONS[selected.kind] || ListMusic;
+              const Icon = collectionKindIcon(selected.kind);
               return <Icon size={13} />;
             })()}
             <span className="collection-picker-name">{selected.name}</span>
@@ -105,7 +105,7 @@ function CollectionPicker({
             <span className="collection-picker-none">{t('download.none')}</span>
           </button>
           {eligible.map((g) => {
-            const Icon = KIND_ICONS[g.kind] || ListMusic;
+            const Icon = collectionKindIcon(g.kind);
             return (
               <button
                 key={g.id}
@@ -219,8 +219,8 @@ function FolderPicker({ folders: initialFolders, value, onChange }) {
   const ordered = useMemo(
     () =>
       [...folders].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],
@@ -430,7 +430,6 @@ export default function DownloadModal({ onClose, collections = [], folders = [] 
 
   // For ytdlp tab: audio → playlists only; video → both albums and playlists.
   const ytdlpCollectionKinds = ytFormat === 'audio' ? ['playlist'] : ['album', 'playlist'];
-  const ytdlpEligibleCollections = collections.filter((g) => ytdlpCollectionKinds.includes(g.kind));
   // Playlist tab: only audio tracks go into playlists.
   const showPlaylistCollection = ytFormat === 'audio';
 
@@ -520,7 +519,8 @@ export default function DownloadModal({ onClose, collections = [], folders = [] 
         {tab === 'direct' && (
           <div className="field">
             <label>
-              {t('download.saveAs')} <span className="field-hint">({t('download.optional')})</span>
+              {t('download.saveAs')}{' '}
+              <span className="field-hint">({t('download.optionalNoExt')})</span>
             </label>
             <input
               className="input"

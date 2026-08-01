@@ -129,18 +129,13 @@
 }
 .igm-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+}
+.igm-list-inner {
   padding: 0 6px 6px;
   display: flex;
   flex-direction: column;
   gap: 1px;
-}
-.igm-list::-webkit-scrollbar {
-  width: 4px;
-}
-.igm-list::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
 }
 .igm-row {
   display: flex;

@@ -28,34 +28,36 @@ Vivid is a single home for **photos, videos, and audio**, with a focus on speed,
 
 ### Library & organization
 
-- Four layouts: **Masonry** (justified), **Cards** (uniform), **List**, and **Timeline** (grouped by month) with a date scrubber.
-- Photo albums, music playlists, and folders to keep your files organized.
-- **World map view** for GPS-tagged photos.
-- Import files, folders, drag-and-drop, direct download, upload from phone, or **watched folders** that auto-import.
-- Auto file-sync feature to back up your important files to a designated folder.
-- Tags, color labels, favorites, batch edit, and duplicate detection.
+* **Multiple Workspaces**: Manage more than one library side by side — Vivid can neatly organize your assets on disk, or seamlessly link existing folders with **zero file replication**. Add, switch, and unlink workspaces anytime.
+* Four dynamic layouts: **Masonry** (justified), **Cards** (uniform), **List**, and a chronological **Timeline** complete with a smooth date scrubber.
+* Stay organized with photo albums, **album groups** (nest related albums together), dedicated music playlists, and nested folders. Albums can belong to multiple collections at once.
+* **Interactive World Map**: Relive your travels by visualizing your GPS-tagged media on a global map, with multi-select (marquee-drag or Ctrl+click) to hide or isolate pins.
+* **Frictionless Ingestion**: Import via drag-and-drop, direct downloads, mobile uploads, or set up **watched folders** for automatic background importing.
+* **Set-and-Forget Backup**: Keep your critical data safe with an auto-file-sync feature that continuously backs up to a designated folder.
+* **Pro-Grade Search**: Find anything instantly. Filter by name, tags, metadata, resolution, or text-in-image, narrow the search scope to just names/tags/description/OCR, and **bookmark searches** to revisit them later.
+* **Curation Power Tools**: Batch-edit metadata, apply color labels, favorite your best shots, and instantly clean up clutter with built-in **duplicate detection**.
 
-### On-device AI (optional, private)
+### On-device AI (100% private & optional)
 
-- **Auto-tagging** of scenes and objects.
-- **Semantic search** — type what you remember ("sunset over the bridge", "dog on a beach") and rank by meaning, powered by multilingual SigLIP. Works in **100+ languages**.
-- **Vision OCR** — text inside screenshots, documents, and signs becomes searchable.
-- **Mood / vibe filters** and **"find visually similar"**.
+* **Intelligent Auto-Tagging**: Effortlessly categorize your library with automatic scene and object recognition.
+* **Semantic Search**: Type exactly what you remember—like *"sunset over the bridge"* or *"dog on a beach"*. Powered by multilingual SigLIP, it understands meaning across **100+ languages**.
+* **Vision OCR**: Never lose a document again. Text inside screenshots, scans, and signs is fully indexed and searchable.
+* **Visual Discovery**: Find the right aesthetic instantly with **mood / vibe filters** and a **"find visually similar"** engine.
 
 ### Built-in editing & tools
 
-- Image edits: rotate, flip, resize, crop.
-- Image side-by-side comparison tool.
-- A real **music player** with album/playlist views and cover art.
-- A feature-rich **video player** built-in.
-- Quick **screenshots** straight into the library.
-- A **stats dashboard** for your collection.
+* **Essential Image Editing**: Quick, non-destructive tools to rotate, flip, resize, and crop your images on the fly.
+* **Side-by-Side Comparison**: Evaluate your shots with a dedicated dual-image comparison tool to pick the perfect frame.
+* An **integrated music player** complete with gorgeous album art, playlist management, and queue control.
+* A feature-rich, high-performance **video player** built right into the app.
+* **Instant Screenshots**: Capture your screen and instantly route the file straight into your library.
+* **Library Insights**: Visualize your digital footprint with a beautiful **stats dashboard** breaking down your collection.
 
-### Polish
+### Premium experience
 
-- Light/dark themes with accent colors.
-- Fully localized in **11 languages**: English, Spanish, French, German, Portuguese, Vietnamese, 繁體中文, 简体中文, 日本語, 한국어, हिन्दी.
-- Keyboard-driven viewer with slideshow, zoom, and playback controls.
+* **Tailored Aesthetics**: Switch seamlessly between stunning light and dark themes, personalized with custom accent colors.
+* **Globally Localized**: Fully native support for **11 languages**: English, Spanish, French, German, Portuguese, Vietnamese, 繁體中文, 简体中文, 日本語, 한국어, and हिन्दी.
+* **Keyboard-Driven Viewer**: Fly through your media with powerful keyboard shortcuts for slideshows, zoom precision, and playback control.
 
 ---
 
@@ -206,7 +208,7 @@ The model runs **fully on-device** — nothing is ever uploaded.
 - **No mobile app and no built-in sync.** It's a single-machine desktop app. Pair it with your own backup/cloud-drive if you need off-device copies.
 - **AI models are a large one-time download** (~1.4 GB for visual search), and indexing a big library takes CPU time the first time.
 - **Building requires Xcode Command Line Tools** for the Swift helper.
-- **Early days.** Vivid is at `v0.1` — expect rough edges, and please file issues.
+- **Early days.** Vivid is at `v0` — expect rough edges, and please file issues.
 
 ---
 

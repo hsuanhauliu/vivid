@@ -6,10 +6,13 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core';
  *
  * Most formats pass straight through `convertFileSrc`. HEIC/HEIF can't be shown
  * by the webview, so those are handed to the backend `get_displayable_path`
- * command (which transcodes to a viewable JPEG) and the converted path is used
- * instead. While that async conversion is in flight `src` is `null`, so callers
- * should render a skeleton/placeholder until it resolves; on error we fall back
- * to the original path rather than showing nothing.
+ * command, which converts them entirely in memory and returns a
+ * `data:image/jpeg;base64,...` URL — no converted copy is ever written to
+ * disk, and a data URL sidesteps the webview's asset-protocol scope entirely
+ * (returning a real path outside that scope, e.g. under system temp, would
+ * just 403). While that async conversion is in flight `src` is `null`, so
+ * callers should render a skeleton/placeholder until it resolves; on error we
+ * fall back to the original path rather than showing nothing.
  *
  * Shared by every component that previews an original (not-thumbnailed) file —
  * MediaCard, DetailPanel, FileViewer — so the HEIC handling lives in exactly
@@ -27,7 +30,7 @@ export function useDisplayableSrc(filePath) {
     if (!filePath) return;
     if (isHeic) {
       invoke('get_displayable_path', { filePath })
-        .then((p) => setSrc(convertFileSrc(p)))
+        .then((p) => setSrc(p)) // already a data: URL — not a filesystem path
         .catch(() => setSrc(convertFileSrc(filePath)));
     } else {
       setSrc(convertFileSrc(filePath));

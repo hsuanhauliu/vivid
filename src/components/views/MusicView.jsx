@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Clock,
   Plus,
-  ListMusic,
   X,
   Shuffle,
   Repeat,
@@ -17,7 +16,10 @@ import {
 } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
 import { coverSrc } from '../../utils/cover';
+import { COLLECTION_KIND_ICONS } from '../../utils/collectionIcons';
 import './MusicView.css';
+
+const PlaylistIcon = COLLECTION_KIND_ICONS.playlist;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -180,7 +182,9 @@ function PlaylistCard({ group, allItems, currentTrack, onPlay, onPlayAll, onUpda
   // Videos in a playlist are treated as audio tracks (the player plays their
   // audio), so they count and play alongside audio files.
   const rawTracks = allItems.filter(
-    (i) => i.collection_id === group.id && (i.media_type === 'audio' || i.media_type === 'video'),
+    (i) =>
+      i.collection_ids?.includes(group.id) &&
+      (i.media_type === 'audio' || i.media_type === 'video'),
   );
 
   // Sync ordered tracks when allItems changes, preserving current drag order
@@ -258,7 +262,7 @@ function PlaylistCard({ group, allItems, currentTrack, onPlay, onPlayAll, onUpda
           ) : group.emoji ? (
             <span style={{ fontSize: 22 }}>{group.emoji}</span>
           ) : (
-            <ListMusic size={22} color="rgba(255,255,255,0.7)" />
+            <PlaylistIcon size={22} color="rgba(255,255,255,0.7)" />
           )}
         </div>
         <div className="music-album-info">

@@ -2,9 +2,39 @@ import { useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, FolderOpen, BookImage, Disc, Plus, Library, Search, Check, Pencil } from 'lucide-react';
 import CollectionAvatar from '../common/CollectionAvatar';
+import ScrollArea from '../common/ScrollArea';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import './ImportCollectionModal.css';
 
 const KIND_ICON = { album: BookImage, playlist: Disc };
+
+const AUDIO_EXTS = new Set([
+  'mp3',
+  'wav',
+  'flac',
+  'm4a',
+  'aac',
+  'ogg',
+  'opus',
+  'wma',
+  'aiff',
+  'aif',
+  'alac',
+]);
+const VIDEO_EXTS = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+const IMAGE_EXTS = new Set([
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'webp',
+  'heic',
+  'heif',
+  'bmp',
+  'tiff',
+  'avif',
+]);
+const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
 
 // A collection cover, falling back to a kind icon (album/playlist) when the
 // collection has neither a cover image nor an emoji.
@@ -33,7 +63,7 @@ export default function ImportCollectionModal({
   folders,
   allItems,
   defaultFolderId,
-  defaultCollectionId,
+  defaultCollectionIds,
   onConfirm,
   onClose,
 }) {
@@ -44,7 +74,7 @@ export default function ImportCollectionModal({
   const ext = origName.includes('.') ? origName.slice(origName.lastIndexOf('.')) : '';
   const origStem = ext ? origName.slice(0, -ext.length) : origName;
 
-  const uncategorized = folders?.find((f) => f.rel_path === 'Uncategorized');
+  const uncategorized = folders?.find((f) => f.id === UNCATEGORIZED_ID);
   // If dropped while already viewing a folder or collection page, default the
   // destination to that folder/collection instead of Uncategorized/None —
   // dropping a file on Album A's page should land it in Album A.
@@ -55,10 +85,7 @@ export default function ImportCollectionModal({
   const [newFolderMode, setNewFolderMode] = useState(false); // input visible
   const [newFolderConfirmed, setNewFolderConfirmed] = useState(false); // confirmed, show as row
   const [folderSearch, setFolderSearch] = useState('');
-  const [collectionId, setCollectionId] = useState(() => {
-    const defaultColl = collections?.find((g) => g.id === defaultCollectionId);
-    if (!defaultColl) return 'none';
-    const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
+  const [collectionIds, setCollectionIds] = useState(() => {
     const audio = new Set([
       'mp3',
       'wav',
@@ -88,15 +115,21 @@ export default function ImportCollectionModal({
     const hasAudio = paths.some((p) => audio.has(pathExt(p)));
     const hasVideo = paths.some((p) => video.has(pathExt(p)));
     const hasImage = paths.some((p) => image.has(pathExt(p)));
-    const fits =
-      defaultColl.kind === 'album'
+    return (defaultCollectionIds ?? []).filter((id) => {
+      const defaultColl = collections?.find((g) => g.id === id);
+      if (!defaultColl) return false;
+      return defaultColl.kind === 'album'
         ? hasImage || hasVideo
         : defaultColl.kind === 'playlist'
           ? hasAudio || hasVideo
           : true;
-    return fits ? defaultColl.id : 'none';
+    });
   });
   const [collSearch, setCollSearch] = useState('');
+
+  function toggleCollection(id) {
+    setCollectionIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
   const [filename, setFilename] = useState(origStem);
   const nameInputRef = useRef(null);
 
@@ -141,7 +174,7 @@ export default function ImportCollectionModal({
       folderId: newFolderMode || newFolderConfirmed ? null : folderId,
       newFolderName:
         (newFolderMode || newFolderConfirmed) && newFolderName.trim() ? newFolderName.trim() : null,
-      collectionId: collectionId !== 'none' ? collectionId : null,
+      collectionIds,
       filename: finalFilename,
     });
   }
@@ -149,8 +182,8 @@ export default function ImportCollectionModal({
   const folderList = useMemo(
     () =>
       [...(folders ?? [])].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],
@@ -165,46 +198,24 @@ export default function ImportCollectionModal({
       : folderList;
   }, [folderList, folderSearch]);
 
-  const AUDIO_EXTS = new Set([
-    'mp3',
-    'wav',
-    'flac',
-    'm4a',
-    'aac',
-    'ogg',
-    'opus',
-    'wma',
-    'aiff',
-    'aif',
-    'alac',
-  ]);
-  const VIDEO_EXTS = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
-  const IMAGE_EXTS = new Set([
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'webp',
-    'heic',
-    'heif',
-    'bmp',
-    'tiff',
-    'avif',
-  ]);
-  const pathExt = (p) => (p.split('.').pop() || '').toLowerCase();
   const hasAudio = useMemo(() => paths.some((p) => AUDIO_EXTS.has(pathExt(p))), [paths]);
   const hasVideo = useMemo(() => paths.some((p) => VIDEO_EXTS.has(pathExt(p))), [paths]);
   const hasImage = useMemo(() => paths.some((p) => IMAGE_EXTS.has(pathExt(p))), [paths]);
-  // Albums: images or video. Playlists: audio or video.
-  const showAlbums = hasImage || hasVideo;
-  const showPlaylists = hasAudio || hasVideo;
+  // Albums: images or video, but not mixed with audio (albums don't accept
+  // audio files). Playlists: audio or video, but not mixed with images
+  // (playlists don't accept images) — video alone is ambiguous so it's
+  // offered for both, matching DownloadModal's ytdlpCollectionKinds.
+  const showAlbums = (hasImage || hasVideo) && !hasAudio;
+  const showPlaylists = (hasAudio || hasVideo) && !hasImage;
 
   const pinned = useMemo(
     () =>
       collections.filter((g) => {
+        // album_group only holds other albums, never actual files — it's
+        // never a valid import destination regardless of pin state.
         if (g.kind === 'album') return showAlbums && g.sidebar_pin;
         if (g.kind === 'playlist') return showPlaylists && g.sidebar_pin;
-        return g.sidebar_pin;
+        return false;
       }),
     [collections, showAlbums, showPlaylists],
   );
@@ -249,7 +260,7 @@ export default function ImportCollectionModal({
   const selectedFolder = newFolderConfirmed
     ? { name: newFolderName.trim(), rel_path: newFolderName.trim() }
     : folderList.find((f) => f.id === folderId);
-  const selectedColl = collections.find((g) => g.id === collectionId);
+  const selectedColls = collections.filter((g) => collectionIds.includes(g.id));
   const canImport = newFolderMode
     ? newFolderName.trim().length > 0
     : newFolderConfirmed || !!folderId;
@@ -266,7 +277,7 @@ export default function ImportCollectionModal({
             <span className="igm-title">{t('importModal.title', { count: paths.length })}</span>
             <span className="igm-subtitle">
               {selectedFolder ? `→ ${selectedFolder.rel_path}` : ''}
-              {selectedColl ? ` · ${selectedColl.name}` : ''}
+              {selectedColls.length > 0 ? ` · ${selectedColls.map((g) => g.name).join(', ')}` : ''}
             </span>
           </div>
           <button className="icon-btn" onClick={onClose}>
@@ -311,7 +322,7 @@ export default function ImportCollectionModal({
                 />
               </div>
             )}
-            <div className="igm-list">
+            <ScrollArea className="igm-list" innerClassName="igm-list-inner">
               {filteredFolders.map((f) => {
                 const active = !newFolderMode && !newFolderConfirmed && folderId === f.id;
                 const depth = (f.rel_path.match(/\//g) || []).length;
@@ -378,7 +389,7 @@ export default function ImportCollectionModal({
                   <span className="igm-row-name">{t('importModal.newFolder')}</span>
                 </button>
               )}
-            </div>
+            </ScrollArea>
           </div>
 
           {/* ── Right: collection picker (only when collections exist) ── */}
@@ -401,27 +412,27 @@ export default function ImportCollectionModal({
                   />
                 </div>
               )}
-              <div className="igm-list">
+              <ScrollArea className="igm-list" innerClassName="igm-list-inner">
                 <button
-                  className={`igm-row ${collectionId === 'none' ? 'igm-row-active' : ''}`}
-                  onClick={() => setCollectionId('none')}
+                  className={`igm-row ${collectionIds.length === 0 ? 'igm-row-active' : ''}`}
+                  onClick={() => setCollectionIds([])}
                 >
                   <div className="igm-row-icon igm-row-icon-folder">
                     <Library size={14} />
                   </div>
                   <span className="igm-row-name">{t('importModal.none')}</span>
-                  {collectionId === 'none' && <Check size={13} className="igm-row-check" />}
+                  {collectionIds.length === 0 && <Check size={13} className="igm-row-check" />}
                 </button>
                 {collSections.map(({ key, label, showType, items }) => (
                   <div key={key}>
                     <div className="igm-section-label">{label}</div>
                     {items.map((g) => {
-                      const active = collectionId === g.id;
+                      const active = collectionIds.includes(g.id);
                       return (
                         <button
                           key={g.id}
                           className={`igm-row ${active ? 'igm-row-active' : ''}`}
-                          onClick={() => setCollectionId(g.id)}
+                          onClick={() => toggleCollection(g.id)}
                         >
                           <CollectionRowAvatar group={g} allItems={allItems} />
                           <span className="igm-row-name">{g.name}</span>
@@ -443,7 +454,7 @@ export default function ImportCollectionModal({
                 {collSections.length === 0 && collSearch && (
                   <div className="igm-empty">{t('importModal.noCollectionsMatch')}</div>
                 )}
-              </div>
+              </ScrollArea>
             </div>
           )}
         </div>

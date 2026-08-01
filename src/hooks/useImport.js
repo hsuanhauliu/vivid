@@ -93,6 +93,25 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
       }),
     );
 
+    // A file changed on disk in an external workspace while Vivid was
+    // running (the live watcher in watch.rs), independent of anything the
+    // frontend itself invoked — these two mirror `import-batch`'s "splice
+    // into `allItems` without a full reload" shape for updates/removals
+    // instead of additions.
+    track(
+      listen('media-updated', (event) => {
+        const item = event.payload;
+        if (item?.id) setAllItems((prev) => prev.map((it) => (it.id === item.id ? item : it)));
+      }),
+    );
+
+    track(
+      listen('media-removed', (event) => {
+        const ids = new Set(event.payload?.ids ?? []);
+        if (ids.size) setAllItems((prev) => prev.filter((it) => !ids.has(it.id)));
+      }),
+    );
+
     track(
       listen('import-done', (event) => {
         const { imported, skipped_type, skipped_dupe, failed } = event.payload;
@@ -121,7 +140,7 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
       cancelled = true;
       unlisteners.forEach((fn) => fn());
     };
-  }, []);
+  }, [setAllItems]);
 
   // ── Native drag-drop (web File.path is unavailable in WKWebView) ───────────
   useEffect(() => {
@@ -174,12 +193,12 @@ export default function useImport({ setAllItems, setConfirm, t, showToast }) {
   // Kick off a background import under an optional group/folder. Returns as soon
   // as the backend thread is spawned — imported items stream back via the
   // `import-batch` event and `loading` is cleared by the `import-done` listener.
-  const doImport = useCallback(async (paths, collectionId, folderId, filename) => {
+  const doImport = useCallback(async (paths, collectionIds, folderId, filename) => {
     setLoading(true);
     setImportProgress(null);
     invoke('import_paths', {
       paths,
-      collectionId: collectionId ?? null,
+      collectionIds: collectionIds ?? null,
       folderId: folderId ?? null,
       filename: filename ?? null,
     }).catch((e) => {

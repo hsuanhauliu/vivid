@@ -53,11 +53,17 @@ npm run tauri dev
 
 ## Internationalization
 
-Vivid ships with **English, 繁體中文, and 日本語**. If you add or change any
-user-facing text:
+Vivid ships with **11 languages**: English, Spanish, French, German,
+Portuguese, Vietnamese, 繁體中文, 简体中文, 日本語, 한국어, and हिन्दी. If you
+add or change any user-facing text:
 
-- Add the key to **all three** locale files: `src/locales/en.json`, `zh-TW.json`, `ja.json`.
+- Add the key to **all 11** locale files in `src/locales/`: `en.json`, `es.json`,
+  `fr.json`, `de.json`, `pt.json`, `vi.json`, `zh-TW.json`, `zh-CN.json`,
+  `ja.json`, `ko.json`, `hi.json`.
 - Keep keys in the same place across files, and prefer natural phrasing over literal translation.
+- For count-style strings, follow each locale's existing pluralization convention
+  (most use i18next's `_one`/`_other` suffixes; ja, ko, vi, zh-CN, and zh-TW use
+  a single unsuffixed key).
 
 ## Reporting bugs
 

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, FolderOpen, BookImage, Disc, Library, Search, Check, Plus, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import CollectionAvatar from '../common/CollectionAvatar';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 
 const KIND_ICON = { album: BookImage, playlist: Disc };
 
@@ -19,17 +20,29 @@ function CollectionRowAvatar({ group, allItems }) {
   );
 }
 
-export default function SaveCopyModal({ collections, folders, allItems, onConfirm, onClose }) {
+export default function SaveCopyModal({
+  collections,
+  folders,
+  allItems,
+  defaultFolderId = null,
+  defaultCollectionIds = [],
+  onConfirm,
+  onClose,
+}) {
   const { t } = useTranslation();
 
-  const uncategorized = folders?.find((f) => f.rel_path === 'Uncategorized');
-  const [folderId, setFolderId] = useState(uncategorized?.id ?? null);
+  const uncategorized = folders?.find((f) => f.id === UNCATEGORIZED_ID);
+  const [folderId, setFolderId] = useState(defaultFolderId ?? uncategorized?.id ?? null);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderMode, setNewFolderMode] = useState(false);
   const [newFolderConfirmed, setNewFolderConfirmed] = useState(false);
   const [folderSearch, setFolderSearch] = useState('');
-  const [collectionId, setCollectionId] = useState('none');
+  const [collectionIds, setCollectionIds] = useState(defaultCollectionIds ?? []);
   const [collSearch, setCollSearch] = useState('');
+
+  function toggleCollection(id) {
+    setCollectionIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   function pickFolder(id) {
     setNewFolderMode(false);
@@ -63,15 +76,15 @@ export default function SaveCopyModal({ collections, folders, allItems, onConfir
       folderId: newFolderMode || newFolderConfirmed ? null : folderId,
       newFolderName:
         (newFolderMode || newFolderConfirmed) && newFolderName.trim() ? newFolderName.trim() : null,
-      collectionId: collectionId !== 'none' ? collectionId : null,
+      collectionIds,
     });
   }
 
   const folderList = useMemo(
     () =>
       [...(folders ?? [])].sort((a, b) => {
-        if (a.rel_path === 'Uncategorized') return -1;
-        if (b.rel_path === 'Uncategorized') return 1;
+        if (a.id === UNCATEGORIZED_ID) return -1;
+        if (b.id === UNCATEGORIZED_ID) return 1;
         return a.rel_path.localeCompare(b.rel_path);
       }),
     [folders],
@@ -111,7 +124,7 @@ export default function SaveCopyModal({ collections, folders, allItems, onConfir
   const selectedFolder = newFolderConfirmed
     ? { name: newFolderName.trim(), rel_path: newFolderName.trim() }
     : folderList.find((f) => f.id === folderId);
-  const selectedColl = collections.find((g) => g.id === collectionId);
+  const selectedColls = collections.filter((g) => collectionIds.includes(g.id));
   const canSave = newFolderMode
     ? newFolderName.trim().length > 0
     : newFolderConfirmed || !!folderId;
@@ -127,7 +140,7 @@ export default function SaveCopyModal({ collections, folders, allItems, onConfir
             <span className="igm-title">Save as Copy</span>
             <span className="igm-subtitle">
               {selectedFolder ? `→ ${selectedFolder.rel_path}` : ''}
-              {selectedColl ? ` · ${selectedColl.name}` : ''}
+              {selectedColls.length > 0 ? ` · ${selectedColls.map((g) => g.name).join(', ')}` : ''}
             </span>
           </div>
           <button className="icon-btn" onClick={onClose}>
@@ -247,25 +260,25 @@ export default function SaveCopyModal({ collections, folders, allItems, onConfir
               )}
               <div className="igm-list">
                 <button
-                  className={`igm-row ${collectionId === 'none' ? 'igm-row-active' : ''}`}
-                  onClick={() => setCollectionId('none')}
+                  className={`igm-row ${collectionIds.length === 0 ? 'igm-row-active' : ''}`}
+                  onClick={() => setCollectionIds([])}
                 >
                   <div className="igm-row-icon igm-row-icon-folder">
                     <Library size={14} />
                   </div>
                   <span className="igm-row-name">{t('importModal.none')}</span>
-                  {collectionId === 'none' && <Check size={13} className="igm-row-check" />}
+                  {collectionIds.length === 0 && <Check size={13} className="igm-row-check" />}
                 </button>
                 {collSections.map(({ key, label, showType, items }) => (
                   <div key={key}>
                     <div className="igm-section-label">{label}</div>
                     {items.map((g) => {
-                      const active = collectionId === g.id;
+                      const active = collectionIds.includes(g.id);
                       return (
                         <button
                           key={g.id}
                           className={`igm-row ${active ? 'igm-row-active' : ''}`}
-                          onClick={() => setCollectionId(g.id)}
+                          onClick={() => toggleCollection(g.id)}
                         >
                           <CollectionRowAvatar group={g} allItems={allItems} />
                           <span className="igm-row-name">{g.name}</span>

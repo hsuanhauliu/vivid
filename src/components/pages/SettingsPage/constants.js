@@ -25,12 +25,10 @@ export const LANGUAGES = [
 
 export const HOME_PAGE_OPTIONS = [
   { value: 'all', labelKey: 'settings.homePageOptions.all' },
+  { value: 'starred', labelKey: 'settings.homePageOptions.starred' },
   { value: 'image', labelKey: 'settings.homePageOptions.image' },
   { value: 'video', labelKey: 'settings.homePageOptions.video' },
   { value: 'audio', labelKey: 'settings.homePageOptions.audio' },
-  { value: 'folders', labelKey: 'settings.homePageOptions.folders' },
-  { value: 'albums', labelKey: 'settings.homePageOptions.albums' },
-  { value: 'music', labelKey: 'settings.homePageOptions.music' },
 ];
 
 export const RETENTION_OPTIONS = [7, 14, 30, 60, 90];

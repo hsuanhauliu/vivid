@@ -159,7 +159,10 @@ pub async fn start_upload_server(app: AppHandle) -> Result<UploadServerInfo, Str
     });
 
     let qr_svg = qr_svg(&url);
-    *app.state::<UploadState>().inner.lock().map_err(|e| e.to_string())? = Some(Session {
+    *app.state::<UploadState>()
+        .inner
+        .lock()
+        .map_err(|e| e.to_string())? = Some(Session {
         token,
         stop: Some(stop_tx),
     });
@@ -207,7 +210,10 @@ fn finish_session(app: &AppHandle, token: &str) {
 
 // ── HTTP handlers ─────────────────────────────────────────────────────────────
 
-async fn serve_page(AxumState(ctx): AxumState<Arc<ServerCtx>>, AxumPath(token): AxumPath<String>) -> Response {
+async fn serve_page(
+    AxumState(ctx): AxumState<Arc<ServerCtx>>,
+    AxumPath(token): AxumPath<String>,
+) -> Response {
     if token != ctx.token {
         return StatusCode::NOT_FOUND.into_response();
     }
@@ -236,8 +242,8 @@ async fn receive(
 
         let fname = field.file_name().map(|s| s.to_string());
         let Some(fname) = fname else { continue }; // skip non-file fields
-        // `unique_path` reduces to the final path component, so a crafted filename
-        // can't escape the staging dir.
+                                                   // `unique_path` reduces to the final path component, so a crafted filename
+                                                   // can't escape the staging dir.
         let dest = unique_path(&ctx.staging, &fname);
 
         let mut file = match tokio::fs::File::create(&dest).await {

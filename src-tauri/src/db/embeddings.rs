@@ -1,20 +1,26 @@
 //! CLIP embedding storage and the queries that feed AI indexing.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
 use rusqlite::{params, Connection, Result};
 
 /// Return (id, file_path, media_type, file_size) for every image/video without an embedding,
 /// ordered by file_size ASC so small (fast) files are processed first.
-pub fn get_items_without_embeddings(conn: &Connection) -> Result<Vec<(String, String, String, i64)>> {
+pub fn get_items_without_embeddings(
+    conn: &Connection,
+) -> Result<Vec<(String, String, String, i64)>> {
     let mut stmt = conn.prepare(
         "SELECT id, file_path, media_type, file_size FROM media_items \
          WHERE media_type IN ('image','video') AND deleted_at IS NULL AND embedding IS NULL \
          ORDER BY file_size ASC",
     )?;
     let rows = stmt.query_map([], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?, r.get::<_, i64>(3)?))
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, i64>(3)?,
+        ))
     })?;
     rows.collect()
 }
@@ -47,20 +53,21 @@ pub fn fetch_items_by_ids(conn: &Connection, ids: &[String]) -> Result<Vec<Media
     if ids.is_empty() {
         return Ok(vec![]);
     }
-    let placeholders = (1..=ids.len())
-        .map(|i| format!("?{i}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!("{SELECT_MEDIA} WHERE id IN ({placeholders}) AND deleted_at IS NULL");
+    let sql = format!(
+        "{SELECT_MEDIA} WHERE id IN ({}) AND deleted_at IS NULL",
+        super::in_placeholders(ids.len())
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map(rusqlite::params_from_iter(ids.iter()), row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
-/// Store a pre-computed embedding and its auto-generated tags for one item.
+/// Store a pre-computed embedding and its auto-generated tags for one item,
+/// clearing any previously recorded embed failure.
 pub fn set_embedding(
     conn: &Connection,
     id: &str,
@@ -69,8 +76,19 @@ pub fn set_embedding(
 ) -> Result<()> {
     let auto_tags_json = serde_json::to_string(auto_tags).unwrap_or_else(|_| "[]".into());
     conn.execute(
-        "UPDATE media_items SET embedding=?1, auto_tags=?2 WHERE id=?3",
+        "UPDATE media_items SET embedding=?1, auto_tags=?2, embed_error=NULL WHERE id=?3",
         params![embedding, auto_tags_json, id],
+    )?;
+    Ok(())
+}
+
+/// Records why the last embed attempt failed, surfaced in the detail panel.
+/// The item stays embedding-less, so it's still retried by
+/// `get_items_without_embeddings`.
+pub fn set_embed_error(conn: &Connection, id: &str, error: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE media_items SET embed_error=?1 WHERE id=?2",
+        params![error, id],
     )?;
     Ok(())
 }

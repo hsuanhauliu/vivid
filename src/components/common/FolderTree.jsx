@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import SimpleMenu from './SimpleMenu';
 import { COLLECTION_NAME_MAX_LEN } from '../../utils/limits';
+import { UNCATEGORIZED_ID } from '../../utils/folders';
 import {
   Folder,
   FolderOpen,
   ChevronRight,
-  Minus,
+  ChevronsDown,
   Plus,
   Pencil,
   Trash2,
@@ -60,9 +61,16 @@ function MovePicker({ folders, sourceFolderId, sourceRelPath, onConfirm, onCance
 
   const candidates = useMemo(() => {
     const prefix = sourceRelPath + '/';
-    return folders
-      .filter((f) => f.id !== sourceFolderId && !f.rel_path.startsWith(prefix))
-      .sort((a, b) => a.rel_path.localeCompare(b.rel_path));
+    return (
+      folders
+        // The virtual Uncategorized bucket isn't a real nesting target — the
+        // "Root level" row above already covers moving a folder there.
+        .filter(
+          (f) =>
+            f.id !== sourceFolderId && f.id !== UNCATEGORIZED_ID && !f.rel_path.startsWith(prefix),
+        )
+        .sort((a, b) => a.rel_path.localeCompare(b.rel_path))
+    );
   }, [folders, sourceFolderId, sourceRelPath]);
 
   const filtered = query.trim()
@@ -89,12 +97,12 @@ function MovePicker({ folders, sourceFolderId, sourceRelPath, onConfirm, onCance
       </div>
       <div className="ft-move-picker-list">
         <button className="ft-move-picker-row" onClick={() => onConfirm(null)}>
-          <Folder size={13} />
+          <FolderOpen size={13} />
           <span>{t('panel.rootLevel', 'Root level')}</span>
         </button>
         {filtered.map((f) => (
           <button key={f.id} className="ft-move-picker-row" onClick={() => onConfirm(f.id)}>
-            <Folder size={13} />
+            <FolderOpen size={13} />
             <span>{f.rel_path.replace(/\//g, ' / ')}</span>
           </button>
         ))}
@@ -190,56 +198,104 @@ export default function FolderTree({
     invoke('reveal_folder_in_finder', { id: folder.id }).catch(console.error);
   }
 
+  function collectDescendantIds(id, acc) {
+    for (const k of tree.get(id) || []) {
+      acc.add(k.id);
+      collectDescendantIds(k.id, acc);
+    }
+    return acc;
+  }
+
+  function handleExpandAll(folder) {
+    setExpanded((prev) => collectDescendantIds(folder.id, new Set(prev).add(folder.id)));
+    setCtxMenu(null);
+  }
+
   function handleMoveConfirm(newParentId) {
     setMovingFolder(null);
     if (onMoveFolder) onMoveFolder(movingFolder.id, newParentId);
   }
 
-  const nameCmp =
-    sortMode === 'za'
-      ? (a, b) => b.name.localeCompare(a.name)
-      : (a, b) => a.name.localeCompare(b.name);
+  const nameCmp = (a, b) => {
+    if (a.id === UNCATEGORIZED_ID) return -1;
+    if (b.id === UNCATEGORIZED_ID) return 1;
+    return sortMode === 'za' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+  };
 
-  function renderNode(folder, depth) {
-    const kids = (tree.get(folder.id) || [])
-      .filter((k) => !matchSet || matchSet.has(k.id))
-      .sort(nameCmp);
-    const isOpen = matchSet ? matchSet.has(folder.id) : expanded.has(folder.id);
-    const isMatch =
-      matchSet && query.trim() && folder.name.toLowerCase().includes(query.trim().toLowerCase());
-    const isActive = folder.id === activeFolderId;
-    const isDragOver = folder.id === dragOverFolderId;
+  function kidsOf(id) {
+    return (tree.get(id) || []).filter((k) => !matchSet || matchSet.has(k.id));
+  }
+
+  function renderNode(folder, depth, isLast) {
+    // VS Code-style "compact folders": fold a run of folders that each have
+    // no items of their own and exactly one child folder into a single row
+    // showing the whole segment path, instead of a long single-child
+    // staircase that eventually pushes the count off the edge of the panel.
+    // Disabled while searching so every match still gets its own row.
+    const chain = [folder];
+    if (!matchSet) {
+      let terminal = folder;
+      while ((counts[terminal.id] || 0) === 0) {
+        const only = kidsOf(terminal.id);
+        if (only.length !== 1) break;
+        terminal = only[0];
+        chain.push(terminal);
+      }
+    }
+    const terminal = chain[chain.length - 1];
+    const kids = kidsOf(terminal.id).sort(nameCmp);
+    const isOpen = matchSet ? matchSet.has(terminal.id) : expanded.has(terminal.id);
+    const isRowActive = chain.some((f) => f.id === activeFolderId);
+    const isDragOver = terminal.id === dragOverFolderId;
+    const parentGuideX = 20 + (depth - 1) * 14;
     return (
-      <div key={folder.id}>
+      <div key={folder.id} className="ft-node">
+        {depth > 0 && (
+          <>
+            <div className="ft-stub" style={{ left: parentGuideX }} />
+            {/* Runs the full height of this node (including its own
+                expanded subtree) so the line keeps going down to the next
+                sibling — except for the last sibling, where it stops right
+                at the stub instead of trailing off into empty space below
+                a subtree that isn't connected to anything further. */}
+            <div
+              className={`ft-vline ${isLast ? 'ft-vline-last' : ''}`}
+              style={{ left: parentGuideX }}
+            />
+          </>
+        )}
         <div
           role="button"
           tabIndex={0}
-          data-folder-id={folder.id}
-          className={`ft-row ${isActive ? 'ft-active' : ''} ${isDragOver ? 'ft-drag-over' : ''}`}
+          data-folder-id={terminal.id}
+          className={`ft-row ${isRowActive ? 'ft-active' : ''} ${isDragOver ? 'ft-drag-over' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
-          onClick={() => renamingId !== folder.id && onFolderClick(folder.id)}
+          onClick={() => renamingId !== terminal.id && onFolderClick(terminal.id)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && renamingId !== folder.id) onFolderClick(folder.id);
+            if (e.key === 'Enter' && renamingId !== terminal.id) onFolderClick(terminal.id);
           }}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setCtxMenu({ x: e.clientX, y: e.clientY, folder });
+            setCtxMenu({ x: e.clientX, y: e.clientY, folder: terminal });
           }}
         >
           <button
             className="ft-twisty"
             onClick={(e) => {
               e.stopPropagation();
-              if (kids.length) toggle(folder.id);
+              if (kids.length) toggle(terminal.id);
             }}
             tabIndex={-1}
+            style={kids.length ? undefined : { cursor: 'default' }}
           >
+            {/* Leaf folders render nothing here — the button keeps its fixed
+                16px footprint (see .ft-twisty) so names still line up with
+                folders that do have a chevron, instead of a "-" that looked
+                like a real (but non-functional) control. */}
             {kids.length ? (
               <ChevronRight size={12} style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} />
-            ) : (
-              <Minus size={12} />
-            )}
+            ) : null}
           </button>
           {isOpen && kids.length ? (
             <FolderOpen size={14} className="ft-icon" />
@@ -247,24 +303,50 @@ export default function FolderTree({
             <Folder size={14} className="ft-icon" />
           )}
           <div className="ft-info">
-            {renamingId === folder.id ? (
-              <RenameInline
-                name={folder.name}
-                onConfirm={(val) => {
-                  setRenamingId(null);
-                  onRenameFolder(folder.id, val);
-                }}
-                onCancel={() => setRenamingId(null)}
-              />
-            ) : (
-              <>
-                <span className={`ft-name ${isMatch ? 'ft-name-match' : ''}`}>{folder.name}</span>
-                <span className="ft-count">{counts[folder.id] || 0}</span>
-              </>
-            )}
+            <span className="ft-name-chain">
+              {chain.map((f, i) => {
+                const isMatch =
+                  matchSet &&
+                  query.trim() &&
+                  f.name.toLowerCase().includes(query.trim().toLowerCase());
+                return (
+                  <span key={f.id}>
+                    {renamingId === f.id ? (
+                      <RenameInline
+                        name={f.name}
+                        onConfirm={(val) => {
+                          setRenamingId(null);
+                          onRenameFolder(f.id, val);
+                        }}
+                        onCancel={() => setRenamingId(null)}
+                      />
+                    ) : (
+                      <span
+                        className={`ft-name ${f.id === activeFolderId ? 'ft-name-active' : ''} ${
+                          isMatch ? 'ft-name-match' : ''
+                        } ${f.id === UNCATEGORIZED_ID ? 'ft-name-uncategorized' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (renamingId !== f.id) onFolderClick(f.id);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setCtxMenu({ x: e.clientX, y: e.clientY, folder: f });
+                        }}
+                      >
+                        {f.name}
+                      </span>
+                    )}
+                    {i < chain.length - 1 && <span className="ft-name-sep">/</span>}
+                  </span>
+                );
+              })}
+            </span>
+            <span className="ft-count">{counts[terminal.id] || 0}</span>
           </div>
         </div>
-        {creatingParent === folder.id && (
+        {chain.some((f) => f.id === creatingParent) && (
           <form
             className="sp-create-form"
             style={{ paddingLeft: 20 + depth * 14 }}
@@ -290,7 +372,9 @@ export default function FolderTree({
             />
           </form>
         )}
-        {isOpen && kids.map((k) => renderNode(k, depth + 1))}
+        {isOpen &&
+          kids.length > 0 &&
+          kids.map((k, i) => renderNode(k, depth + 1, i === kids.length - 1))}
       </div>
     );
   }
@@ -374,7 +458,7 @@ export default function FolderTree({
 
       {ctxMenu && (
         <SimpleMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
-          {ctxMenu.folder.rel_path === 'Uncategorized' ? (
+          {ctxMenu.folder.id === UNCATEGORIZED_ID ? (
             <button className="sp-ctx-item" onClick={() => handleShowInFinder(ctxMenu.folder)}>
               <ExternalLink size={12} />
               <span>{t('panel.showInFinder', 'Show in Finder')}</span>
@@ -392,6 +476,12 @@ export default function FolderTree({
                 <Plus size={12} />
                 <span>{t('panel.newSubfolder')}</span>
               </button>
+              {(tree.get(ctxMenu.folder.id) || []).length > 0 && (
+                <button className="sp-ctx-item" onClick={() => handleExpandAll(ctxMenu.folder)}>
+                  <ChevronsDown size={12} />
+                  <span>{t('panel.expandAll', 'Expand All')}</span>
+                </button>
+              )}
               <button
                 className="sp-ctx-item"
                 onClick={() => {

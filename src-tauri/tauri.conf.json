@@ -38,7 +38,10 @@
       },
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": {
+          "allow": ["$APPDATA/**"],
+          "requireLiteralLeadingDot": false
+        }
       }
     }
   },

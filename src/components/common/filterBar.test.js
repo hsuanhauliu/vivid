@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyFilters } from './FilterBar';
+import { applyFilters, resolutionBucket } from './FilterBar';
 
 const ids = (items) => items.map((i) => i.id).sort();
 
@@ -60,6 +60,48 @@ describe('applyFilters', () => {
       expect(ids(applyFilters(items, { fileSize: 'small' }))).toEqual(['small']);
       expect(ids(applyFilters(items, { fileSize: 'medium' }))).toEqual(['medium']);
       expect(ids(applyFilters(items, { fileSize: 'large' }))).toEqual(['large']);
+    });
+  });
+
+  describe('resolutionBucket', () => {
+    it('classifies by the long edge, independent of orientation', () => {
+      expect(resolutionBucket(1920, 1080)).toBe('fhd');
+      expect(resolutionBucket(1080, 1920)).toBe('fhd'); // portrait, same long edge
+    });
+    it('buckets sd / hd / fhd / uhd at the documented thresholds', () => {
+      expect(resolutionBucket(640, 480)).toBe('sd');
+      expect(resolutionBucket(1279, 720)).toBe('sd');
+      expect(resolutionBucket(1280, 720)).toBe('hd');
+      expect(resolutionBucket(1919, 1080)).toBe('hd');
+      expect(resolutionBucket(1920, 1080)).toBe('fhd');
+      expect(resolutionBucket(3839, 2160)).toBe('fhd');
+      expect(resolutionBucket(3840, 2160)).toBe('uhd');
+    });
+    it('returns null for missing dimensions', () => {
+      expect(resolutionBucket(null, null)).toBeNull();
+      expect(resolutionBucket(1920, null)).toBeNull();
+      expect(resolutionBucket(0, 0)).toBeNull();
+    });
+  });
+
+  describe('resolution filter', () => {
+    const items = [
+      { id: 'sd', width: 640, height: 480 },
+      { id: 'hd', width: 1280, height: 720 },
+      { id: 'fhd', width: 1920, height: 1080 },
+      { id: 'uhd', width: 3840, height: 2160 },
+      { id: 'nodim', width: null, height: null },
+    ];
+    it('matches only the selected bucket', () => {
+      expect(ids(applyFilters(items, { resolution: 'fhd' }))).toEqual(['fhd']);
+    });
+    it('matches any of several selected buckets (multi-select)', () => {
+      expect(ids(applyFilters(items, { resolution: ['sd', 'uhd'] }))).toEqual(['sd', 'uhd']);
+    });
+    it('excludes items with unknown dimensions from every bucket', () => {
+      for (const r of ['sd', 'hd', 'fhd', 'uhd']) {
+        expect(applyFilters(items, { resolution: r }).map((i) => i.id)).not.toContain('nodim');
+      }
     });
   });
 

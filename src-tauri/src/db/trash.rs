@@ -1,6 +1,6 @@
 //! Soft-delete (trash) lifecycle: trash, restore, list, purge, hard-delete.
 
-use super::{row_to_item, SELECT_MEDIA};
+use super::{attach_collections, row_to_item, SELECT_MEDIA};
 use crate::models::MediaItem;
 use rusqlite::{params, Connection, Result};
 
@@ -27,10 +27,11 @@ pub fn restore_item(conn: &Connection, id: &str) -> Result<()> {
 pub fn get_trash(conn: &Connection) -> Result<Vec<MediaItem>> {
     let sql = format!("{SELECT_MEDIA} WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items: Vec<MediaItem> = stmt
         .query_map([], row_to_item)?
         .filter_map(|r| r.ok())
         .collect();
+    attach_collections(conn, &mut items)?;
     Ok(items)
 }
 
@@ -55,8 +56,8 @@ pub fn purge_old_trash(conn: &Connection, days: i64) -> Result<Vec<String>> {
 
 /// Permanently delete ALL trashed items; returns file_paths.
 pub fn empty_trash(conn: &Connection) -> Result<Vec<String>> {
-    let mut stmt = conn
-        .prepare("SELECT file_path FROM media_items WHERE deleted_at IS NOT NULL")?;
+    let mut stmt =
+        conn.prepare("SELECT file_path FROM media_items WHERE deleted_at IS NOT NULL")?;
     let paths: Vec<String> = stmt
         .query_map([], |r| r.get(0))?
         .filter_map(|r| r.ok())
@@ -68,7 +69,11 @@ pub fn empty_trash(conn: &Connection) -> Result<Vec<String>> {
 /// Hard-delete a single item by id; returns its file_path.
 pub fn remove(conn: &Connection, id: &str) -> Result<Option<String>> {
     let file_path: Option<String> = conn
-        .query_row("SELECT file_path FROM media_items WHERE id=?1", params![id], |r| r.get(0))
+        .query_row(
+            "SELECT file_path FROM media_items WHERE id=?1",
+            params![id],
+            |r| r.get(0),
+        )
         .ok();
     conn.execute("DELETE FROM media_items WHERE id=?1", params![id])?;
     Ok(file_path)

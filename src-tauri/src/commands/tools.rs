@@ -16,10 +16,10 @@
 //! isn't present, same as yt-dlp itself degrading the download feature if
 //! missing. Settings surfaces both as optional installs via the same flow.
 
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use serde::Serialize;
 use serde_json::json;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use tauri::Emitter;
 
 // Set once at startup (see lib.rs setup): the app-managed binaries directory.
@@ -31,7 +31,9 @@ pub fn init_bin_dir(dir: PathBuf) {
     let _ = BIN_DIR.set(dir);
 }
 
-fn bin_dir() -> Option<PathBuf> { BIN_DIR.get().cloned() }
+fn bin_dir() -> Option<PathBuf> {
+    BIN_DIR.get().cloned()
+}
 
 // GUI apps on macOS don't inherit the shell PATH, so probe the standard install
 // locations explicitly in addition to whatever PATH we did inherit.
@@ -49,7 +51,9 @@ const FFMPEG_URL: &str = "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip";
 
 fn is_executable(p: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
-    p.metadata().map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+    p.metadata()
+        .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
 }
 
 /// Return the first directory in `dirs` that contains an executable `name`.
@@ -57,7 +61,9 @@ fn is_executable(p: &Path) -> bool {
 fn find_in_dirs<I: IntoIterator<Item = PathBuf>>(name: &str, dirs: I) -> Option<PathBuf> {
     for dir in dirs {
         let cand = dir.join(name);
-        if is_executable(&cand) { return Some(cand); }
+        if is_executable(&cand) {
+            return Some(cand);
+        }
     }
     None
 }
@@ -89,10 +95,10 @@ pub fn resolve(name: &str) -> Option<PathBuf> {
 
 #[derive(Serialize)]
 pub struct ToolStatus {
-    pub name:      String,
+    pub name: String,
     pub available: bool,
     /// "system" | "managed" | "missing"
-    pub source:    String,
+    pub source: String,
 }
 
 fn status_of(name: &str) -> ToolStatus {
@@ -103,7 +109,11 @@ fn status_of(name: &str) -> ToolStatus {
     } else {
         (false, "missing")
     };
-    ToolStatus { name: name.to_string(), available, source: source.to_string() }
+    ToolStatus {
+        name: name.to_string(),
+        available,
+        source: source.to_string(),
+    }
 }
 
 /// Availability + source for each external tool the app can use, per the
@@ -126,7 +136,10 @@ fn download_url(name: &str) -> Result<&'static str, String> {
 }
 
 fn emit_err(app: &tauri::AppHandle, name: &str, msg: String) -> String {
-    let _ = app.emit("tool-download-progress", json!({ "tool": name, "error": msg }));
+    let _ = app.emit(
+        "tool-download-progress",
+        json!({ "tool": name, "error": msg }),
+    );
     msg
 }
 
@@ -146,7 +159,10 @@ fn install_from_tmp(name: &str, tmp: &Path, is_zip: bool) -> Result<PathBuf, Str
             let entry = zip.by_index(i).map_err(|e| e.to_string())?;
             if entry.is_file() {
                 let bn = Path::new(entry.name()).file_name().and_then(|s| s.to_str());
-                if bn == Some(name) { found = Some(i); break; }
+                if bn == Some(name) {
+                    found = Some(i);
+                    break;
+                }
             }
         }
         let i = found.ok_or_else(|| format!("'{name}' not found in downloaded archive"))?;
@@ -158,7 +174,8 @@ fn install_from_tmp(name: &str, tmp: &Path, is_zip: bool) -> Result<PathBuf, Str
     }
 
     use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+    std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))
+        .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "macos")]
     {
@@ -188,22 +205,34 @@ pub async fn download_tool(name: String, app: tauri::AppHandle) -> Result<(), St
         .build()
         .map_err(|e| e.to_string())?;
 
-    let mut resp = client.get(url).send().await
+    let mut resp = client
+        .get(url)
+        .send()
+        .await
         .map_err(|e| emit_err(&app, &name, format!("Network error: {e}")))?;
     if !resp.status().is_success() {
-        return Err(emit_err(&app, &name, format!("HTTP {} downloading {name}", resp.status())));
+        return Err(emit_err(
+            &app,
+            &name,
+            format!("HTTP {} downloading {name}", resp.status()),
+        ));
     }
 
     let total = resp.content_length().unwrap_or(0);
     let mut downloaded: u64 = 0;
-    let mut file = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+    let mut file = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| e.to_string())?;
     while let Some(chunk) = resp.chunk().await.map_err(|e| e.to_string())? {
         use tokio::io::AsyncWriteExt;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         downloaded += chunk.len() as u64;
-        let _ = app.emit("tool-download-progress", json!({
-            "tool": name, "downloaded": downloaded, "total": total, "done": false
-        }));
+        let _ = app.emit(
+            "tool-download-progress",
+            json!({
+                "tool": name, "downloaded": downloaded, "total": total, "done": false
+            }),
+        );
     }
     drop(file);
 
@@ -214,7 +243,10 @@ pub async fn download_tool(name: String, app: tauri::AppHandle) -> Result<(), St
         .map_err(|e| emit_err(&app, &name, e))?;
 
     tracing::info!(tool = %name, "Managed tool downloaded");
-    let _ = app.emit("tool-download-progress", json!({ "tool": name, "done": true }));
+    let _ = app.emit(
+        "tool-download-progress",
+        json!({ "tool": name, "done": true }),
+    );
     Ok(())
 }
 
@@ -263,7 +295,10 @@ mod tests {
         // Same name exists (executable) in both dirs; the earlier dir must win.
         make_file(a.path(), "ffmpeg", 0o755);
         make_file(b.path(), "ffmpeg", 0o755);
-        let found = find_in_dirs("ffmpeg", vec![a.path().to_path_buf(), b.path().to_path_buf()]);
+        let found = find_in_dirs(
+            "ffmpeg",
+            vec![a.path().to_path_buf(), b.path().to_path_buf()],
+        );
         assert_eq!(found, Some(a.path().join("ffmpeg")));
     }
 
@@ -274,14 +309,20 @@ mod tests {
         // Present but not executable in `a`; executable in `b` → `b` wins.
         make_file(a.path(), "yt-dlp", 0o644);
         make_file(b.path(), "yt-dlp", 0o755);
-        let found = find_in_dirs("yt-dlp", vec![a.path().to_path_buf(), b.path().to_path_buf()]);
+        let found = find_in_dirs(
+            "yt-dlp",
+            vec![a.path().to_path_buf(), b.path().to_path_buf()],
+        );
         assert_eq!(found, Some(b.path().join("yt-dlp")));
     }
 
     #[test]
     fn find_in_dirs_none_when_absent() {
         let dir = tempdir().unwrap();
-        assert_eq!(find_in_dirs("does-not-exist", vec![dir.path().to_path_buf()]), None);
+        assert_eq!(
+            find_in_dirs("does-not-exist", vec![dir.path().to_path_buf()]),
+            None
+        );
     }
 
     #[test]

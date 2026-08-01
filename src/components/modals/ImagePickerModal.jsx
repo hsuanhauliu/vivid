@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Search, FolderOpen } from 'lucide-react';
 import Modal from '../common/Modal';
+import { thumbSrcOf } from '../../utils/path';
 import './ImagePickerModal.css';
 
 /**
@@ -55,7 +56,7 @@ export default function ImagePickerModal({
           {images.map((item) => {
             const selected = currentPath && currentPath === item.file_path;
             const src = item.thumb_path
-              ? convertFileSrc(item.thumb_path)
+              ? thumbSrcOf(item.thumb_path)
               : convertFileSrc(item.file_path);
             return (
               <div

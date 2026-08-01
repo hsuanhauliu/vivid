@@ -12,7 +12,6 @@ import {
   Settings,
   Import,
   Filter,
-  Layers,
   Shuffle,
   ZoomIn,
   ZoomOut,
@@ -21,6 +20,7 @@ import {
   ArrowRight,
   X,
 } from 'lucide-react';
+import { COLLECTION_KIND_ICONS } from '../../utils/collectionIcons';
 
 /**
  * All static commands are defined here. Dynamic commands (per-item actions,
@@ -59,7 +59,7 @@ function buildCommands({
     {
       id: 'nav-albums',
       label: 'Albums',
-      icon: Layers,
+      icon: COLLECTION_KIND_ICONS.album,
       category: 'Navigate',
       action: () => onViewChange('albums'),
     },
@@ -207,13 +207,65 @@ function score(cmd, query) {
   return 0;
 }
 
-export default function CommandPalette({ open, onClose, commands: extraCommands = [], ...props }) {
+export default function CommandPalette({
+  open,
+  onClose,
+  commands: extraCommands = [],
+  onViewChange,
+  onFilterChange,
+  onImport,
+  onToggleFilterBar,
+  onFindDuplicates,
+  onShowHelp,
+  onZoomIn,
+  onZoomOut,
+  onGoBack,
+  onGoForward,
+  navCanBack,
+  navCanForward,
+}) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
-  const allCommands = useMemo(() => [...buildCommands(props), ...extraCommands], [extraCommands]);
+  // Named props instead of a `...props` rest object (a fresh reference every
+  // render, which would defeat this memo entirely) — each one listed below
+  // is exactly what buildCommands reads.
+  const allCommands = useMemo(
+    () => [
+      ...buildCommands({
+        onViewChange,
+        onFilterChange,
+        onImport,
+        onToggleFilterBar,
+        onFindDuplicates,
+        onShowHelp,
+        onZoomIn,
+        onZoomOut,
+        onGoBack,
+        onGoForward,
+        navCanBack,
+        navCanForward,
+      }),
+      ...extraCommands,
+    ],
+    [
+      extraCommands,
+      onViewChange,
+      onFilterChange,
+      onImport,
+      onToggleFilterBar,
+      onFindDuplicates,
+      onShowHelp,
+      onZoomIn,
+      onZoomOut,
+      onGoBack,
+      onGoForward,
+      navCanBack,
+      navCanForward,
+    ],
+  );
 
   const filtered = useMemo(() => {
     return allCommands

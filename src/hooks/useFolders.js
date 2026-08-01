@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { folderIdOf } from '../utils/folders';
 
 /**
  * On-disk folder tree state and CRUD, extracted from App so the folder domain
@@ -41,10 +42,15 @@ export default function useFolders({ allItems, reloadMedia, showToast, setConfir
     };
   }, []);
 
-  // Items directly in each folder, for the tree's per-row counts.
+  // Items directly in each folder, for the tree's per-row counts. A `null`
+  // `folder_id` (never filed into a real folder) counts toward the virtual
+  // Uncategorized bucket, same as every other folder row.
   const folderCounts = useMemo(() => {
     const m = {};
-    for (const i of allItems) if (i.folder_id) m[i.folder_id] = (m[i.folder_id] || 0) + 1;
+    for (const i of allItems) {
+      const key = folderIdOf(i);
+      m[key] = (m[key] || 0) + 1;
+    }
     return m;
   }, [allItems]);
 

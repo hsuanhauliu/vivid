@@ -42,7 +42,7 @@ use tokenizers::Tokenizer;
 
 use crate::clip::{
     best_device, cosine_sim, extract_video_frame, heif_to_jpeg_if_needed, sips_to_jpeg,
-    to_normed_vec, MOOD_VOCAB, SCENE_VOCAB, TAG_VOCAB,
+    to_normed_vec, MOOD_VOCAB, TAG_VOCAB,
 };
 use crate::config::{AUTO_TAG_MAX, AUTO_TAG_THRESHOLD};
 
@@ -57,7 +57,6 @@ pub struct SiglipClip {
     tokenizer: Tokenizer,
     tag_embeddings: Vec<Vec<f32>>,
     mood_embeddings: Vec<Vec<f32>>,
-    scene_embeddings: Vec<Vec<f32>>,
     device: Device,
 }
 
@@ -98,13 +97,11 @@ impl SiglipClip {
             tokenizer,
             tag_embeddings: Vec::new(),
             mood_embeddings: Vec::new(),
-            scene_embeddings: Vec::new(),
             device,
         };
 
         result.tag_embeddings = result.compute_tag_embeddings()?;
         result.mood_embeddings = result.compute_mood_embeddings()?;
-        result.scene_embeddings = result.compute_scene_embeddings()?;
 
         tracing::info!(path = ?model_dir, "SigLIP (multilingual) loaded");
         Ok(result)
@@ -114,7 +111,10 @@ impl SiglipClip {
 
     /// Encode text → L2-normalised embedding.
     pub fn embed_text(&self, text: &str) -> Result<Vec<f32>> {
-        let enc = self.tokenizer.encode(text, true).map_err(|e| anyhow!("{e}"))?;
+        let enc = self
+            .tokenizer
+            .encode(text, true)
+            .map_err(|e| anyhow!("{e}"))?;
         let mut ids: Vec<u32> = enc.get_ids().to_vec();
         ids.truncate(MAX_TOKENS);
         ids.resize(MAX_TOKENS, PAD_TOKEN_ID);
@@ -127,12 +127,13 @@ impl SiglipClip {
     /// Encode an image file → L2-normalised embedding.
     pub fn embed_image(&self, path: &Path) -> Result<Vec<f32>> {
         let heic_path = heif_to_jpeg_if_needed(path)?;
-        let open_path = heic_path.as_ref().map(|p| p.as_path()).unwrap_or(path);
+        let open_path = heic_path.as_deref().unwrap_or(path);
         let img = match image::open(open_path) {
             Ok(img) => img,
             Err(_) if heic_path.is_none() => {
                 let tmp = sips_to_jpeg(path)?;
-                let loaded = image::open(&tmp).map_err(|e| anyhow!("Cannot open {:?}: {}", path, e));
+                let loaded =
+                    image::open(&tmp).map_err(|e| anyhow!("Cannot open {:?}: {}", path, e));
                 let _ = std::fs::remove_file(&tmp);
                 loaded?
             }
@@ -142,14 +143,18 @@ impl SiglipClip {
             let _ = std::fs::remove_file(tmp);
         }
         self.embed_rgb8(
-            &img.resize_exact(IMAGE_SIZE as u32, IMAGE_SIZE as u32, image::imageops::FilterType::CatmullRom)
-                .to_rgb8(),
+            &img.resize_exact(
+                IMAGE_SIZE as u32,
+                IMAGE_SIZE as u32,
+                image::imageops::FilterType::CatmullRom,
+            )
+            .to_rgb8(),
         )
     }
 
     /// Extract a video keyframe and embed it.
     pub fn embed_video_keyframe(&self, app: &tauri::AppHandle, path: &Path) -> Result<Vec<f32>> {
-        let frame = extract_video_frame(app, path)?;
+        let (frame, _duration) = extract_video_frame(app, path)?;
         let result = self.embed_image(&frame);
         let _ = std::fs::remove_file(&frame);
         result
@@ -213,12 +218,15 @@ impl SiglipClip {
     }
 
     fn compute_tag_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        TAG_VOCAB.iter().map(|tag| self.embed_text(&format!("a photo of {tag}"))).collect()
+        TAG_VOCAB
+            .iter()
+            .map(|tag| self.embed_text(&format!("a photo of {tag}")))
+            .collect()
     }
     fn compute_mood_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        MOOD_VOCAB.iter().map(|(_, prompt)| self.embed_text(prompt)).collect()
-    }
-    fn compute_scene_embeddings(&self) -> Result<Vec<Vec<f32>>> {
-        SCENE_VOCAB.iter().map(|scene| self.embed_text(&format!("a photo of {scene}"))).collect()
+        MOOD_VOCAB
+            .iter()
+            .map(|(_, prompt)| self.embed_text(prompt))
+            .collect()
     }
 }

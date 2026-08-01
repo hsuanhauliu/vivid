@@ -1,0 +1,125 @@
+/* ── Saved search menu ───────────────────────────────────────────────────── */
+.saved-search-wrap {
+  position: relative;
+}
+
+.saved-search-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 190px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  padding: 4px;
+}
+
+.saved-search-list {
+  flex: 1;
+  min-height: 0;
+}
+.saved-search-list-inner {
+  /* Right padding keeps the scrollbar clear of the delete button instead of
+     overlapping it. */
+  padding-right: 6px;
+}
+
+.saved-search-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+}
+.saved-search-filter-icon {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+.saved-search-filter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.saved-search-filter-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.saved-search-save-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+.saved-search-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.saved-search-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.saved-search-save-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.saved-search-save-btn:hover {
+  background: var(--accent-hover);
+}
+.saved-search-save-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: var(--accent);
+}
+
+/* Visibility is set via inline style in JS (React `hoveredId` state, see
+   SavedSearchesMenu.jsx) — inline style always wins the cascade over the
+   shared `.search-history-item:hover .search-history-remove` rule (App.css)
+   regardless of specificity, so there's no cascade fight here anymore.
+   What this does do: strip that shared class's `transition: opacity 0.15s`
+   for this component specifically. A transition riding on top of
+   React-driven toggling inside a custom-scrollbar `overflow: auto`
+   container (ScrollArea) is the leading suspect for the stuck-visible
+   symptom this replaced — an in-flight/unflushed transition inside such a
+   container is a known category of WebKit repaint bug. Removing it makes
+   the opacity flip instant and removes that whole class of risk. */
+.saved-search-menu .search-history-remove {
+  transition: none;
+}
+
+.saved-search-empty {
+  padding: 12px 10px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  text-align: center;
+}

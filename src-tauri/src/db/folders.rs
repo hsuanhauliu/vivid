@@ -4,59 +4,95 @@ use super::{row_to_item, SELECT_MEDIA};
 use crate::models::{Folder, MediaItem};
 use rusqlite::{params, Connection, Result};
 
-/// Name of the default folder every imported file lands in unless another is
-/// chosen. Also used as its `rel_path` since it sits at the library root.
-pub const UNCATEGORIZED: &str = "Uncategorized";
+/// Display name (and `rel_path`) of the virtual "everything not in a real
+/// folder" bucket. Unlike every other folder, this one is never a row in the
+/// `folders` table and never a real directory — it stands for the library
+/// root itself, so files that live loose at the root (never moved into any
+/// named folder) are still browsable somewhere in the folder UI instead of
+/// being invisible to folder-based navigation. `MediaItem.folder_id: None`
+/// *is* "in Other"; there is nothing to look up.
+///
+/// Deliberately not named "Uncategorized" — earlier versions of Vivid used
+/// that as the name of a *real* on-disk folder it created, so an existing
+/// workspace can genuinely still have a real `Uncategorized` directory lying
+/// around. Naming the virtual bucket differently keeps the two visibly
+/// distinct instead of silently merging them.
+pub const UNCATEGORIZED: &str = "Other";
+
+/// Stable synthetic id for the virtual "Other" folder (see `UNCATEGORIZED`).
+/// Any command taking a `folder_id` must treat this id exactly like `None`
+/// — it never resolves via `fetch_folder`.
+pub const UNCATEGORIZED_ID: &str = "uncategorized";
 
 fn map_folder(row: &rusqlite::Row) -> rusqlite::Result<Folder> {
     Ok(Folder {
-        id:         row.get(0)?,
-        name:       row.get(1)?,
-        parent_id:  row.get(2)?,
-        rel_path:   row.get(3)?,
+        id: row.get(0)?,
+        name: row.get(1)?,
+        parent_id: row.get(2)?,
+        rel_path: row.get(3)?,
         created_at: row.get(4)?,
     })
 }
 
-/// Ensure the default "Uncategorized" root folder exists; returns its id. Called
-/// on startup so there is always a destination for new imports.
-pub fn ensure_uncategorized(conn: &Connection) -> Result<String> {
-    if let Some(id) = folder_id_by_rel_path(conn, UNCATEGORIZED)? {
-        return Ok(id);
+/// The synthetic Uncategorized entry `list_folders` always prepends. Not
+/// backed by a `folders` row or an on-disk directory — see `UNCATEGORIZED`.
+fn uncategorized_folder() -> Folder {
+    Folder {
+        id: UNCATEGORIZED_ID.to_string(),
+        name: UNCATEGORIZED.to_string(),
+        parent_id: None,
+        rel_path: UNCATEGORIZED.to_string(),
+        created_at: String::new(),
     }
-    let id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT INTO folders (id, name, parent_id, rel_path, created_at) VALUES (?1,?2,NULL,?3,?4)",
-        params![id, UNCATEGORIZED, UNCATEGORIZED, now],
-    )?;
-    Ok(id)
 }
 
+/// Every real folder, plus the virtual Uncategorized bucket pinned first so
+/// it's always present in the tree even when nothing has been explicitly
+/// filed into a named folder yet.
 pub fn list_folders(conn: &Connection) -> Result<Vec<Folder>> {
     let mut stmt = conn.prepare(
         "SELECT id, name, parent_id, rel_path, created_at FROM folders ORDER BY rel_path ASC",
     )?;
     let rows = stmt.query_map([], map_folder)?;
-    rows.collect()
+    let mut out = vec![uncategorized_folder()];
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
 }
 
 pub fn fetch_folder(conn: &Connection, id: &str) -> Result<Folder> {
     conn.query_row(
         "SELECT id, name, parent_id, rel_path, created_at FROM folders WHERE id=?1",
-        params![id], map_folder,
+        params![id],
+        map_folder,
     )
 }
 
 pub fn folder_id_by_rel_path(conn: &Connection, rel_path: &str) -> Result<Option<String>> {
-    conn.query_row("SELECT id FROM folders WHERE rel_path=?1", params![rel_path], |r| r.get(0))
-        .map(Some)
-        .or_else(|e| if matches!(e, rusqlite::Error::QueryReturnedNoRows) { Ok(None) } else { Err(e) })
+    conn.query_row(
+        "SELECT id FROM folders WHERE rel_path=?1",
+        params![rel_path],
+        |r| r.get(0),
+    )
+    .map(Some)
+    .or_else(|e| {
+        if matches!(e, rusqlite::Error::QueryReturnedNoRows) {
+            Ok(None)
+        } else {
+            Err(e)
+        }
+    })
 }
 
 /// Whether a sibling folder (same parent) already uses `name`, case-insensitive.
 /// `exclude_id` skips one folder, used when renaming.
-pub fn folder_name_taken(conn: &Connection, parent_id: Option<&str>, name: &str, exclude_id: Option<&str>) -> Result<bool> {
+pub fn folder_name_taken(
+    conn: &Connection,
+    parent_id: Option<&str>,
+    name: &str,
+    exclude_id: Option<&str>,
+) -> Result<bool> {
     let n: i64 = conn.query_row(
         "SELECT COUNT(*) FROM folders \
          WHERE name=?1 COLLATE NOCASE \
@@ -70,7 +106,12 @@ pub fn folder_name_taken(conn: &Connection, parent_id: Option<&str>, name: &str,
 
 /// Insert a folder row with a pre-computed `rel_path` (caller derives it from the
 /// parent's rel_path + name). Returns the created Folder.
-pub fn create_folder(conn: &Connection, name: &str, parent_id: Option<&str>, rel_path: &str) -> Result<Folder> {
+pub fn create_folder(
+    conn: &Connection,
+    name: &str,
+    parent_id: Option<&str>,
+    rel_path: &str,
+) -> Result<Folder> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -80,8 +121,14 @@ pub fn create_folder(conn: &Connection, name: &str, parent_id: Option<&str>, rel
     fetch_folder(conn, &id)
 }
 
-/// Reassign an item to a folder and record its new managed path in one update.
-pub fn set_item_folder(conn: &Connection, item_id: &str, folder_id: &str, file_path: &str) -> Result<()> {
+/// Reassign an item to a folder (or `None` for Uncategorized/root) and record
+/// its new managed path in one update.
+pub fn set_item_folder(
+    conn: &Connection,
+    item_id: &str,
+    folder_id: Option<&str>,
+    file_path: &str,
+) -> Result<()> {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
         "UPDATE media_items SET folder_id=?1, file_path=?2, updated_at=?3 WHERE id=?4",
@@ -90,8 +137,6 @@ pub fn set_item_folder(conn: &Connection, item_id: &str, folder_id: &str, file_p
     Ok(())
 }
 
-
-/// Rename a folder and re-root its whole subtree. After the on-disk directory has
 /// Update only the parent_id of a folder (used when re-parenting via move_folder).
 pub fn set_folder_parent(conn: &Connection, id: &str, parent_id: Option<&str>) -> Result<()> {
     conn.execute(
@@ -101,6 +146,7 @@ pub fn set_folder_parent(conn: &Connection, id: &str, parent_id: Option<&str>) -
     Ok(())
 }
 
+/// Rename a folder and re-root its whole subtree. After the on-disk directory has
 /// been moved from `old_rel` to `new_rel`, this rewrites the `rel_path` of the
 /// folder and every descendant, every affected item's `file_path` (whose absolute
 /// path is `root`/`rel_path`/file), and the folder's display name — atomically.
@@ -130,12 +176,18 @@ pub fn rename_folder_tree(
              WHERE rel_path = ?2 OR rel_path LIKE ?2 || '/%'",
             params![new_rel, old_rel],
         )?;
-        conn.execute("UPDATE folders SET name=?1 WHERE id=?2", params![new_name, id])?;
+        conn.execute(
+            "UPDATE folders SET name=?1 WHERE id=?2",
+            params![new_name, id],
+        )?;
         Ok(())
     })();
     match result {
         Ok(()) => conn.execute("RELEASE rename_folder", []).map(|_| ()),
-        Err(e) => { let _ = conn.execute("ROLLBACK TO rename_folder", []); Err(e) }
+        Err(e) => {
+            let _ = conn.execute("ROLLBACK TO rename_folder", []);
+            Err(e)
+        }
     }
 }
 
@@ -150,12 +202,24 @@ pub fn delete_folder_subtree(conn: &Connection, rel_path: &str) -> Result<()> {
 }
 
 /// Items that physically live under `rel_path` or any descendant folder — i.e.
-/// everything whose file currently sits inside this directory subtree on disk.
-pub fn items_under(conn: &Connection, rel_path: &str, root: &str) -> Result<Vec<MediaItem>> {
+/// everything whose file currently sits inside this directory subtree on disk,
+/// including trashed items. A trashed item's `file_path`/`folder_id` are
+/// untouched by trashing (it's a pure soft-delete flag), so it still
+/// physically sits in this directory subtree — folder deletion needs to know
+/// about it too, or its file gets swept away by the directory removal with
+/// nothing to relocate it first, and its `folder_id` is left dangling once
+/// the folder row is gone.
+pub fn items_under_including_trashed(
+    conn: &Connection,
+    rel_path: &str,
+    root: &str,
+) -> Result<Vec<MediaItem>> {
     let abs = format!("{root}/{rel_path}");
     let mut stmt = conn.prepare(&format!(
-        "{SELECT_MEDIA} WHERE deleted_at IS NULL AND (file_path = ?1 || '/' || file_name OR file_path LIKE ?1 || '/%')"
+        "{SELECT_MEDIA} WHERE file_path = ?1 || '/' || file_name OR file_path LIKE ?1 || '/%'"
     ))?;
     let rows = stmt.query_map(params![abs], row_to_item)?;
-    rows.collect()
+    let mut items: Vec<MediaItem> = rows.collect::<Result<_>>()?;
+    super::attach_collections(conn, &mut items)?;
+    Ok(items)
 }

@@ -1,6 +1,6 @@
 use crate::{db, models::MediaItem, DbState};
 use std::{fs, io, path::Path};
-use tauri::State;
+use tauri::{Manager, State};
 
 use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 
@@ -11,6 +11,44 @@ use super::{build_item, insert_imported, media_dir, resolve, unique_path};
 /// trim mode, or a sub-second sliver that displays as e.g. "0:00 – 0:00" once
 /// truncated to whole seconds) always is.
 const MIN_TRIM_DURATION_SECS: f64 = 1.0;
+
+/// Runs the Swift `vivid-helper` binary with `args`, verifying `out_path`
+/// exists afterward and cleaning it up on failure. Shared by `trim_video` and
+/// `export_video_gif`, which differ only in the subcommand/args and the error
+/// message prefix. Blocking (spawns a subprocess and waits for it) — callers
+/// run it via `spawn_blocking` so a multi-second encode doesn't stall the
+/// async runtime.
+fn run_video_helper(
+    helper: &Path,
+    args: &[String],
+    out_path: &Path,
+    err_context: &str,
+) -> Result<(), String> {
+    let out = std::process::Command::new(helper).args(args).output();
+    let out = match out {
+        Ok(o) => o,
+        Err(e) => {
+            let msg = format!("failed to run vivid-helper: {e}");
+            tracing::error!(error = %msg, ?args, "video helper failed to launch");
+            return Err(msg);
+        }
+    };
+    if !out.status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        tracing::error!(error = %stderr, status = %out.status, ?args, "video helper failed");
+        // A crash (e.g. SIGBUS/SIGSEGV) kills the process before it writes
+        // anything to stderr, so fall back to the exit status — otherwise
+        // the error is just the unhelpful "<context>: " with nothing after.
+        let detail = if stderr.is_empty() {
+            format!("helper exited with {}", out.status)
+        } else {
+            stderr
+        };
+        return Err(format!("{err_context}: {detail}"));
+    }
+    Ok(())
+}
 
 // ── Basic export ──────────────────────────────────────────────────────────────
 
@@ -32,12 +70,33 @@ pub fn export_file(src_path: String, dest_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Set an image as the desktop wallpaper (macOS, via System Events).
+#[tauri::command]
+pub fn set_desktop_wallpaper(file_path: String) -> Result<(), String> {
+    if !Path::new(&file_path).exists() {
+        return Err(format!("File not found: {file_path}"));
+    }
+    let escaped = file_path.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        r#"tell application "System Events" to set picture of every desktop to "{escaped}""#
+    );
+    let out = std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
 /// Export with optional format conversion (image crate infers format from extension).
 #[tauri::command]
 pub fn export_as(src_path: String, dest_path: String, is_image: bool) -> Result<(), String> {
     if is_image {
         let img = image::open(&src_path).map_err(|e| format!("Cannot open image: {e}"))?;
-        img.save(&dest_path).map_err(|e| format!("Cannot save image: {e}"))?;
+        img.save(&dest_path)
+            .map_err(|e| format!("Cannot save image: {e}"))?;
     } else {
         fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
     }
@@ -49,12 +108,15 @@ pub fn export_as(src_path: String, dest_path: String, is_image: bool) -> Result<
 pub fn export_stripped(src_path: String, dest_path: String) -> Result<(), String> {
     use crate::clip::heif_to_jpeg_if_needed;
     let src = std::path::PathBuf::from(&src_path);
-    let effective = heif_to_jpeg_if_needed(&src).ok().flatten().unwrap_or_else(|| src.clone());
+    let effective = heif_to_jpeg_if_needed(&src)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| src.clone());
     let img = image::open(&effective).map_err(|e| format!("Cannot open image: {e}"))?;
-    img.save(&dest_path).map_err(|e| format!("Cannot save stripped image: {e}"))?;
+    img.save(&dest_path)
+        .map_err(|e| format!("Cannot save stripped image: {e}"))?;
     Ok(())
 }
-
 
 /// Copy a file to the macOS clipboard.
 /// For images: writes actual image data (TIFF/JPEG/PNG) via NSPasteboard so
@@ -110,19 +172,32 @@ pub fn transform_image(
     use crate::clip::{apply_exif_orientation, exif_orientation, heif_to_jpeg_if_needed};
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("jpg").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jpg")
+        .to_lowercase();
     if orig_ext == "gif" {
-        return Err("GIFs can't be edited — this would flatten the animation to a single frame".into());
+        return Err(
+            "GIFs can't be edited — this would flatten the animation to a single frame".into(),
+        );
     }
     let is_heic = orig_ext == "heic" || orig_ext == "heif";
 
     // The image crate has no HEIC decoder — convert to a temp JPEG first.
     let heic_tmp = heif_to_jpeg_if_needed(src_path).map_err(|e| e.to_string())?;
-    let cleanup = |t: &Option<std::path::PathBuf>| { if let Some(p) = t { let _ = fs::remove_file(p); } };
+    let cleanup = |t: &Option<std::path::PathBuf>| {
+        if let Some(p) = t {
+            let _ = fs::remove_file(p);
+        }
+    };
     let decode_path: &Path = heic_tmp.as_deref().unwrap_or(src_path);
     let img = match image::open(decode_path).map_err(|e| format!("Cannot open image: {e}")) {
         Ok(i) => i,
-        Err(e) => { cleanup(&heic_tmp); return Err(e); }
+        Err(e) => {
+            cleanup(&heic_tmp);
+            return Err(e);
+        }
     };
     // The `image` crate ignores EXIF orientation, but browsers/OS viewers (and
     // this app's own editor preview) auto-rotate per that same tag — without
@@ -136,14 +211,20 @@ pub fn transform_image(
     let img = apply_exif_orientation(img, exif_orientation(decode_path));
 
     let result: image::DynamicImage = if let Some(args) = operation.strip_prefix("resize:") {
-        let parts: Vec<u32> = args.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        let parts: Vec<u32> = args
+            .split(',')
+            .filter_map(|s| s.trim().parse().ok())
+            .collect();
         if parts.len() != 2 {
             cleanup(&heic_tmp);
             return Err("resize requires w,h".into());
         }
         img.resize_exact(parts[0], parts[1], image::imageops::FilterType::Lanczos3)
     } else if let Some(args) = operation.strip_prefix("crop:") {
-        let parts: Vec<u32> = args.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        let parts: Vec<u32> = args
+            .split(',')
+            .filter_map(|s| s.trim().parse().ok())
+            .collect();
         if parts.len() != 4 {
             cleanup(&heic_tmp);
             return Err("crop requires x,y,w,h".into());
@@ -156,11 +237,11 @@ pub fn transform_image(
         img.crop_imm(x, y, w, h)
     } else {
         match operation.as_str() {
-            "rotate90"  => img.rotate90(),
+            "rotate90" => img.rotate90(),
             "rotate180" => img.rotate180(),
             "rotate270" => img.rotate270(),
-            "flip_h"    => img.fliph(),
-            "flip_v"    => img.flipv(),
+            "flip_h" => img.fliph(),
+            "flip_v" => img.flipv(),
             other => {
                 cleanup(&heic_tmp);
                 return Err(format!("Unknown operation: {other}"));
@@ -172,32 +253,49 @@ pub fn transform_image(
     let out_ext = if is_heic { "jpg" } else { orig_ext.as_str() };
 
     if save_mode == "copy" {
-        let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let stem = src_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image");
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_edited.{out_ext}"));
-        let saved = result.save(&dest).map_err(|e| format!("Cannot save copy: {e}"));
+        let saved = result
+            .save(&dest)
+            .map_err(|e| format!("Cannot save copy: {e}"));
         cleanup(&heic_tmp);
         saved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let mut item = build_item(&dest, None)?;
+        super::inherit_placement(&conn, &mut item, &id);
         insert_imported(&conn, &mut item, &app)?;
         Ok(Some(item))
     } else if is_heic {
         // Overwrite: re-encode to a sibling JPEG, repoint the row, drop the .heic.
         let parent = src_path.parent().unwrap_or_else(|| Path::new("."));
-        let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let stem = src_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image");
         let dest = unique_path(parent, &format!("{stem}.jpg"));
-        let saved = result.save(&dest).map_err(|e| format!("Cannot save image: {e}"));
+        let saved = result
+            .save(&dest)
+            .map_err(|e| format!("Cannot save image: {e}"));
         cleanup(&heic_tmp);
         saved?;
         let _ = fs::remove_file(&file_path);
-        let new_name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("image.jpg").to_string();
+        let new_name = dest
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("image.jpg")
+            .to_string();
         let new_size = fs::metadata(&dest).map(|m| m.len() as i64).unwrap_or(0);
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let updated = db::repoint_file(&conn, &id, &dest.to_string_lossy(), &new_name, new_size)
             .map_err(|e| e.to_string())?;
         Ok(Some(updated))
     } else {
-        let saved = result.save(&file_path).map_err(|e| format!("Cannot save image: {e}"));
+        let saved = result
+            .save(&file_path)
+            .map_err(|e| format!("Cannot save image: {e}"));
         cleanup(&heic_tmp);
         saved?;
         // Multi-op edits chain several `transform_image` calls onto the same
@@ -215,28 +313,16 @@ pub fn transform_image(
 
 /// Copy a list of files to a destination folder.
 #[tauri::command]
-pub fn export_files_to_folder(
-    file_paths: Vec<String>,
-    dest_folder: String,
-) -> Result<(), String> {
+pub fn export_files_to_folder(file_paths: Vec<String>, dest_folder: String) -> Result<(), String> {
     let dest = Path::new(&dest_folder);
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let fname = src.file_name().ok_or("Invalid file path")?;
-        let mut dest_path = dest.join(fname);
-        if dest_path.exists() {
-            let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-            let ext  = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-            for i in 1u32.. {
-                let candidate = dest.join(if ext.is_empty() {
-                    format!("{stem}_{i}")
-                } else {
-                    format!("{stem}_{i}.{ext}")
-                });
-                if !candidate.exists() { dest_path = candidate; break; }
-            }
-        }
+        let fname = src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or("Invalid file path")?;
+        let dest_path = unique_path(dest, fname);
         fs::copy(src, &dest_path).map_err(|e| format!("Copy failed for {src_str}: {e}"))?;
     }
     Ok(())
@@ -247,16 +333,14 @@ pub fn export_files_to_folder(
 /// deflate them wastes CPU and often makes the archive *larger*. Files are streamed
 /// in 64 KB chunks so large videos never load into memory all at once.
 #[tauri::command]
-pub fn export_files_as_zip(
-    file_paths: Vec<String>,
-    dest_path: String,
-) -> Result<(), String> {
+pub fn export_files_as_zip(file_paths: Vec<String>, dest_path: String) -> Result<(), String> {
     fn compression_for(ext: &str) -> zip::CompressionMethod {
         match ext.to_lowercase().as_str() {
             // Already-compressed formats — store as-is
-            "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif"
-            | "mp4" | "mov" | "avi" | "mkv" | "webm" | "m4v"
-            | "mp3" | "m4a" | "aac" | "flac" | "ogg" | "opus" => zip::CompressionMethod::Stored,
+            "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif" | "mp4" | "mov"
+            | "avi" | "mkv" | "webm" | "m4v" | "mp3" | "m4a" | "aac" | "flac" | "ogg" | "opus" => {
+                zip::CompressionMethod::Stored
+            }
             // Everything else (text files, raw, etc.) can benefit from deflate
             _ => zip::CompressionMethod::Deflated,
         }
@@ -268,8 +352,11 @@ pub fn export_files_as_zip(
 
     for src_str in &file_paths {
         let src = Path::new(src_str);
-        let base_name = src.file_name()
-            .and_then(|n| n.to_str()).unwrap_or("file").to_string();
+        let base_name = src
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
 
         let archive_name = {
             let count = used_names.entry(base_name.clone()).or_insert(0);
@@ -277,8 +364,14 @@ pub fn export_files_as_zip(
                 *count += 1;
                 base_name.clone()
             } else {
-                let stem = Path::new(&base_name).file_stem().and_then(|s| s.to_str()).unwrap_or("file");
-                let ext  = Path::new(&base_name).extension().and_then(|e| e.to_str()).unwrap_or("");
+                let stem = Path::new(&base_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("file");
+                let ext = Path::new(&base_name)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
                 let name = if ext.is_empty() {
                     format!("{stem}_{count}")
                 } else {
@@ -290,14 +383,15 @@ pub fn export_files_as_zip(
         };
 
         let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
-        let options: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default()
-            .compression_method(compression_for(ext));
+        let options: zip::write::FileOptions<'_, ()> =
+            zip::write::FileOptions::default().compression_method(compression_for(ext));
 
-        zip.start_file(&archive_name, options).map_err(|e| e.to_string())?;
+        zip.start_file(&archive_name, options)
+            .map_err(|e| e.to_string())?;
 
         // Stream the file in 64 KB chunks — never loads a whole video into RAM.
-        let mut src_file = fs::File::open(src)
-            .map_err(|e| format!("Open failed for {src_str}: {e}"))?;
+        let mut src_file =
+            fs::File::open(src).map_err(|e| format!("Open failed for {src_str}: {e}"))?;
         io::copy(&mut src_file, &mut zip)
             .map_err(|e| format!("Write failed for {src_str}: {e}"))?;
     }
@@ -308,29 +402,40 @@ pub fn export_files_as_zip(
 
 // ── HEIC / displayable path ───────────────────────────────────────────────────
 
-/// Return a displayable path. HEIC/HEIF files are converted to a cached JPEG in /tmp.
+/// Return a displayable path or, for HEIC/HEIF (which the webview can't
+/// render directly), a `data:image/jpeg;base64,...` URL converted entirely
+/// in memory. Deliberately never writes a converted copy to disk anywhere —
+/// not even to system temp — both because a stray full-resolution JPEG
+/// duplicate of every HEIC ever viewed is exactly the kind of derived file
+/// Vivid shouldn't be creating, and because a file under `/tmp` was never
+/// covered by the webview's asset-protocol scope in the first place (that's
+/// why this was silently failing to display full-size, even though the
+/// small pre-generated thumbnail — a different code path — showed up fine).
 #[tauri::command]
 pub fn get_displayable_path(file_path: String) -> Result<String, String> {
     let path = Path::new(&file_path);
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
 
-    if ext == "heic" || ext == "heif" {
-        use sha2::{Digest, Sha256};
-        let hash = hex::encode(Sha256::digest(file_path.as_bytes()));
-        let out_path = format!("/tmp/vivid_heic_{}.jpg", &hash[..16]);
-        if !Path::new(&out_path).exists() {
-            let status = std::process::Command::new("sips")
-                .args(["-s", "format", "jpeg", "--out", &out_path, &file_path])
-                .status()
-                .map_err(|e| format!("sips not available: {e}"))?;
-            if !status.success() {
-                return Err("sips conversion failed".into());
-            }
-        }
-        Ok(out_path)
-    } else {
-        Ok(file_path)
+    if ext != "heic" && ext != "heif" {
+        return Ok(file_path);
     }
+
+    use crate::clip::heif_to_jpeg_if_needed;
+    use base64::Engine;
+
+    let converted = heif_to_jpeg_if_needed(path).map_err(|e| e.to_string())?;
+    let jpeg_path = converted.as_deref().unwrap_or(path);
+    let bytes = fs::read(jpeg_path).map_err(|e| e.to_string())?;
+    if let Some(tmp) = &converted {
+        let _ = fs::remove_file(tmp);
+    }
+
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:image/jpeg;base64,{b64}"))
 }
 
 // ── Video playback fallback ────────────────────────────────────────────────────
@@ -341,29 +446,140 @@ pub fn get_displayable_path(file_path: String) -> Result<String, String> {
 /// cached, same idea as the HEIC path above but heavier, so it's kept separate.
 const UNPLAYABLE_VIDEO_EXTS: &[&str] = &["wmv", "avi", "flv", "mkv"];
 
-/// Return a path the webview can actually play. Formats WKWebView can't decode
-/// (WMV/VC-1, AVI, FLV, MKV/Matroska) are transcoded to a cached H.264/AAC MP4
-/// via ffmpeg; everything else passes through unchanged.
-#[tauri::command]
-pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
-    let path = Path::new(&file_path);
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+/// Video codecs WKWebView's AVFoundation-backed player decodes natively.
+/// A container extension alone doesn't guarantee one — e.g. VP9-in-.mov
+/// (some Android/social re-muxes) opens fine but never produces a frame.
+const PLAYABLE_VIDEO_CODECS: &[&str] = &["h264", "hevc", "mpeg4", "mjpeg", "prores"];
 
-    if !UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str()) {
-        return Ok(file_path);
+/// `None` if ffprobe isn't installed or the probe fails — treat as
+/// "unknown, assume playable" rather than an error.
+fn probe_video_stream(file_path: &str) -> Option<(String, String)> {
+    let ffprobe = resolve("ffprobe")?;
+    let output = std::process::Command::new(ffprobe)
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=codec_name,pix_fmt",
+            "-of",
+            "csv=p=0",
+        ])
+        .arg(file_path)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_codec_and_pix_fmt(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// Parses a `codec_name,pix_fmt` line from `ffprobe -of csv=p=0` — ffprobe
+/// appends a trailing comma on some stream shapes, so this takes exactly the
+/// two fields asked for rather than a naive `split_once`.
+fn parse_codec_and_pix_fmt(output: &str) -> Option<(String, String)> {
+    let mut fields = output.trim().splitn(3, ',');
+    let codec = fields.next()?.to_string();
+    let pix_fmt = fields.next().unwrap_or("").to_string();
+    (!codec.is_empty()).then_some((codec, pix_fmt))
+}
+
+/// True for a pixel format deeper than 8 bits per channel (ffmpeg suffixes
+/// these with the bit depth, e.g. `yuv420p10le`). iPhone's default HDR
+/// recording mode shoots 10-bit HEVC, which WKWebView's `<video>` can't play
+/// even though the `hevc` codec family is otherwise supported.
+fn is_high_bit_depth(pix_fmt: &str) -> bool {
+    pix_fmt
+        .rsplit_once('p')
+        .map(|(_, suffix)| suffix)
+        .unwrap_or(pix_fmt)
+        .trim_end_matches(['l', 'e', 'b'])
+        .parse::<u32>()
+        .is_ok_and(|bits| bits > 8)
+}
+
+fn needs_transcode(file_path: &str) -> bool {
+    let ext = Path::new(file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    UNPLAYABLE_VIDEO_EXTS.contains(&ext.as_str())
+        || probe_video_stream(file_path).is_some_and(|(codec, pix_fmt)| {
+            !PLAYABLE_VIDEO_CODECS.contains(&codec.as_str()) || is_high_bit_depth(&pix_fmt)
+        })
+}
+
+/// Fast (no transcode) check the frontend uses to decide whether to show a
+/// "converting" state before attempting playback. `async` + `spawn_blocking`
+/// so the ffprobe subprocess wait doesn't block the webview UI.
+#[tauri::command]
+pub async fn video_needs_transcode(file_path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || needs_transcode(&file_path))
+        .await
+        .unwrap_or(false)
+}
+
+/// Returns a path the webview can actually play, transcoding to a cached
+/// H.264/AAC MP4 via ffmpeg when needed. `force` skips the codec check
+/// entirely, for the frontend's retry after a native `<video>` playback
+/// failure. The cache lives under the app data dir, not `/tmp` — the asset
+/// protocol's scope (tauri.conf.json) only allows `$APPDATA/**`.
+///
+/// `async` + `spawn_blocking` — the ffmpeg subprocess wait can run for
+/// several seconds and must not block the webview UI.
+#[tauri::command]
+pub async fn get_playable_video_path(
+    app: tauri::AppHandle,
+    file_path: String,
+    force: Option<bool>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ensure_playable_video_path(&app, &file_path, force.unwrap_or(false))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The work behind `get_playable_video_path`, also called directly by other
+/// backend pipelines (thumbnail extraction, CLIP video embedding) that hit
+/// the same AVFoundation decode failures as playback did.
+pub(crate) fn ensure_playable_video_path(
+    app: &tauri::AppHandle,
+    file_path: &str,
+    force: bool,
+) -> Result<String, String> {
+    if !force && !needs_transcode(file_path) {
+        return Ok(file_path.to_string());
     }
 
     use sha2::{Digest, Sha256};
     let hash = hex::encode(Sha256::digest(file_path.as_bytes()));
-    let out_path = format!("/tmp/vivid_video_{}.mp4", &hash[..16]);
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("video_cache");
+    fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    let out_path = cache_dir
+        .join(format!("{}.mp4", &hash[..16]))
+        .to_string_lossy()
+        .into_owned();
     if !Path::new(&out_path).exists() {
         let ffmpeg = resolve("ffmpeg").ok_or(
             "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
         )?;
         let status = std::process::Command::new(&ffmpeg)
-            .args(["-y", "-i", &file_path])
+            .args(["-y", "-i", file_path])
             .args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"])
             .args(["-c:a", "aac", "-b:a", "192k"])
+            // Without this, ffmpeg writes the moov atom (metadata index)
+            // after the video data — fine for players that read the whole
+            // file, but WKWebView's <video> needs it up front to play at
+            // all, so the output looked "silently unplayable" despite being
+            // a perfectly ordinary H.264/AAC MP4.
+            .args(["-movflags", "+faststart"])
             .arg(&out_path)
             .status()
             .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
@@ -381,12 +597,14 @@ pub fn get_playable_video_path(file_path: String) -> Result<String, String> {
 /// Runs on the main thread inside the app process so no ghost window appears.
 #[tauri::command]
 pub fn share_files(app: tauri::AppHandle, file_paths: Vec<String>) -> Result<(), String> {
-    if file_paths.is_empty() { return Ok(()); }
+    if file_paths.is_empty() {
+        return Ok(());
+    }
 
     #[cfg(target_os = "macos")]
     {
-        use objc2::runtime::AnyObject;
         use objc2::msg_send;
+        use objc2::runtime::AnyObject;
 
         // Thin Send wrapper around a raw ObjC pointer so we can ship it to the main thread.
         struct RawPtr(*mut AnyObject);
@@ -479,7 +697,10 @@ set pb to current application's NSPasteboard's generalPasteboard()
 pb's clearContents()
 pb's writeObjects_({{theImage}})"#
     );
-    let out = std::process::Command::new("osascript").arg("-e").arg(&script).output();
+    let out = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output();
     let _ = fs::remove_file(&tmp);
     let out = out.map_err(|e| e.to_string())?;
     if !out.status.success() {
@@ -495,21 +716,94 @@ pb's writeObjects_({{theImage}})"#
 
 // ── Video trim ────────────────────────────────────────────────────────────────
 
-/// Trim `file_path` to `[start, end]` (seconds) via the Swift helper
-/// (AVFoundation — no ffmpeg). When `max_height` is omitted or the source is
+/// Trims via ffmpeg, as a fallback for when the AVFoundation helper crashes
+/// or errors — this has been observed as a SIGBUS from AVFoundation's custom
+/// Core Image video-composition path (used when downscaling) on 10-bit HDR
+/// HEVC sources, the same class of file that needed an ffmpeg fallback for
+/// playback/thumbnails/embedding elsewhere. `-ss` before `-i` is fast
+/// (keyframe seek) and still frame-accurate in modern ffmpeg.
+fn ffmpeg_trim(
+    file_path: &str,
+    out_path: &Path,
+    start: f64,
+    end: f64,
+    max_height: Option<u32>,
+) -> Result<(), String> {
+    let ffmpeg = resolve("ffmpeg").ok_or(
+        "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
+    )?;
+    let mut cmd = std::process::Command::new(ffmpeg);
+    cmd.args(["-y", "-ss", &start.to_string(), "-i", file_path]);
+    cmd.args(["-t", &(end - start).to_string()]);
+    if let Some(h) = max_height {
+        cmd.args(["-vf", &format!("scale=-2:'min(ih,{h})'")]);
+    }
+    cmd.args(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]);
+    cmd.args(["-c:a", "aac", "-b:a", "192k"]);
+    // See the matching comment in ensure_playable_video_path — without this
+    // the moov atom lands at the end of the file and WKWebView's <video>
+    // won't play it, even though every other player will.
+    cmd.args(["-movflags", "+faststart"]);
+    cmd.arg(out_path);
+    let status = cmd
+        .status()
+        .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
+    if !status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!("ffmpeg could not trim {file_path}"));
+    }
+    Ok(())
+}
+
+/// GIF export via ffmpeg, as a fallback for when the AVFoundation helper's
+/// frame-by-frame sampling (`AVAssetImageGenerator.copyCGImage`, the same
+/// mechanism `ffmpeg_trim`'s doc comment describes crashing on for 10-bit
+/// HDR HEVC sources) crashes or errors.
+fn ffmpeg_gif(
+    file_path: &str,
+    out_path: &Path,
+    start: f64,
+    end: f64,
+    max_height: u32,
+) -> Result<(), String> {
+    let ffmpeg = resolve("ffmpeg").ok_or(
+        "ffmpeg is not installed — install it with `brew install ffmpeg` (or any install on PATH)",
+    )?;
+    let status = std::process::Command::new(ffmpeg)
+        .args(["-y", "-ss", &start.to_string(), "-i", file_path])
+        .args(["-t", &(end - start).to_string()])
+        .args(["-vf", &format!("fps=12,scale=-2:'min(ih,{max_height})'")])
+        .arg(out_path)
+        .status()
+        .map_err(|e| format!("ffmpeg failed to run: {e}"))?;
+    if !status.success() || !out_path.exists() {
+        let _ = fs::remove_file(out_path);
+        return Err(format!("ffmpeg could not export a GIF from {file_path}"));
+    }
+    Ok(())
+}
+
+/// Trim `file_path` to `[start, end]` (seconds), primarily via the Swift
+/// helper (AVFoundation). When `max_height` is omitted or the source is
 /// already at or below it, it tries a passthrough (re-mux only, no re-encode
 /// — fast, lossless, and sample-accurate) export first, falling back to a
 /// re-encoding preset if the source/preset combo can't produce MP4 via
 /// passthrough. When `max_height` requires downscaling, it always re-encodes
-/// (passthrough can't resize). `save_mode`: "copy" writes a new library item;
-/// "overwrite" replaces the original — like `transform_image`'s HEIC path,
-/// this always lands on a new sibling filename and repoints the DB row
+/// (passthrough can't resize). If the helper fails or crashes, `ffmpeg_trim`
+/// is retried before giving up. `save_mode`: "copy" writes a new library
+/// item; "overwrite" replaces the original — like `transform_image`'s HEIC
+/// path, this always lands on a new sibling filename and repoints the DB row
 /// rather than literally overwriting the same path, so the webview never
 /// serves a stale cached copy of a file whose path didn't change.
+// Each parameter maps 1:1 to a value the frontend already tracks as separate
+// state (file path, item id, trim range, save mode, resolution cap) and to
+// the invoke() call's argument names — bundling them into a params struct
+// would just move the same eight fields one level down, not reduce them.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
-pub fn trim_video(
+pub async fn trim_video(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
     id: String,
     start: f64,
@@ -522,11 +816,19 @@ pub fn trim_video(
     }
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("video")
+        .to_string();
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -534,43 +836,65 @@ pub fn trim_video(
     let tmp_out = std::env::temp_dir().join(format!("vivid_trim_{ts}.mp4"));
 
     let helper = super::helper_path(&app);
-    let mut cmd = std::process::Command::new(&helper);
-    cmd.arg("trim")
-        .arg(&file_path)
-        .arg(&tmp_out)
-        .arg(start.to_string())
-        .arg(end.to_string());
+    let mut args = vec![
+        "trim".to_string(),
+        file_path.clone(),
+        tmp_out.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+    ];
     if let Some(h) = max_height {
-        cmd.arg(h.to_string());
+        args.push(h.to_string());
     }
-    let out = cmd.output().map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !tmp_out.exists() {
-        let _ = fs::remove_file(&tmp_out);
-        return Err(format!(
-            "could not trim the video: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let tmp_out_c = tmp_out.clone();
+    let file_path_c = file_path.clone();
+    // The helper's video re-encode can take real time — run it off the main
+    // thread so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        match run_video_helper(&helper, &args, &tmp_out_c, "could not trim the video") {
+            Ok(()) => Ok(()),
+            Err(helper_err) => {
+                tracing::warn!(error = %helper_err, "AVFoundation trim failed, retrying via ffmpeg");
+                ffmpeg_trim(&file_path_c, &tmp_out_c, start, end, max_height)
+                    .map_err(|ffmpeg_err| format!("{helper_err}; ffmpeg also failed: {ffmpeg_err}"))
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     if save_mode == "copy" {
         let dest = unique_path(&media_dir(&app)?, &format!("{stem}_trimmed.mp4"));
         let moved = fs::rename(&tmp_out, &dest)
-            .or_else(|_| fs::copy(&tmp_out, &dest).map(|_| ()).and_then(|_| fs::remove_file(&tmp_out)))
+            .or_else(|_| {
+                fs::copy(&tmp_out, &dest)
+                    .map(|_| ())
+                    .and_then(|_| fs::remove_file(&tmp_out))
+            })
             .map_err(|e| e.to_string());
         moved?;
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let mut item = build_item(&dest, None)?;
+        super::inherit_placement(&conn, &mut item, &id);
         insert_imported(&conn, &mut item, &app)?;
         Ok(Some(item))
     } else {
         let parent = src_path.parent().unwrap_or_else(|| Path::new("."));
         let dest = unique_path(parent, &format!("{stem}_trimmed.mp4"));
         let moved = fs::rename(&tmp_out, &dest)
-            .or_else(|_| fs::copy(&tmp_out, &dest).map(|_| ()).and_then(|_| fs::remove_file(&tmp_out)))
+            .or_else(|_| {
+                fs::copy(&tmp_out, &dest)
+                    .map(|_| ())
+                    .and_then(|_| fs::remove_file(&tmp_out))
+            })
             .map_err(|e| e.to_string());
         moved?;
         let _ = fs::remove_file(&file_path);
-        let new_name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("video.mp4").to_string();
+        let new_name = dest
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("video.mp4")
+            .to_string();
         let new_size = fs::metadata(&dest).map(|m| m.len() as i64).unwrap_or(0);
         let conn = state.0.lock().map_err(|e| e.to_string())?;
         let updated = db::repoint_file(&conn, &id, &dest.to_string_lossy(), &new_name, new_size)
@@ -590,10 +914,11 @@ pub fn trim_video(
 /// conventional "Xp" video resolution naming (e.g. 1080 → 1080p, which for a
 /// 16:9 source is 1920×1080) and defaults to 720px when not given.
 #[tauri::command]
-pub fn export_video_gif(
+pub async fn export_video_gif(
     app: tauri::AppHandle,
-    state: State<DbState>,
+    state: State<'_, DbState>,
     file_path: String,
+    id: String,
     start: f64,
     end: f64,
     max_height: Option<u32>,
@@ -603,35 +928,99 @@ pub fn export_video_gif(
     }
 
     let src_path = Path::new(&file_path);
-    let orig_ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let orig_ext = src_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     if orig_ext == "gif" {
         return Err("GIFs can't be trimmed".into());
     }
-    let stem = src_path.file_stem().and_then(|s| s.to_str()).unwrap_or("video");
+    let stem = src_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("video")
+        .to_string();
     let dest = unique_path(&media_dir(&app)?, &format!("{stem}.gif"));
 
     let helper = super::helper_path(&app);
-    let out = std::process::Command::new(&helper)
-        .arg("gif")
-        .arg(&file_path)
-        .arg(&dest)
-        .arg(start.to_string())
-        .arg(end.to_string())
-        .arg(max_height.unwrap_or(720).to_string())
-        .output()
-        .map_err(|e| format!("failed to run vivid-helper: {e}"))?;
-    if !out.status.success() || !dest.exists() {
-        let _ = fs::remove_file(&dest);
-        return Err(format!(
-            "could not export the GIF: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
+    let resolved_max_height = max_height.unwrap_or(720);
+    let args = vec![
+        "gif".to_string(),
+        file_path.clone(),
+        dest.to_string_lossy().into_owned(),
+        start.to_string(),
+        end.to_string(),
+        resolved_max_height.to_string(),
+    ];
+    let dest_c = dest.clone();
+    let file_path_c = file_path.clone();
+    // GIF sampling/encoding can take real time — run it off the main thread
+    // so it doesn't freeze the whole UI while it works.
+    tauri::async_runtime::spawn_blocking(move || {
+        match run_video_helper(&helper, &args, &dest_c, "could not export the GIF") {
+            Ok(()) => Ok(()),
+            Err(helper_err) => {
+                tracing::warn!(error = %helper_err, "AVFoundation GIF export failed, retrying via ffmpeg");
+                ffmpeg_gif(&file_path_c, &dest_c, start, end, resolved_max_height)
+                    .map_err(|ffmpeg_err| format!("{helper_err}; ffmpeg also failed: {ffmpeg_err}"))
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     let mut item = build_item(&dest, None)?;
+    super::inherit_placement(&conn, &mut item, &id);
     insert_imported(&conn, &mut item, &app)?;
     Ok(item)
 }
 
+#[cfg(test)]
+mod video_transcode_tests {
+    use super::{is_high_bit_depth, parse_codec_and_pix_fmt};
 
+    #[test]
+    fn parses_codec_and_pix_fmt_with_ffprobes_trailing_comma() {
+        // The exact bug this guards: a naive split_once(',') on this real
+        // ffprobe output folds the trailing comma into pix_fmt as
+        // "yuv420p10le,", which is_high_bit_depth then fails to parse as a
+        // number — silently defeating the whole HDR check.
+        assert_eq!(
+            parse_codec_and_pix_fmt("hevc,yuv420p10le,\n"),
+            Some(("hevc".to_string(), "yuv420p10le".to_string())),
+        );
+    }
+
+    #[test]
+    fn parses_codec_and_pix_fmt_without_trailing_comma() {
+        assert_eq!(
+            parse_codec_and_pix_fmt("h264,yuv420p"),
+            Some(("h264".to_string(), "yuv420p".to_string())),
+        );
+    }
+
+    #[test]
+    fn empty_output_has_no_codec() {
+        assert_eq!(parse_codec_and_pix_fmt(""), None);
+    }
+
+    #[test]
+    fn plain_8bit_formats_are_not_high_bit_depth() {
+        assert!(!is_high_bit_depth("yuv420p"));
+        assert!(!is_high_bit_depth("yuvj420p"));
+        assert!(!is_high_bit_depth("nv12"));
+        assert!(!is_high_bit_depth("rgb24"));
+    }
+
+    #[test]
+    fn ten_and_twelve_bit_formats_are_high_bit_depth() {
+        // The exact pix_fmt Apple's "HDR (High Efficiency)" iPhone recording
+        // mode produces (10-bit HEVC, "Main 10" profile) — the real-world
+        // case this check exists for.
+        assert!(is_high_bit_depth("yuv420p10le"));
+        assert!(is_high_bit_depth("yuv422p10le"));
+        assert!(is_high_bit_depth("yuv444p12be"));
+    }
+}

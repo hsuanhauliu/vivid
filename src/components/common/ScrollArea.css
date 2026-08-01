@@ -36,6 +36,24 @@
     background 0.15s;
   cursor: pointer;
 }
+
+/* Horizontal variant — a row instead of a column, hugging the bottom edge. */
+.scroll-area-x {
+  flex-direction: row;
+}
+.scroll-area-content-x {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.scroll-area-thumb-x {
+  top: auto;
+  right: auto;
+  left: 0;
+  bottom: 2px;
+  width: auto;
+  height: 6px;
+}
 /* Shown on hover (mouse users) and driven by JS via .active/.dragging —
    briefly on scroll or while dragging the thumb, then auto-hides again, like
    a native overlay scrollbar. JS-driven so it doesn't depend on :hover

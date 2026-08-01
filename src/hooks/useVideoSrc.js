@@ -1,43 +1,87 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 
-// WKWebView's native <video> can't decode these at all, even though they're
-// recognized, importable video types (models::extension_to_media_type on the
-// Rust side). Kept in sync with UNPLAYABLE_VIDEO_EXTS in commands/export.rs.
-const UNPLAYABLE_EXTS = new Set(['wmv', 'avi', 'flv', 'mkv']);
-
 /**
- * Resolve a video file path to a webview-playable `src`. Unplayable
- * containers/codecs are handed to the backend `get_playable_video_path`
- * command, which transcodes them once (cached) to H.264/AAC MP4 via ffmpeg —
- * the one place in the app ffmpeg is still used, as a fully optional
- * fallback (AVFoundation can't demux these containers at all) — everything
- * else passes straight through convertFileSrc.
+ * Resolve a video file path to a webview-playable `src`. Codecs WKWebView
+ * can't decode (per a backend probe) get transcoded once, cached, to
+ * H.264/AAC MP4 via ffmpeg; everything else passes through `convertFileSrc`.
  *
- * `src` is `null` while an unsupported format is transcoding — that first
- * play can take a while for a large file, so callers should show a loading
- * state rather than an empty/broken player. `error` is set if the transcode
- * failed (most commonly: ffmpeg isn't installed) — callers should show it
- * rather than silently trying to play the untranscoded, undecodable file.
+ * Returns `{ src, status, error, retryWithTranscode }`. `status` is
+ * `'checking'`, `'converting'`, `'ready'`, `'error'` (the transcode itself
+ * failed, e.g. ffmpeg isn't installed — see `error`), or `'unplayable'`
+ * (transcoded fine, but the webview still couldn't play the result — nothing
+ * left to fall back to). Callers should wait for `'ready'` rather than
+ * playing `src` early — an unconverted source fails silently (permanently
+ * black, no catchable `<video>` error).
+ *
+ * `retryWithTranscode` forces the fallback for when the backend probe
+ * missed a bad codec — call it on a native `<video>` playback error. Safe
+ * to call again after it's already run once; that second call is what
+ * produces `'unplayable'` rather than silently doing nothing.
  */
 export function useVideoSrc(filePath) {
-  const ext = filePath?.split('.').pop()?.toLowerCase();
-  const needsTranscode = !!ext && UNPLAYABLE_EXTS.has(ext);
-  const [src, setSrc] = useState(() => (needsTranscode ? null : convertFileSrc(filePath ?? '')));
+  const [src, setSrc] = useState(null);
+  const [status, setStatus] = useState('checking');
   const [error, setError] = useState(null);
+  const triedForceRef = useRef(false);
 
   useEffect(() => {
-    if (!filePath) return;
+    triedForceRef.current = false;
+    setSrc(null);
     setError(null);
-    if (needsTranscode) {
-      setSrc(null);
-      invoke('get_playable_video_path', { filePath })
-        .then((p) => setSrc(convertFileSrc(p)))
-        .catch((e) => setError(String(e)));
-    } else {
-      setSrc(convertFileSrc(filePath));
-    }
-  }, [filePath, needsTranscode]);
+    if (!filePath) return;
+    setStatus('checking');
+    let cancelled = false;
 
-  return { src, error };
+    invoke('video_needs_transcode', { filePath })
+      .then((needsTranscode) => {
+        if (cancelled) return;
+        if (!needsTranscode) {
+          setSrc(convertFileSrc(filePath));
+          setStatus('ready');
+          return;
+        }
+        setStatus('converting');
+        return invoke('get_playable_video_path', { filePath }).then((p) => {
+          if (cancelled) return;
+          setSrc(convertFileSrc(p));
+          setStatus('ready');
+        });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(String(e));
+        setStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
+  const retryWithTranscode = useCallback(() => {
+    if (!filePath) return;
+    if (triedForceRef.current) {
+      // Already forced a transcode once and playback still failed —
+      // nothing left to try. Surface that instead of leaving a blank,
+      // seemingly-frozen player with no explanation.
+      setStatus('unplayable');
+      return;
+    }
+    triedForceRef.current = true;
+    setSrc(null);
+    setError(null);
+    setStatus('converting');
+    invoke('get_playable_video_path', { filePath, force: true })
+      .then((p) => {
+        setSrc(convertFileSrc(p));
+        setStatus('ready');
+      })
+      .catch((e) => {
+        setError(String(e));
+        setStatus('error');
+      });
+  }, [filePath]);
+
+  return { src, status, error, retryWithTranscode };
 }
