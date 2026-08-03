@@ -20,7 +20,7 @@ Organize photos, videos, and music in one place. Search your library by _meaning
 
 ---
 
-![Demo Image](docs/demo_2.png)
+![Demo Image](https://github.com/hsuanhauliu/apps/blob/main/docs/assets/imgs/vivid/demo_1.png?raw=true)
 
 ## What it does
 
